@@ -1486,3 +1486,14 @@ Entry format:
   readiness marker; the live VS Code test passes.
 - Remaining: locals/parameters/globals views, threaded console coordination,
   and M13 1.0.
+
+### 2026-10-27 20:51:06 -07:00 — M8: C do/while support
+
+- Status: added `do { ... } while (cond);` to the teaching C subset.
+- Changes: parser `DoWhile` statement, codegen with break/continue labels,
+  docs and tests.
+- Tests: compiler suite 9/9; do/while body/condition and continue semantics
+  covered.
+- Remaining: switch, structs/unions/enums/typedefs, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

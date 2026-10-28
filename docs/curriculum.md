@@ -41,7 +41,7 @@ The teaching C compiler in this repository follows that layout.
 ## 4. C subset
 
 Supported today: `int`/`char`, pointers, arrays, functions, locals/globals,
-`if`/`else`, `while`, `for`, `return`, arithmetic/comparison/logical operators,
+`if`/`else`, `while`, `do`/`while`, `for`, `return`, arithmetic/comparison/logical operators,
 strings, and `main(argc, argv)`.
 
 Example:

@@ -295,7 +295,8 @@ struct Decl {
 
 struct Stmt {
     enum class Kind {
-        Empty, Expr, Return, Compound, If, While, For, Decl, Break, Continue
+        Empty, Expr, Return, Compound, If, While, DoWhile, For, Decl, Break,
+        Continue
     };
     Kind kind = Kind::Empty;
     std::unique_ptr<Expr> expr;
@@ -562,6 +563,18 @@ private:
             stmt->expr = parse_expression();
             expect(")");
             stmt->body = parse_statement();
+            return stmt;
+        }
+        if (accept("do")) {
+            auto stmt = std::make_unique<Stmt>();
+            stmt->kind = Stmt::Kind::DoWhile;
+            stmt->line = peek().line;
+            stmt->body = parse_statement();
+            expect("while");
+            expect("(");
+            stmt->expr = parse_expression();
+            expect(")");
+            expect(";");
             return stmt;
         }
         if (accept("for")) {
@@ -1194,6 +1207,23 @@ private:
                 out << "  BEQ " << end << "\n";
                 gen_stmt(stmt->body.get(), out);
                 out << "  BRA " << start << "\n";
+                out << end << ":\n";
+                break_labels_.pop_back();
+                continue_labels_.pop_back();
+                return;
+            }
+            case Stmt::Kind::DoWhile: {
+                const auto start = new_label("do");
+                const auto cond = new_label("docond");
+                const auto end = new_label("enddo");
+                break_labels_.push_back(end);
+                continue_labels_.push_back(cond);
+                out << start << ":\n";
+                gen_stmt(stmt->body.get(), out);
+                out << cond << ":\n";
+                gen_expr(stmt->expr.get(), out);
+                out << "  CMP R0, #0\n";
+                out << "  BNE " << start << "\n";
                 out << end << ":\n";
                 break_labels_.pop_back();
                 continue_labels_.pop_back();
