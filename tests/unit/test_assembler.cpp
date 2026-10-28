@@ -27,6 +27,44 @@ TEST_CASE("assemble a small raw program") {
     CHECK(result.raw[5] == 0x88);
 }
 
+TEST_CASE("long conditional branches are relaxed") {
+    std::string source =
+        ".text\n"
+        "start:\n"
+        "  MOV R0, #1\n"
+        "  CMP R0, #1\n"
+        "  BEQ far\n"
+        "  MOV R0, #2\n";
+    for (int i = 0; i < 200; ++i) {
+        source += "  NOP\n";
+    }
+    source += "far:\n  HLT\n";
+
+    kr16::AsmOptions options;
+    options.raw = true;
+    options.base = 0x0100;
+    const auto result = kr16::assemble_text(source, options);
+    REQUIRE(result.ok);
+    REQUIRE(result.raw.size() == 414);
+    // BNE +4 bytes skips the following JMP when BEQ is false.
+    CHECK(result.raw[4] == 0x02);
+    CHECK(result.raw[5] == 0x71);
+}
+
+TEST_CASE("long unconditional branches are relaxed") {
+    std::string source = ".text\nstart:\n";
+    for (int i = 0; i < 200; ++i) {
+        source += "  NOP\n";
+    }
+    source += "  BRA start\n";
+    kr16::AsmOptions options;
+    options.raw = true;
+    options.base = 0x0100;
+    const auto result = kr16::assemble_text(source, options);
+    REQUIRE(result.ok);
+    CHECK(result.raw.size() == 404);
+}
+
 TEST_CASE("branches resolve local labels") {
     const std::string source =
         ".text\n"

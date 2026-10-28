@@ -560,6 +560,14 @@ private:
         std::string build_directory;
     };
 
+    struct BranchSite {
+        int ordinal = 0;
+        std::size_t section = 0;
+        std::uint32_t address = 0;
+        std::uint8_t condition = 0;
+        ExprValue target;
+    };
+
     bool active() const {
         return conditionals_.empty() || conditionals_.back().active();
     }
@@ -608,6 +616,10 @@ private:
                          const ExprValue& displacement, int line);
     void emit_jump(bool call, const ExprValue& target, int line);
     void emit_branch(std::uint8_t condition, const ExprValue& target, int line);
+    void emit_long_branch(std::uint8_t condition, const ExprValue& target,
+                          int line);
+    bool relax_branches();
+    static std::uint8_t inverse_condition(std::uint8_t condition);
     void emit_mul_pair(Op op, int rd, int rs, int line);
     std::string current_file_;
     int current_line_ = 0;
@@ -629,6 +641,10 @@ private:
     std::uint8_t current_debug_column_ = 0;
     std::vector<std::uint8_t> raw_;
     bool first_pass_ = true;
+    bool relaxing_ = false;
+    int branch_ordinal_ = 0;
+    std::unordered_set<int> long_branches_;
+    std::vector<BranchSite> branch_sites_;
     std::vector<std::string> listing_;
 };
 
@@ -837,6 +853,8 @@ void Assembler::reset_for_pass(bool first) {
     current_section_ = 0;
     current_file_.clear();
     current_line_ = 0;
+    branch_ordinal_ = 0;
+    branch_sites_.clear();
     if (sections_.empty()) {
         SectionState text;
         text.name = ".text";
@@ -867,6 +885,26 @@ AsmResult Assembler::run() {
         for (const auto& line : lines_) {
             process_line(line);
         }
+
+        long_branches_.clear();
+        relaxing_ = true;
+        const std::size_t max_iterations = branch_sites_.size() + 2;
+        bool relaxed = false;
+        for (std::size_t iteration = 0; iteration < max_iterations;
+             ++iteration) {
+            reset_for_pass(false);
+            for (const auto& line : lines_) {
+                process_line(line);
+            }
+            if (!relax_branches()) {
+                relaxed = true;
+                break;
+            }
+        }
+        if (!relaxed) {
+            throw AsmError(0, 1, "branch relaxation did not converge");
+        }
+        relaxing_ = false;
 
         reset_for_pass(false);
         for (const auto& line : lines_) {
@@ -1051,7 +1089,7 @@ void Assembler::align_to(std::uint32_t alignment, int line) {
 
 void Assembler::add_reloc(std::uint32_t offset, RelocationType type,
                           const std::string& symbol, std::int32_t addend) {
-    if (first_pass_ || options_.raw) {
+    if (first_pass_ || options_.raw || relaxing_) {
         return;
     }
     relocations_.push_back(RelocRecord{section().name, offset, type, symbol,
@@ -1192,7 +1230,7 @@ LineParts Assembler::split_line(const SourceLine& line) const {
 
 void Assembler::append_line_row(std::uint32_t address, int line) {
     (void)line;
-    if (first_pass_) {
+    if (first_pass_ || relaxing_) {
         return;
     }
     if (current_debug_line_ == 0) {
@@ -1274,7 +1312,7 @@ void Assembler::append_listing(const SourceLine& line,
                                std::uint32_t start_address,
                                std::uint32_t start_offset,
                                std::size_t start_section) {
-    if (first_pass_) {
+    if (first_pass_ || relaxing_) {
         return;
     }
     std::vector<std::uint8_t> bytes;
@@ -1761,8 +1799,54 @@ void Assembler::emit_jump(bool call, const ExprValue& target, int line) {
     emit_instruction(instruction, line);
 }
 
+std::uint8_t Assembler::inverse_condition(std::uint8_t condition) {
+    switch (condition) {
+        case 0: return 1;   // eq <-> ne
+        case 1: return 0;
+        case 2: return 3;   // cs/hs <-> cc/lo
+        case 3: return 2;
+        case 4: return 5;   // mi <-> pl
+        case 5: return 4;
+        case 6: return 7;   // vs <-> vc
+        case 7: return 6;
+        case 8: return 9;   // hi <-> ls
+        case 9: return 8;
+        case 10: return 11; // ge <-> lt
+        case 11: return 10;
+        case 12: return 13; // gt <-> le
+        case 13: return 12;
+        case 14: return 14; // al/bra
+        case 15: return 14; // nv -> always
+        default: return 14;
+    }
+}
+
+void Assembler::emit_long_branch(std::uint8_t condition,
+                                 const ExprValue& target, int line) {
+    if (condition == 14) {
+        emit_jump(false, target, line);
+        return;
+    }
+    Instruction skip;
+    skip.op = Op::Bcc;
+    skip.cond = inverse_condition(condition);
+    skip.imm = 4;
+    skip.size_bytes = 2;
+    emit_instruction(skip, line);
+    emit_jump(false, target, line);
+}
+
 void Assembler::emit_branch(std::uint8_t condition, const ExprValue& target,
                             int line) {
+    const int ordinal = branch_ordinal_++;
+    BranchSite site;
+    site.ordinal = ordinal;
+    site.section = current_section_;
+    site.address = current_address();
+    site.condition = condition;
+    site.target = target;
+    branch_sites_.push_back(site);
+
     if (first_pass_) {
         Instruction instruction;
         instruction.op = Op::Bcc;
@@ -1772,20 +1856,60 @@ void Assembler::emit_branch(std::uint8_t condition, const ExprValue& target,
         emit_instruction(instruction, line);
         return;
     }
-    if (target.symbolic && !target.resolved) {
+
+    if (long_branches_.count(ordinal) != 0) {
+        emit_long_branch(condition, target, line);
+        return;
+    }
+
+    if (!relaxing_ && target.symbolic && !target.resolved) {
         throw AsmError(line, 1, "external branch target is not supported");
     }
     const auto next = static_cast<std::int64_t>(current_address()) + 2;
     const auto displacement = target.value - next;
-    if (displacement < -256 || displacement > 254 || (displacement % 2) != 0) {
+    if (!relaxing_ &&
+        (displacement < -256 || displacement > 254 ||
+         (displacement % 2) != 0)) {
         throw AsmError(line, 1, "branch target out of range");
     }
     Instruction instruction;
     instruction.op = Op::Bcc;
     instruction.cond = condition;
-    instruction.imm = static_cast<std::int32_t>(displacement);
+    instruction.imm = relaxing_ ? 0
+                                : static_cast<std::int32_t>(displacement);
     instruction.size_bytes = 2;
     emit_instruction(instruction, line);
+}
+
+bool Assembler::relax_branches() {
+    bool changed = false;
+    for (const auto& site : branch_sites_) {
+        if (long_branches_.count(site.ordinal) != 0) {
+            continue;
+        }
+        std::int64_t target = site.target.value;
+        if (site.target.symbolic) {
+            const auto it = symbol_index_.find(site.target.symbol);
+            if (it == symbol_index_.end()) {
+                continue;
+            }
+            const auto& symbol = symbols_[it->second];
+            if (!symbol.defined || symbol.external ||
+                symbol.section != static_cast<int>(site.section)) {
+                continue;
+            }
+            target = static_cast<std::int64_t>(symbol.value) +
+                     site.target.addend;
+        }
+        const auto next = static_cast<std::int64_t>(site.address) + 2;
+        const auto displacement = target - next;
+        if (displacement < -256 || displacement > 254 ||
+            (displacement % 2) != 0) {
+            long_branches_.insert(site.ordinal);
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 void Assembler::emit_mul_pair(Op op, int rd, int rs, int line) {

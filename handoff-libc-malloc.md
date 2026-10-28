@@ -7,14 +7,16 @@
 ## Follow-up from the next session
 
 - Casts are now implemented (`d24c958`): `(int *)malloc(128)` and other
-  scalar/pointer casts compile. The allocator could now be written in C, though
-  branch relaxation is still a blocker for large functions.
+  scalar/pointer casts compile.
 - The linker now resolves `__heap_start`, `__stack_top` and `__stack_limit`
   during relocation (`4255269`). The fixed `.bss` pool is therefore no longer
   required; switching the allocator to `[__heap_start, __stack_limit)` is the
   remaining optional step.
+- Assembler branch relaxation is implemented, so large C functions no longer
+  hit the `branch target out of range` limit.
 - The heap work and its new tests are committed. Full CTest result after the
-  cast and linker changes: **38/38**.
+  cast, linker and relaxation changes: **38/38**; doctest: **117 cases /
+  3186 assertions**.
 
 
 This document is for whoever picks this up next. It assumes you know nothing
@@ -24,22 +26,21 @@ about the change beyond the repo itself.
 
 `resources/libc.s` no longer has a bump allocator. It now has a first-fit
 allocator with an address-ordered free list, immediate coalescing, in-place
-`realloc`, and a 16 KiB static pool. Tests pass: the full doctest suite
-(112 cases / 3126 assertions), a behaviour test, and a 400-operation randomised
-churn test with an invariant checker.
+`realloc`, and a 16 KiB static pool. Tests pass: the full doctest suite, a
+behaviour test, and a 400-operation randomised churn test with an invariant
+checker.
 
-Two toolchain limitations shaped the result. The first is now fixed and the
-second is partly fixed:
+Two toolchain limitations shaped the result; both are now fixed:
 
-1. The linker can now resolve relocations against `__heap_start` /
+1. The linker can resolve relocations against `__heap_start` /
    `__stack_top` / `__stack_limit` (commit `4255269`). The fixed pool can be
    replaced by a linker-sized one.
-2. `kr16 cc` now has casts (`d24c958`), but still has no branch relaxation, so
-   it cannot compile a function much over ~1 KiB.
+2. `kr16 cc` has casts (`d24c958`) and the assembler now relaxes long branches,
+   so large C functions compile.
 
-Because of (1) the heap is currently a fixed `.bss` pool; converting it to the
-region above the image is the next allocator change. Because of (2) the
-allocator is assembly, not C.
+The heap is still a fixed `.bss` pool; converting it to the region above the
+image is the next allocator change. The allocator remains assembly for now,
+although the original branch-range blocker is gone.
 
 ## First five minutes
 
@@ -208,10 +209,12 @@ so a single pass verifies tiling, sizes, ordering, coverage and adjacency.
 now relocate correctly; the recommended fix recorded below is implemented.
 The allocator still uses the fixed pool until the follow-up conversion.
 
-### 2. `kr16 cc` limits (partly fixed)
+### 2. `kr16 cc` limits (fixed)
 
-Casts are implemented in `d24c958`. Branch relaxation is still open, so the
-allocator remains assembly for now.
+Casts are implemented in `d24c958`. Branch relaxation is implemented for
+`Bcc` in the assembler, so long functions no longer fail to assemble. Writing
+the allocator in C is now possible in principle; keeping it in assembly is a
+choice, not a remaining toolchain blocker.
 
 ## Gotchas when editing this
 
@@ -220,8 +223,8 @@ allocator remains assembly for now.
    assembler silently encodes a call to the *next instruction* (observed:
    `CALL putchar` → `CALL 0x0758`). This cost time during this work and it will
    bite again.
-2. **Do not reintroduce `__heap_start`/`__stack_limit`** into the allocator
-   until the linker fix is in.
+2. **The linker fix is in**, so `__heap_start`/`__stack_limit` may be used
+   when the pool is converted; do not use them while the fixed pool remains.
 3. **Regenerate after any `libc.s` edit**:
    ```powershell
    python resources/embed_libc.py
@@ -238,8 +241,7 @@ allocator remains assembly for now.
    full file access — MSVC's `cl.exe` deadlocks connecting to `mspdbsrv` over a
    named pipe the workspace sandbox blocks. Use
    `cmd /c build\scratch\build.bat` (calls `vcvars64.bat` then `ninja -C
-   build\windows-ninja kr16`). No C++ sources are modified at the moment, so a
-   rebuild is only needed for the linker fix.
+   build\windows-ninja kr16`). Rebuild after any C++/assembler change.
 6. `tests/support/heapcheck.s` is **test-only**; it is linked explicitly by the
    heap tests, never by `kr16 build`. Keep it out of `libc.s` so the runtime
    stays small.
@@ -254,8 +256,8 @@ allocator remains assembly for now.
    `realloc` in place. They were deliberately not added because the test binary
    needs an MSVC rebuild to run them, and an unverified test is worse than none.
    The integration test already covers the same behaviour.
-3. Consider branch relaxation in `kr16 cc`; it is the blocker for writing
-   runtime code in C.
+3. ~~Consider branch relaxation in `kr16 cc`~~ — done in the assembler; large
+   C functions now assemble.
 4. Optional: `--stack-reserve` exists as a `LinkOptions` field but has no CLI
    flag; once the heap derives from the linker symbols, that flag becomes the
    knob for trading heap against stack.

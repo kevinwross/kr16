@@ -211,6 +211,30 @@ TEST_CASE("compiled casts work") {
               "int v = p[0]; free(p); return v; }\n") == 42);
 }
 
+TEST_CASE("compiled functions can exceed the short branch range") {
+    std::string source = "int main(void) { int s = 0; if (1) {\n";
+    for (int i = 0; i < 160; ++i) {
+        source += "  s = s + 1;\n";
+    }
+    source += "} return s; }\n";
+    CHECK(run_c(source) == 160);
+
+    std::string skipped = "int main(void) { int s = 0; if (0) {\n";
+    for (int i = 0; i < 160; ++i) {
+        skipped += "  s = s + 1;\n";
+    }
+    skipped += "} return s + 7; }\n";
+    CHECK(run_c(skipped) == 7);
+
+    std::string looped = "int main(void) { int i = 0; int s = 0; "
+                         "while (i < 3) {\n";
+    for (int i = 0; i < 160; ++i) {
+        looped += "  s = s + 1;\n";
+    }
+    looped += "  i = i + 1;\n} return s == 480 ? 0 : 1; }\n";
+    CHECK(run_c(looped) == 0);
+}
+
 TEST_CASE("compiled control flow works") {
     CHECK(run_c("int main(void) { int x = 0; if (1) x = 3; else x = 9; "
                 "return x; }\n") == 3);

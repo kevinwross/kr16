@@ -2217,3 +2217,16 @@ Entry format:
 - CTest: 38/38 (`kr16.*.heap*` included); doctest: 114 cases / 3165 assertions.
 - The allocator still uses its fixed 16 KiB `.bss` pool; switching to
   `[__heap_start, __stack_limit)` is the remaining heap change.
+
+### 2026-10-28 — assembler branch relaxation
+
+- Added iterative `Bcc` relaxation to `src/asm/assembler.cpp`. First pass
+  collects symbols; subsequent layout passes promote out-of-range branches and
+  recompute labels until stable; the final pass emits objects, relocations,
+  listings and debug lines at the relaxed addresses.
+- Long conditional branches use an inverse short branch over a 4-byte `JMP`;
+  long unconditional branches use `JMP` directly.
+- Added `docs/decisions/0003-branch-relaxation.md` and tests for forward and
+  backward long branches plus large C functions (taken and skipped bodies).
+- CTest: 38/38; doctest: 117 cases / 3186 assertions.
+- `kr16 cc` is no longer limited to roughly 1 KiB functions by branch range.
