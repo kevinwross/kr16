@@ -139,7 +139,7 @@ churn.
 - [x] Create the repository layout: `src/`, `include/`, `tests/`, `cmake/`,
       `third_party/doctest/`, `resources/prebuilt/`, `vscode/`, `docs/`,
       `examples/`.
-- [ ] Add `LICENSE` (MIT) and third-party notices for doctest.
+- [x] Add `LICENSE` (MIT) and third-party notices for doctest.
 - [ ] Add CMake 3.25+ project with presets for `windows-vs2026`,
       `windows-ninja`, `linux-gcc`, and `linux-clang`.
 - [ ] Add Debug, Release, and Linux sanitizer presets.
@@ -938,3 +938,12 @@ Entry format:
 - Tests: none; documentation-only step.
 - Regressions: none.
 - Next: license and third-party notices.
+
+### 2026-10-27 18:41:14 -07:00 — M0: license and third-party notices
+
+- Status: M0 in progress.
+- Changes: added the MIT `LICENSE`, `THIRD_PARTY_NOTICES.md`, and the vendored
+  doctest license notice.
+- Tests: none; documentation-only step.
+- Regressions: none.
+- Next: CMake project and presets.
