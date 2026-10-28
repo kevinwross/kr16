@@ -42,7 +42,7 @@ The teaching C compiler in this repository follows that layout.
 
 Supported today: `int`/`char`, pointers, arrays, functions, locals/globals,
 `if`/`else`, `while`, `do`/`while`, `for`, `switch`/`case`/`default`, `enum`,
-`typedef`, `return`, arithmetic/comparison/logical operators,
+`typedef`, `struct`, `return`, arithmetic/comparison/logical operators,
 strings, and `main(argc, argv)`.
 
 Example:
@@ -89,4 +89,5 @@ The assembler records one row per instruction with file, line, and column.
 3. Enable Timer 0 interrupts and toggle a memory flag in the handler.
 4. Add `putchar` output to the C example.
 5. Use `kr16 dis` and `kr16 debug` to inspect the resulting image.
+
 

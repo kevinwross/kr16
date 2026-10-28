@@ -25,12 +25,20 @@ struct CompileError : std::runtime_error {
     int column;
 };
 
-enum class TypeKind { Void, Char, Int, Pointer, Array };
+enum class TypeKind { Void, Char, Int, Pointer, Array, Struct };
+
+struct Type;
+struct Member {
+    std::string name;
+    std::shared_ptr<Type> type;
+    int offset = 0;
+};
 
 struct Type {
     TypeKind kind = TypeKind::Int;
     int count = 0;
     std::shared_ptr<Type> base;
+    std::vector<Member> members;
 
     int size() const {
         switch (kind) {
@@ -39,6 +47,13 @@ struct Type {
             case TypeKind::Int: return 2;
             case TypeKind::Pointer: return 2;
             case TypeKind::Array: return count * (base ? base->size() : 2);
+            case TypeKind::Struct: {
+                int total = 0;
+                for (const auto& member : members) {
+                    total = std::max(total, member.offset + member.type->size());
+                }
+                return total;
+            }
         }
         return 2;
     }
@@ -277,7 +292,7 @@ private:
 struct Expr {
     enum class Kind {
         Number, String, Identifier, Call, Binary, Unary, Assign, Index,
-        Conditional, Sizeof
+        Conditional, Sizeof, Member
     };
     Kind kind = Kind::Number;
     std::int64_t value = 0;
@@ -383,7 +398,7 @@ private:
         return text == "int" || text == "char" || text == "void" ||
                text == "long" || text == "short" || text == "unsigned" ||
                text == "signed" || text == "const" || text == "static" ||
-               text == "enum" || text == "typedef" ||
+               text == "enum" || text == "typedef" || text == "struct" ||
                typedefs_.count(std::string(text)) != 0;
     }
 
@@ -400,6 +415,38 @@ private:
                 ++position_;
                 return type;
             }
+        }
+        if (accept("struct")) {
+            std::string tag;
+            if (peek().kind == TokenKind::Identifier) {
+                tag = tokens_[position_++].text;
+            }
+            if (accept("{")) {
+                auto type = make_type(TypeKind::Struct);
+                while (!check("}") && !at_end()) {
+                    auto member_type = parse_type();
+                    const std::string member_name = parse_name();
+                    expect(";");
+                    const int align = member_type->size() > 1 ? 2 : 1;
+                    int offset = type->size();
+                    offset = (offset + align - 1) / align * align;
+                    type->members.push_back(
+                        Member{member_name, member_type, offset});
+                }
+                expect("}");
+                if (!tag.empty()) {
+                    structs_[tag] = type;
+                }
+                return type;
+            }
+            if (tag.empty()) {
+                error("expected a struct tag or body");
+            }
+            const auto found = structs_.find(tag);
+            if (found == structs_.end()) {
+                error("unknown struct '" + tag + "'");
+            }
+            return found->second;
         }
         if (accept("enum")) {
             if (peek().kind == TokenKind::Identifier) {
@@ -933,6 +980,22 @@ private:
                 index->children.push_back(parse_expression());
                 expect("]");
                 expr = std::move(index);
+            } else if (accept(".")) {
+                auto member = std::make_unique<Expr>();
+                member->kind = Expr::Kind::Member;
+                member->op = ".";
+                member->line = expr->line;
+                member->text = parse_name();
+                member->children.push_back(std::move(expr));
+                expr = std::move(member);
+            } else if (accept("->")) {
+                auto member = std::make_unique<Expr>();
+                member->kind = Expr::Kind::Member;
+                member->op = "->";
+                member->line = expr->line;
+                member->text = parse_name();
+                member->children.push_back(std::move(expr));
+                expr = std::move(member);
             } else if (check("++") || check("--")) {
                 const std::string op = peek().text;
                 ++position_;
@@ -998,6 +1061,7 @@ private:
     std::string source_name_;
     std::unordered_map<std::string, std::int64_t> enum_constants_;
     std::unordered_map<std::string, std::shared_ptr<Type>> typedefs_;
+    std::unordered_map<std::string, std::shared_ptr<Type>> structs_;
 };
 
 class Codegen {
@@ -1213,6 +1277,20 @@ private:
             const auto global = global_map_.find(expr->text);
             if (global != global_map_.end()) {
                 return global->second->type;
+            }
+            return make_type(TypeKind::Int);
+        }
+        if (expr->kind == Expr::Kind::Member) {
+            auto base = expression_type(expr->children[0].get());
+            if (expr->op == "->" && base->kind == TypeKind::Pointer) {
+                base = base->base;
+            }
+            if (base && base->kind == TypeKind::Struct) {
+                for (const auto& member : base->members) {
+                    if (member.name == expr->text) {
+                        return member.type;
+                    }
+                }
             }
             return make_type(TypeKind::Int);
         }
@@ -1433,6 +1511,16 @@ private:
                 out << (expression_type(expr)->is_char() ? "  LDB R0, [R0]\n"
                                                         : "  LD R0, [R0]\n");
                 return;
+            case Expr::Kind::Member: {
+                gen_addr(expr, out);
+                const auto type = expression_type(expr);
+                if (type->is_array()) {
+                    return;
+                }
+                out << (type->is_char() ? "  LDB R0, [R0]\n"
+                                        : "  LD R0, [R0]\n");
+                return;
+            }
             case Expr::Kind::Conditional: {
                 const auto else_label = new_label("condelse");
                 const auto end = new_label("condend");
@@ -1514,6 +1602,30 @@ private:
             }
             out << "  POP R1\n";
             out << "  ADD R0, R1\n";
+            return;
+        }
+        if (expr->kind == Expr::Kind::Member) {
+            if (expr->op == "->") {
+                gen_expr(expr->children[0].get(), out);
+            } else {
+                gen_addr(expr->children[0].get(), out);
+            }
+            auto base = expression_type(expr->children[0].get());
+            if (expr->op == "->" && base->kind == TypeKind::Pointer) {
+                base = base->base;
+            }
+            int offset = 0;
+            if (base && base->kind == TypeKind::Struct) {
+                for (const auto& member : base->members) {
+                    if (member.name == expr->text) {
+                        offset = member.offset;
+                        break;
+                    }
+                }
+            }
+            if (offset != 0) {
+                out << "  ADD R0, #" << offset << "\n";
+            }
             return;
         }
         out << "  MOV R0, #0\n";

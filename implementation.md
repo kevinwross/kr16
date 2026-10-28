@@ -1530,3 +1530,15 @@ Entry format:
 - Remaining: structs/unions, `long`, variadics, full preprocessor/libc, and
   M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 20:59:14 -07:00 — M8: C struct support
+
+- Status: added basic struct declarations, tagged/anonymous types, member
+  access (`.` and `->`), local/global struct variables, and `sizeof`.
+- Changes: struct member layout with 2-byte alignment; parser type registry;
+  member address/load codegen; docs/tests.
+- Tests: compiler suite 9/9; member loads/stores, pointers, char members, and
+  struct size covered.
+- Remaining: unions, struct initializers/assignment, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

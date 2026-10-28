@@ -166,6 +166,17 @@ TEST_CASE("compiled control flow works") {
                 "int main(void) { E x = B; return x; }\n") == 4);
     CHECK(run_c("typedef char *Str; "
                 "int main(void) { Str p = \"A\"; return p[0]; }\n") == 65);
+    CHECK(run_c("struct Point { int x; int y; }; "
+                "int main(void) { struct Point p; p.x = 3; p.y = 4; "
+                "return p.x + p.y; }\n") == 7);
+    CHECK(run_c("struct Point { int x; int y; }; "
+                "int main(void) { struct Point p; struct Point *q = &p; "
+                "q->x = 5; q->y = 6; return q->x + q->y; }\n") == 11);
+    CHECK(run_c("struct Pair { char a; int b; }; "
+                "int main(void) { struct Pair p; p.a = 'A'; p.b = 2; "
+                "return p.a + p.b; }\n") == 67);
+    CHECK(run_c("struct Pair { char a; int b; }; "
+                "int main(void) { return sizeof(struct Pair); }\n") == 4);
 }
 
 TEST_CASE("compiled C calls libc") {
