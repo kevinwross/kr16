@@ -153,6 +153,13 @@ TEST_CASE("compiled control flow works") {
                 "default: s = 9; } return s; }\n") == 3);
     CHECK(run_c("int main(void) { int x = 5; switch (x) { case 1: return 1; "
                 "default: break; } return 7; }\n") == 7);
+    CHECK(run_c("enum Color { RED, GREEN = 5, BLUE }; "
+                "int main(void) { return BLUE; }\n") == 6);
+    CHECK(run_c("enum { A = 2, B }; "
+                "int main(void) { return A + B; }\n") == 5);
+    CHECK(run_c("enum Color { RED, GREEN }; "
+                "int main(void) { enum Color c; c = GREEN; return c; }\n") ==
+          1);
 }
 
 TEST_CASE("compiled C calls libc") {

@@ -21,7 +21,7 @@ release.
 
 - Full preprocessor: `#include`, object/function macros, variadic macros,
   conditionals, `#error`, `#line`, and `#pragma once`.
-- Structs, unions, enums, typedefs, qualifiers, and function pointers.
+- Structs, unions, typedefs, qualifiers, and function pointers.
 - `long`/32-bit arithmetic and the associated helper routines.
 - Variadic C functions and `va_list`.
 - Compiler-generated `.debug_types`, `.debug_vars`, and `.debug_frames`.

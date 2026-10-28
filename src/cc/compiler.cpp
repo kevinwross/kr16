@@ -382,7 +382,8 @@ private:
     bool is_type(std::string_view text) const {
         return text == "int" || text == "char" || text == "void" ||
                text == "long" || text == "short" || text == "unsigned" ||
-               text == "signed" || text == "const" || text == "static";
+               text == "signed" || text == "const" || text == "static" ||
+               text == "enum";
     }
 
     std::shared_ptr<Type> parse_base_type() {
@@ -390,6 +391,30 @@ private:
                (peek().text == "const" || peek().text == "static" ||
                 peek().text == "unsigned" || peek().text == "signed")) {
             ++position_;
+        }
+        if (accept("enum")) {
+            if (peek().kind == TokenKind::Identifier) {
+                ++position_;
+            }
+            if (accept("{")) {
+                std::int64_t next = 0;
+                while (!check("}") && !at_end()) {
+                    const std::string name = parse_name();
+                    if (accept("=")) {
+                        auto value = parse_expression();
+                        if (value->kind != Expr::Kind::Number) {
+                            error("enum value must be an integer constant");
+                        }
+                        next = value->value;
+                    }
+                    enum_constants_[name] = next++;
+                    if (!accept(",")) {
+                        break;
+                    }
+                }
+                expect("}");
+            }
+            return make_type(TypeKind::Int);
         }
         if (accept("void")) return make_type(TypeKind::Void);
         if (accept("char")) return make_type(TypeKind::Char);
@@ -424,6 +449,9 @@ private:
     void parse_external(Program& program) {
         const int line = peek().line;
         auto type = parse_type();
+        if (accept(";")) {
+            return;
+        }
         const std::string name = parse_name();
         if (accept("(")) {
             Function function;
@@ -924,6 +952,15 @@ private:
             return expr;
         }
         if (peek().kind == TokenKind::Identifier) {
+            const auto constant = enum_constants_.find(peek().text);
+            if (constant != enum_constants_.end()) {
+                auto expr = std::make_unique<Expr>();
+                expr->kind = Expr::Kind::Number;
+                expr->value = constant->second;
+                expr->line = peek().line;
+                ++position_;
+                return expr;
+            }
             auto expr = std::make_unique<Expr>();
             expr->kind = Expr::Kind::Identifier;
             expr->text = peek().text;
@@ -943,6 +980,7 @@ private:
     std::vector<Token> tokens_;
     std::size_t position_ = 0;
     std::string source_name_;
+    std::unordered_map<std::string, std::int64_t> enum_constants_;
 };
 
 class Codegen {

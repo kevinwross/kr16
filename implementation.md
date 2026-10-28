@@ -1508,3 +1508,15 @@ Entry format:
 - Remaining: structs/unions/enums/typedefs, `long`, variadics, full
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 20:54:51 -07:00 — M8: C enum support
+
+- Status: added enum declarations, enumerator constants, explicit values, and
+  enum-typed variables (represented as `int`).
+- Changes: parser recognizes `enum` in type position; enumerators resolve to
+  number expressions; standalone enum declarations accepted; docs/tests.
+- Tests: compiler suite 9/9; enum values, implicit increments, and enum-type
+  locals covered.
+- Remaining: structs/unions/typedefs, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.
