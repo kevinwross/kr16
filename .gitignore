@@ -1,0 +1,15 @@
+# Build outputs
+/build/
+/out/
+/install/
+
+# IDE state
+.vs/
+.vscode/
+*.user
+*.suo
+CMakeUserPresets.json
+
+# Local tooling
+compile_commands.json
+.cache/

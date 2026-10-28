@@ -154,7 +154,7 @@ churn.
 - [x] Write `docs/isa.md` as the normative ISA reference.
 - [x] Add GitHub Actions workflows for `windows-2025` and `ubuntu-22.04`,
       including push, PR, and `v*` tag triggers.
-- [ ] Add `.gitignore` for build outputs; do not ignore checked-in resources.
+- [x] Add `.gitignore` for build outputs; do not ignore checked-in resources.
 - [ ] Add this implementation plan and its initial log entry.
 
 **Testing:**
@@ -1027,3 +1027,12 @@ Entry format:
 - Tests: YAML reviewed; hosted CI will run on the next push.
 - Regressions: none.
 - Next: `.gitignore` and final M0 verification.
+
+### 2026-10-27 18:47:05 -07:00 — M0: gitignore
+
+- Status: M0 in progress.
+- Changes: added `.gitignore` for build/IDE outputs; verified that
+  `third_party/doctest` and `resources/prebuilt` remain trackable.
+- Tests: `git check-ignore` confirmed `build/` is ignored and resources are not.
+- Regressions: none.
+- Next: final M0 build/test/determinism verification.
