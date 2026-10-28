@@ -77,10 +77,12 @@ LinkResult link_objects(const std::vector<Container>& objects,
             for (std::size_t section_index = 0;
                  section_index < object.sections.size(); ++section_index) {
                 const auto& input = object.sections[section_index];
-                if (!options.strip_debug && input.name == ".debug_vars") {
+                if (!options.strip_debug &&
+                    (input.name == ".debug_vars" ||
+                     input.name == ".debug_frames")) {
                     Section* target = nullptr;
                     for (auto& output : outputs) {
-                        if (output.name == ".debug_vars") {
+                        if (output.name == input.name) {
                             target = &output;
                             break;
                         }

@@ -442,6 +442,10 @@ TEST_CASE("compiler emits local variable debug records") {
     REQUIRE(vars != nullptr);
     const std::string data(vars->data.begin(), vars->data.end());
     CHECK(data.find("main|counter|") != std::string::npos);
+    const auto* frames = linked.image.find_section(".debug_frames");
+    REQUIRE(frames != nullptr);
+    const std::string frame_data(frames->data.begin(), frames->data.end());
+    CHECK(frame_data.find("main|") != std::string::npos);
 }
 
 TEST_CASE("compiler emits source line information with -g") {

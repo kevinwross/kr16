@@ -1749,6 +1749,14 @@ public:
             }
             out << ".text\n";
         }
+        if (debug_ && !debug_frames_.empty()) {
+            out << ".section .debug_frames\n";
+            for (const auto& frame : debug_frames_) {
+                out << ".asciz \"" << frame.function << "|" << frame.size
+                    << "\"\n";
+            }
+            out << ".text\n";
+        }
         return out.str();
     }
 
@@ -1766,6 +1774,10 @@ private:
         std::string name;
         int offset = 0;
         int size = 2;
+    };
+    struct DebugFrame {
+        std::string function;
+        int size = 0;
     };
 
     void collect_globals() {
@@ -1997,6 +2009,7 @@ private:
             out << ".text\n";
         }
         if (debug_) {
+            debug_frames_.push_back(DebugFrame{function.name, frame_size_});
             for (const auto& [name, variable] : locals_) {
                 if (!variable.global && !variable.indirect) {
                     debug_vars_.push_back(DebugVar{
@@ -2824,6 +2837,7 @@ private:
     std::vector<std::string> break_labels_;
     std::vector<std::string> continue_labels_;
     std::vector<DebugVar> debug_vars_;
+    std::vector<DebugFrame> debug_frames_;
     std::string return_label_;
     int frame_size_ = 0;
     int current_named_params_ = 0;

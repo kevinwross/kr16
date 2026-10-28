@@ -1939,3 +1939,14 @@ Entry format:
 - Tests: DAP smoke still passes; full suites green.
 - Remaining: 32-bit `long`, type/frame debug records, and M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:10:13 -07:00 — M9: .debug_frames records
+
+- Status: `cc -g` emits `.debug_frames` entries with function name and frame
+  size; the linker preserves/merges the section.
+- Changes: compiler frame metadata collection/emission; linker debug-section
+  copy covers vars and frames.
+- Tests: compiler/linker debug test checks both `.debug_vars` and
+  `.debug_frames`.
+- Remaining: `.debug_types`, 32-bit `long`, and M13 1.0.
+- Next: M13 release gate and remaining C gaps.
