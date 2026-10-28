@@ -1647,3 +1647,14 @@ Entry format:
 - Remaining: struct parameters/returns, `long`, variadics, full
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:18:16 -07:00 — M8: function prototypes
+
+- Status: function declarations ending in `;` no longer require a body and can
+  declare libc/external functions.
+- Changes: parser returns after the prototype parameter list; calls already
+  emit external relocations.
+- Tests: compiler/libc suite; `int putchar(int);` prototype links and runs.
+- Remaining: variadic prototypes, struct parameters/returns, `long`, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

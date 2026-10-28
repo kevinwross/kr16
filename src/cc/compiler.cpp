@@ -622,6 +622,9 @@ private:
                 }
             }
             expect(")");
+            if (accept(";")) {
+                return;
+            }
             function.body = parse_block();
             program.functions.push_back(std::move(function));
             return;
