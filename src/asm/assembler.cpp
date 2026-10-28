@@ -176,6 +176,7 @@ int parse_register(std::string_view text) {
 
 struct ExprValue {
     std::int64_t value = 0;
+    std::int64_t addend = 0;
     std::string symbol;
     bool symbolic = false;
     bool resolved = true;
@@ -252,8 +253,10 @@ private:
             ExprValue result = a;
             if (op == '+') {
                 result.value += b.value;
+                result.addend += b.value;
             } else if (op == '-') {
                 result.value -= b.value;
+                result.addend -= b.value;
             } else {
                 throw AsmError(0, 1, "symbolic expression is too complex");
             }
@@ -262,6 +265,7 @@ private:
         if (!a.symbolic && b.symbolic && op == '+') {
             ExprValue result = b;
             result.value += a.value;
+            result.addend += a.value;
             return result;
         }
         throw AsmError(0, 1, "symbolic expression is too complex");
@@ -442,7 +446,7 @@ private:
         }
         const std::string token(text_.substr(start, position_ - start));
         try {
-            return ExprValue{static_cast<std::int64_t>(std::stoll(token, nullptr, 0)), "", false, true, false};
+            return ExprValue{static_cast<std::int64_t>(std::stoll(token, nullptr, 0)), 0, "", false, true, false};
         } catch (const std::exception&) {
             fail("number out of range");
         }
@@ -477,7 +481,7 @@ private:
         ++position_;
         return ExprValue{static_cast<std::int64_t>(
                              static_cast<unsigned char>(value)),
-                         "", false, true, false};
+                         0, "", false, true, false};
     }
 
     std::string_view text_;
@@ -1376,6 +1380,23 @@ void Assembler::handle_directive(const std::string& mnemonic,
             alignment = 1u << alignment;
         }
         align_to(alignment, line);
+    } else if (mnemonic == ".space" || mnemonic == ".zero") {
+        if (operands.empty()) {
+            throw AsmError(line, 1, mnemonic + " needs a size");
+        }
+        const auto value = eval(operands[0], line);
+        if (value.symbolic || value.value < 0 ||
+            value.value > 0x10000) {
+            throw AsmError(line, 1, mnemonic + " size out of range");
+        }
+        const auto count = static_cast<std::size_t>(value.value);
+        if (options_.raw) {
+            raw_.insert(raw_.end(), count, 0);
+        } else if (section().nobits) {
+            section().nobits_size += static_cast<std::uint32_t>(count);
+        } else {
+            section().data.insert(section().data.end(), count, 0);
+        }
     } else if (mnemonic == ".org") {
         if (!options_.raw) {
             throw AsmError(line, 1, ".org is only allowed in raw mode");
@@ -1547,16 +1568,16 @@ void Assembler::handle_data(const std::string& directive,
             }
             emit_u8(static_cast<std::uint8_t>(value.value & 0xFF), line);
         } else if (directive == ".word") {
-            if (value.symbolic) {
-                if (value.resolved) {
-                    emit_u16(static_cast<std::uint16_t>(value.value & 0xFFFF),
-                             line);
-                } else {
-                    const auto offset = current_offset();
-                    emit_u16(0, line);
-                    add_reloc(offset, RelocationType::Abs16, value.symbol,
-                              static_cast<std::int32_t>(value.value));
+            if (value.symbolic && !options_.raw) {
+                const auto offset = current_offset();
+                emit_u16(0, line);
+                add_reloc(offset, RelocationType::Abs16, value.symbol,
+                          static_cast<std::int32_t>(value.addend));
+            } else if (value.symbolic) {
+                if (!value.resolved) {
+                    throw AsmError(line, 1, "raw assembly cannot use external symbols");
                 }
+                emit_u16(static_cast<std::uint16_t>(value.value & 0xFFFF), line);
             } else {
                 emit_u16(static_cast<std::uint16_t>(value.value & 0xFFFF),
                          line);
@@ -1621,8 +1642,14 @@ void Assembler::emit_immediate(Op op, int rd, const ExprValue& value, int line) 
         instruction.imm = 0;
         emit_instruction(instruction, line,
                          RelocRecord{"", 0, RelocationType::Abs16, value.symbol,
-                                     static_cast<std::int32_t>(value.value)});
+                                     static_cast<std::int32_t>(value.addend)});
+    } else if (value.symbolic && !options_.raw) {
+        instruction.imm = 0;
+        emit_instruction(instruction, line,
+                         RelocRecord{"", 0, RelocationType::Abs16, value.symbol,
+                                     static_cast<std::int32_t>(value.addend)});
     } else {
+        instruction.imm = static_cast<std::int32_t>(value.value);
         emit_instruction(instruction, line);
     }
 }
@@ -1650,9 +1677,18 @@ void Assembler::emit_load_store(Op op, int rd, bool absolute, int base,
         instruction.imm = 0;
         emit_instruction(instruction, line,
                          RelocRecord{"", 0, RelocationType::Abs16,
-                                     displacement.symbol, 
-                                     static_cast<std::int32_t>(displacement.value)});
+                                     displacement.symbol,
+                                     static_cast<std::int32_t>(
+                                         displacement.addend)});
+    } else if (displacement.symbolic && !options_.raw) {
+        instruction.imm = 0;
+        emit_instruction(instruction, line,
+                         RelocRecord{"", 0, RelocationType::Abs16,
+                                     displacement.symbol,
+                                     static_cast<std::int32_t>(
+                                         displacement.addend)});
     } else {
+        instruction.imm = static_cast<std::int32_t>(displacement.value);
         emit_instruction(instruction, line);
     }
 }
@@ -1687,6 +1723,15 @@ void Assembler::emit_jump(bool call, const ExprValue& target, int line) {
 
 void Assembler::emit_branch(std::uint8_t condition, const ExprValue& target,
                             int line) {
+    if (first_pass_) {
+        Instruction instruction;
+        instruction.op = Op::Bcc;
+        instruction.cond = condition;
+        instruction.imm = 0;
+        instruction.size_bytes = 2;
+        emit_instruction(instruction, line);
+        return;
+    }
     if (target.symbolic && !target.resolved) {
         throw AsmError(line, 1, "external branch target is not supported");
     }

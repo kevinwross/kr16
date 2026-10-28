@@ -13,6 +13,7 @@ add_executable(kr16_tests
   unit/test_vm.cpp
   unit/test_linker.cpp
   unit/test_debug_info.cpp
+  unit/test_compiler.cpp
 )
 target_include_directories(kr16_tests PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../third_party"
@@ -123,3 +124,36 @@ add_test(NAME kr16.vm.kex
 )
 set_tests_properties(kr16.vm.kex PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.link)
+
+add_test(NAME kr16.cc.hello
+  COMMAND kr16 cc "${CMAKE_CURRENT_SOURCE_DIR}/integration/hello.c"
+    -S -o "${CMAKE_CURRENT_BINARY_DIR}/hello.s"
+)
+set_tests_properties(kr16.cc.hello PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.as.hello
+  COMMAND kr16 as "${CMAKE_CURRENT_BINARY_DIR}/hello.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/hello.o"
+)
+set_tests_properties(kr16.as.hello PROPERTIES LABELS "integration"
+  DEPENDS kr16.cc.hello)
+
+add_test(NAME kr16.as.libc
+  COMMAND kr16 as "${CMAKE_SOURCE_DIR}/resources/libc.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/libc.o"
+)
+set_tests_properties(kr16.as.libc PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.ld.hello
+  COMMAND kr16 ld "${CMAKE_CURRENT_BINARY_DIR}/libc.o"
+    "${CMAKE_CURRENT_BINARY_DIR}/hello.o"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/hello.kex"
+)
+set_tests_properties(kr16.ld.hello PROPERTIES LABELS "integration"
+  DEPENDS "kr16.as.libc;kr16.as.hello")
+
+add_test(NAME kr16.vm.hello
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/hello.kex"
+)
+set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
+  DEPENDS kr16.ld.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")

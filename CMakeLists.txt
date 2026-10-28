@@ -36,6 +36,7 @@ add_library(kr16_core STATIC
   src/vm/runner.cpp
   src/link/linker.cpp
   src/debug/debug_info.cpp
+  src/cc/compiler.cpp
 )
 target_include_directories(kr16_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_definitions(kr16_core PUBLIC KR16_VERSION="${PROJECT_VERSION}")

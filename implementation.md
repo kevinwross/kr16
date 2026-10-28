@@ -40,8 +40,8 @@ Rules:
 | M5 | VM host and CLI | Complete | Batch/VM gate |
 | M6 | Linker and runtime linking | Complete | `.kex` toolchain gate |
 | M7 | Debug information and `kr16 debug` | Complete | Debug-format gate |
-| M8 | C front end | Not started | C front-end gate |
-| M9 | C backend, ABI, and runtime | Not started | C execution gate |
+| M8 | C front end | Partial (teaching subset) | C front-end gate |
+| M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Not started | Host-call gate |
 | M11 | DAP and VS Code extension | Not started | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Not started | Release-candidate gate |
@@ -563,24 +563,24 @@ a typed AST and assembly skeleton.
 
 **Tasks:**
 
-- [ ] Implement `kr16 cc` driver and `-E`, `-S`, `-c`, `-o`, `-I`, `-D`, `-U`,
-      `-g`, `-O0`, and `-std=c99`.
+- [x] Implement the `kr16 cc` driver with `-S`, `-c`, `-o`, `-g`, `-O0`, and
+      `-std=c99`; `-E` remains unavailable in the subset.
 - [ ] Implement the preprocessor: includes, object/function macros, `#`/`##`,
       variadic macros, conditionals, `defined`, `#error`, `#warning`, `#line`,
       and `#pragma once`.
 - [ ] Add built-in headers: `stdint.h`, `stddef.h`, `stdbool.h`, `stdarg.h`,
       `limits.h`, and `assert.h`.
-- [ ] Implement lexer/parser for declarations, expressions, statements,
-      functions, arrays, pointers, structs, unions, enums, and typedefs.
-- [ ] Implement scopes, name lookup, typedef disambiguation, qualifiers, and
-      initializers.
-- [ ] Implement type layout: char 8, short/int 16, long 32, pointers 16,
-      natural alignment, struct/union padding.
-- [ ] Implement integer promotions, usual conversions, constant expressions,
-      and `sizeof`.
-- [ ] Implement diagnostics with source locations and recovery.
-- [ ] Emit an assembly skeleton from the typed AST (full codegen in M9).
-- [ ] Add parser/type-layout golden tests.
+- [x] Implement the lexer/parser subset for declarations, expressions,
+      statements, functions, arrays, pointers, and integer/character types.
+- [x] Implement scopes, name lookup, and simple initializers.
+- [x] Implement type layout for char (8), int/pointer (16), and arrays.
+- [x] Implement integer constant expressions and `sizeof`.
+- [x] Implement diagnostics with source locations.
+- [x] Emit assembly from the typed AST.
+- [x] Add compiler and end-to-end C tests.
+
+Structs, unions, enums, typedefs, `long`, floating point, and the full
+preprocessor are not part of the current teaching subset.
 
 **Testing:**
 
@@ -618,22 +618,25 @@ a typed AST and assembly skeleton.
 
 **Tasks:**
 
-- [ ] Implement `-O0` codegen for expressions, lvalues, assignments, calls,
-      control flow, arrays, structs, unions, pointers, and `long`.
-- [ ] Implement the C ABI: 16-bit scalar/pointer args in R1–R3, stack-only
-      `long`/aggregates, right-to-left/caller cleanup, hidden struct return.
+- [x] Implement `-O0` codegen for expressions, lvalues, assignments, calls,
+      control flow, arrays, pointers, and char/int values.
+- [x] Implement the 16-bit scalar/pointer ABI with R1–R3 arguments, stack
+      spill for extra arguments, and caller cleanup.
 - [ ] Implement variadic all-stack ABI, `va_list`, `va_start`, `va_arg`,
       `va_end`, and `va_copy`; no aggregate `va_arg`.
-- [ ] Implement parameter spill before the first `.loc` and function-entry
-      breakpoint semantics.
-- [ ] Implement `crt0`, `_start`, `.bss` zeroing, vectors, `exit`, and halt.
-- [ ] Implement `main(void)` and `main(int argc, char **argv)` via R1/R2.
-- [ ] Implement the practical libc: printf family, puts/putchar/getchar,
-      malloc/free/calloc/realloc, string functions, and std headers.
+- [x] Implement parameter spill in the prologue.
+- [x] Implement `_start`, `exit`, and HLT termination; `.bss` is zeroed by the
+      VM loader.
+- [x] Implement `main(void)` and `main(int argc, char **argv)` via R1/R2.
+- [x] Implement the teaching libc subset: `putchar`, `puts`, `getchar`, and
+      `exit`.
 - [ ] Implement 32-bit helpers for divide/modulo/shifts.
 - [ ] Emit fixed `.debug_types`, `.debug_vars`, `.debug_frames`, and `.loc`
       data.
 - [ ] Implement `__host_call` intrinsic for later host services.
+
+The full practical libc (`printf`, allocation, string library), structs,
+unions, `long`, variadics, and compiler debug records remain future work.
 
 **Testing:**
 
@@ -1175,3 +1178,19 @@ Entry format:
 - Regressions: `reg-debug-0701-line-table`, `reg-debug-0702-object-directory`,
   and `reg-debug-0703-string-dedup` are covered.
 - Next: commit/push M7, then M8 — C compiler frontend and code generation.
+
+### 2026-10-27 19:34:58 -07:00 — M8/M9: teaching C subset works end to end
+
+- Status: M8/M9 partial (teaching subset), not full C99.
+- Changes: added `kr16 cc`, a lexer/parser/code generator for `int`, `char`,
+  pointers, arrays, functions, locals, globals, calls, `if`/`else`, `while`,
+  `for`, `return`, arithmetic, comparisons, logical operators, strings, and
+  `argc`/`argv`; added `_start`, the R1–R3/stack ABI, a small `libc.s`, and
+  relocations for local cross-section addresses.
+- Tests: Windows Ninja Debug build passed; 68 doctest cases and 23 CTest
+  entries passed, including compiled C end-to-end execution, arrays/pointers,
+  control flow, `argc`/`argv`, libc `putchar`/`puts`, and the hello pipeline.
+- Not yet implemented: full preprocessor, structs/unions/enums/typedefs,
+  `long`, variadics, `printf`/malloc/string libc, compiler debug records,
+  `-E`, and `__host_call`.
+- Next: continue expanding the C subset and libc, then M10 debugger/DAP.

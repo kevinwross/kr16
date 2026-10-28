@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "kr16/assembler.hpp"
+#include "kr16/compiler.hpp"
 #include "kr16/container.hpp"
 #include "kr16/debug_info.hpp"
 #include "kr16/diagnostic.hpp"
@@ -475,6 +476,108 @@ int run_debug_command(int argc, char** argv) {
     }
 }
 
+int run_cc_command(int argc, char** argv) {
+    std::string input;
+    std::string output;
+    bool assembly_only = false;
+    bool object_only = false;
+    CompileOptions options;
+
+    for (int i = 0; i < argc; ++i) {
+        const std::string argument = argv[i];
+        if (argument == "-S") {
+            assembly_only = true;
+        } else if (argument == "-c") {
+            object_only = true;
+        } else if (argument == "-o") {
+            if (++i >= argc) {
+                std::cerr << "kr16 cc: -o needs a path\n";
+                return 2;
+            }
+            output = argv[i];
+        } else if (argument == "-g") {
+            options.debug = true;
+        } else if (argument == "-O0" || argument == "-std=c99" ||
+                   argument == "-std=c11") {
+            // Accepted; this compiler is always -O0 and C99-like.
+        } else if (argument == "-I" || argument == "-D" || argument == "-U") {
+            if (++i >= argc) {
+                std::cerr << "kr16 cc: " << argument << " needs a value\n";
+                return 2;
+            }
+        } else if (argument == "-E") {
+            std::cerr << "kr16 cc: -E is not available in the subset compiler\n";
+            return 2;
+        } else if (argument == "--help" || argument == "-h") {
+            std::cout << "usage: kr16 cc file.c [-S|-c] [-o file] [-g]\n";
+            return 0;
+        } else if (!argument.empty() && argument.front() == '-') {
+            std::cerr << "kr16 cc: unknown option " << argument << '\n';
+            return 2;
+        } else if (input.empty()) {
+            input = argument;
+        } else {
+            std::cerr << "kr16 cc: multiple input files\n";
+            return 2;
+        }
+    }
+    if (input.empty()) {
+        std::cerr << "kr16 cc: missing input file\n";
+        return 2;
+    }
+    if (assembly_only && object_only) {
+        std::cerr << "kr16 cc: -S and -c are mutually exclusive\n";
+        return 2;
+    }
+
+    try {
+        const auto bytes = read_bytes(input);
+        const std::string source(bytes.begin(), bytes.end());
+        options.source_name = input;
+        const auto result = compile_c(source, options);
+        if (!result.ok) {
+            for (const auto& diagnostic : result.diagnostics) {
+                std::cerr << input << ":" << diagnostic.line << ":"
+                          << diagnostic.column << ": " << diagnostic.message
+                          << '\n';
+            }
+            return 1;
+        }
+        if (output.empty()) {
+            output = input;
+            const auto dot = output.find_last_of('.');
+            if (dot != std::string::npos) {
+                output.erase(dot);
+            }
+            output += assembly_only ? ".s" : ".o";
+        }
+        if (assembly_only) {
+            const std::string& text = result.assembly;
+            write_bytes(output, std::span<const std::uint8_t>(
+                                    reinterpret_cast<const std::uint8_t*>(
+                                        text.data()),
+                                    text.size()));
+            return 0;
+        }
+        const auto assembled = assemble_text(
+            result.assembly,
+            AsmOptions{false, 0x0100, options.debug, {}, input});
+        if (!assembled.ok) {
+            for (const auto& diagnostic : assembled.diagnostics) {
+                std::cerr << diagnostic.file << ":" << diagnostic.line << ":"
+                          << diagnostic.column << ": " << diagnostic.message
+                          << '\n';
+            }
+            return 1;
+        }
+        write_bytes(output, assembled.object.write());
+        return 0;
+    } catch (const std::exception& error) {
+        std::cerr << "kr16 cc: " << error.what() << '\n';
+        return 1;
+    }
+}
+
 }  // namespace
 
 std::string usage_text() {
@@ -536,6 +639,9 @@ int run(int argc, char** argv) {
     }
     if (command == "debug") {
         return run_debug_command(argc - 2, argv + 2);
+    }
+    if (command == "cc") {
+        return run_cc_command(argc - 2, argv + 2);
     }
     if (!is_known_command(command)) {
         std::cerr << "kr16: unknown command '" << command << "'\n\n";
