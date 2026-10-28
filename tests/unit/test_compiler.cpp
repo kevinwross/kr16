@@ -396,6 +396,10 @@ TEST_CASE("compiled C calls libc") {
               "#include <string.h>\n"
               "int main(void) { char b[8]; memcpy(b, \"abc\", 3); "
               "return b[1]; }\n") == 98);
+    CHECK(run_c_libc_exit(
+              "#include <stdlib.h>\n"
+              "int main(void) { char *p = malloc(4); p[0] = 65; "
+              "p[1] = 66; int v = p[1]; free(p); return v; }\n") == 66);
 }
 
 TEST_CASE("compiled char locals and globals") {

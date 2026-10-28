@@ -1902,3 +1902,13 @@ Entry format:
 - Remaining: 32-bit `long`, malloc/full libc, type/frame debug records, and
   M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:02:57 -07:00 — M7: malloc/free
+
+- Status: added a bump allocator `malloc` and no-op `free` to libc.
+- Changes: `__kr16_heap_ptr` starts at linker `__heap_start`; `<stdlib.h>`
+  declares `malloc`/`free`; manifest regenerated.
+- Tests: compiler/libc suite; heap allocation, writes, and free covered.
+- Remaining: realloc/calloc, 32-bit `long`, type/frame debug records, and
+  M13 1.0.
+- Next: M13 release gate and remaining C gaps.

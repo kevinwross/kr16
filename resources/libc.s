@@ -247,6 +247,33 @@ memcpy:
   POP R4
   RET
 
+.data
+.align 2
+__kr16_heap_ptr:
+  .word __heap_start
+
+.text
+.global malloc
+malloc:
+  CMP R1, #0
+  BEQ .Lmalloc_fail
+  PUSH R4
+  MOV R3, #__kr16_heap_ptr
+  LD R2, [R3]
+  MOV R0, R2
+  ADD R2, R1
+  ST [R3], R2
+  POP R4
+  RET
+.Lmalloc_fail:
+  MOV R0, #0
+  RET
+
+.global free
+free:
+  MOV R0, #0
+  RET
+
 .global exit
 exit:
   HLT

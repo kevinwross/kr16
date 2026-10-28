@@ -325,7 +325,10 @@ std::string builtin_header(std::string_view name) {
                "int printf(char *fmt, ...);\n";
     }
     if (name == "stdlib.h") {
-        return "void exit(int code);\n";
+        return "typedef int size_t;\n"
+               "void exit(int code);\n"
+               "void *malloc(size_t size);\n"
+               "void free(void *ptr);\n";
     }
     if (name == "stdint.h") {
         return "typedef char int8_t;\n"
