@@ -539,8 +539,8 @@ For `ext_op` 0–12, `aux` is reserved (0). For 13–15, `aux` is `Rs` (0–7).
 
 ### 5.7 Instruction Set
 
-The tables below are the intended v1 instruction set. Exact reserved-bit
-values and final encodings are frozen when the ISA spec is finalized.
+The tables below are the v1 instruction set. The normative encodings and
+reserved-bit rules are frozen in `docs/isa.md`.
 
 #### 5.7.1 Data Movement
 
@@ -708,7 +708,7 @@ The C-type control format:
 | 9 | `NOP` | 16 | — | No operation |
 | 10 | `EI` | 16 | — | Set I |
 | 11 | `DI` | 16 | — | Clear I |
-| 12 | `WAIT` | 16 | — | Wait for interrupt (optional in v1) |
+| 12 | `WAIT` | 16 | — | Wait for interrupt |
 | 13 | `PUSH Rs` | 16 | regA = Rs | Push register |
 | 14 | `POP Rd` | 16 | regA = Rd | Pop register |
 | 15 | `SYSCALL #n` | 16 | bits[7:0] = n; R0 = block pointer | Host service call; VM handles; PC advances |
@@ -765,10 +765,9 @@ address) before jumping.
 `HLT` stops the CPU. In run mode the VM exits with `R0 & 0xFF` as the process
 exit code. Pending interrupts do not wake a halted CPU.
 
-`WAIT` is optional in v1. If implemented, it suspends instruction execution
-until an interrupt source is pending; the VM advances the timer while waiting.
-If I=1 the interrupt is taken; if I=0 execution resumes at the next
-instruction. If not implemented, subop 12 is reserved/illegal.
+`WAIT` is implemented in v1. It suspends instruction execution until an
+interrupt source is pending; the VM advances the timer while waiting. If I=1
+the interrupt is taken; if I=0 execution resumes at the next instruction.
 
 `SYSCALL #n`:
 
@@ -3207,14 +3206,15 @@ mode the monitor is disabled; the console is program I/O only.
 
 ### CPU-level
 
-1. Exact opcode assignments and reserved-bit rules (freeze before coding).
-2. Include `WAIT` in v1? Include rotates (`ROL`/`ROR`)?
-3. Final cycle counts and timer prescaler behavior.
-4. Stack-overflow/heap-collision detection: VM policy or runtime policy?
-5. Should the VM zero RAM at reset by default? (Proposed: yes.)
-6. Console key encoding beyond ASCII (arrows, function keys) in v1?
-7. I/O page size: 256 bytes (3.75 KiB ROM) or 64 bytes (4,032-byte ROM)?
-8. Final BIOS jump-table numbering and which entries libc uses.
+Frozen for ISA v1 in `docs/isa.md`: opcode assignments and reserved-bit rules,
+`WAIT` included, `ROL`/`ROR` excluded, cycle counts, 256-byte I/O page, and
+BIOS jump-table numbering 0–13.
+
+Remaining:
+
+1. Stack-overflow/heap-collision detection: VM policy or runtime policy?
+2. Should the VM zero RAM at reset by default? (Proposed: yes.)
+3. Console key encoding beyond ASCII (arrows, function keys) in v1?
 
 ### Next-round questions
 
@@ -3339,7 +3339,7 @@ instructions are 16-bit unless a 32-bit form is shown.
 | `NOP` | No operation | — | Does nothing. |
 | `EI` | Enable interrupts | — | Enables interrupts by setting I. |
 | `DI` | Disable interrupts | — | Disables interrupts by clearing I. |
-| `WAIT` | Wait for interrupt | — | Waits for an interrupt (optional in v1). |
+| `WAIT` | Wait for interrupt | — | Waits for an interrupt. |
 
 ### A.5 Branch Conditions
 

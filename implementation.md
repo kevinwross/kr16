@@ -149,9 +149,9 @@ churn.
       unknown-command handling.
 - [x] Fix the `kr16 version` format:
       `kr16 <semver> (ISA 1, container 1, host ABI 1, debug 1)`.
-- [ ] Freeze instruction encodings, mnemonics, flags, cycle counts, memory map,
+- [x] Freeze instruction encodings, mnemonics, flags, cycle counts, memory map,
       I/O map, and BIOS jump-table numbering.
-- [ ] Write `docs/isa.md` as the normative ISA reference.
+- [x] Write `docs/isa.md` as the normative ISA reference.
 - [ ] Add GitHub Actions workflows for `windows-2025` and `ubuntu-22.04`,
       including push, PR, and `v*` tag triggers.
 - [ ] Add `.gitignore` for build outputs; do not ignore checked-in resources.
@@ -1007,3 +1007,14 @@ Entry format:
 - Tests: both version tests passed.
 - Regressions: none.
 - Next: freeze the ISA and write `docs/isa.md`.
+
+### 2026-10-27 18:46:28 -07:00 — M0: ISA freeze and normative reference
+
+- Status: M0 in progress.
+- Changes: wrote `docs/isa.md` with the frozen v1 formats, opcode maps, control
+  subops, flags, cycle counts, exceptions, reset, and host-call ABI. Recorded
+  the resolved decisions: `WAIT` included, rotates excluded, 256-byte I/O page,
+  BIOS jump-table numbering 0–13.
+- Tests: documentation review only; encoding examples were checked manually.
+- Regressions: none.
+- Next: GitHub Actions workflows.
