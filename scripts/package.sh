@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-VERSION="${1:-0.1.0}"
+VERSION="${1:-1.0.0}"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
 
@@ -14,7 +14,7 @@ STAGE="$DIST/kr16-$VERSION-linux-x64"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/bin"
 cp "build/linux-gcc-release/kr16" "$STAGE/bin/kr16"
-cp README.md LICENSE THIRD_PARTY_NOTICES.md RELEASE_NOTES-0.1.0.md "$STAGE/"
+cp README.md LICENSE THIRD_PARTY_NOTICES.md RELEASE_NOTES-1.0.0.md "$STAGE/"
 cp -R docs examples resources "$STAGE/"
 mkdir -p "$STAGE/vscode"
 cp vscode/package.json vscode/extension.js vscode/README.md vscode/LICENSE "$STAGE/vscode/"
@@ -33,3 +33,4 @@ if [ -f "$VSIX" ]; then
   ( cd "$DIST" && sha256sum "$(basename "$VSIX")" >> SHA256SUMS )
 fi
 echo "wrote $ARCHIVE"
+

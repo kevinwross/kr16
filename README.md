@@ -17,8 +17,8 @@ plan, milestones, test gates, and work log are in
 
 ## Status
 
-The **0.1.0 early-access release candidate** is published at
-<https://github.com/kevinwross/kr16/releases/tag/v0.1.0>. It includes the
+The **1.0.0 teaching-toolchain release** is published at
+<https://github.com/kevinwross/kr16/releases/tag/v1.0.0>. It includes the
 Windows zip, VS Code VSIX, and SHA256SUMS.
 
 Milestones M0–M12 are implemented. The working pipeline is:
@@ -119,6 +119,7 @@ host-call tests, and compiled-C end-to-end execution tests.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 
 

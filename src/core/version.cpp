@@ -3,7 +3,7 @@
 #include <string>
 
 #ifndef KR16_VERSION
-#define KR16_VERSION "0.1.0"
+#define KR16_VERSION "1.0.0"
 #endif
 
 namespace kr16 {
@@ -24,3 +24,4 @@ std::string format_version() {
 }
 
 }  // namespace kr16
+
