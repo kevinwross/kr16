@@ -1148,6 +1148,49 @@ private:
                     out << "  .word " << global.init->value << "\n";
                 }
             } else if (global.init &&
+                       global.init->kind == Expr::Kind::InitList &&
+                       (global.type->kind == TypeKind::Struct ||
+                        global.type->kind == TypeKind::Array)) {
+                out << ".data\n";
+                out << ".align 2\n";
+                out << ".global " << global.name << "\n";
+                out << global.name << ":\n";
+                int cursor = 0;
+                for (std::size_t i = 0;
+                     i < global.init->children.size(); ++i) {
+                    int offset = 0;
+                    std::shared_ptr<Type> element_type = global.type;
+                    if (global.type->kind == TypeKind::Struct) {
+                        if (i >= global.type->members.size()) {
+                            break;
+                        }
+                        offset = global.type->members[i].offset;
+                        element_type = global.type->members[i].type;
+                    } else {
+                        offset = static_cast<int>(i) *
+                                 (global.type->base
+                                      ? global.type->base->size()
+                                      : 2);
+                        element_type = global.type->base;
+                    }
+                    if (offset > cursor) {
+                        out << "  .space " << (offset - cursor) << "\n";
+                    }
+                    const auto* value = global.init->children[i].get();
+                    if (value->kind == Expr::Kind::Number) {
+                        out << (element_type && element_type->is_char()
+                                    ? "  .byte "
+                                    : "  .word ")
+                            << value->value << "\n";
+                    } else {
+                        out << "  .word 0\n";
+                    }
+                    cursor = offset + (element_type ? element_type->size() : 2);
+                }
+                if (cursor < global.type->size()) {
+                    out << "  .space " << (global.type->size() - cursor) << "\n";
+                }
+            } else if (global.init &&
                        global.init->kind == Expr::Kind::String &&
                        global.type->size() == 2) {
                 out << ".data\n";

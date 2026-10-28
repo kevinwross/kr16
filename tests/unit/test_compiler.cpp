@@ -187,6 +187,11 @@ TEST_CASE("compiled control flow works") {
                 "return a[1] + a[2]; }\n") == 5);
     CHECK(run_c("int main(void) { char s[3] = {'A', 'B', 0}; "
                 "return s[1]; }\n") == 66);
+    CHECK(run_c("int a[3] = {1, 2, 3}; "
+                "int main(void) { return a[0] + a[2]; }\n") == 4);
+    CHECK(run_c("struct Pair { char a; int b; }; "
+                "struct Pair p = {'A', 5}; "
+                "int main(void) { return p.a + p.b; }\n") == 70);
 }
 
 TEST_CASE("compiled C calls libc") {

@@ -1566,6 +1566,17 @@ Entry format:
   `long`, variadics, full preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
 
+### 2026-10-27 21:05:46 -07:00 — M8: global aggregate initializers
+
+- Status: global struct and array initializers emit initialized `.data`.
+- Changes: `emit_globals` handles `InitList`, aligns struct members, fills
+  padding with `.space`, and zero-fills trailing elements.
+- Tests: compiler suite 9/9; global int array and mixed char/int struct cover
+  values and padding.
+- Remaining: struct parameters/returns, unions, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.
+
 ### 2026-10-27 21:04:38 -07:00 — Linux -Werror follow-up
 
 - Fixed GCC `-Wswitch` on the new `InitList` expression kind; Linux Debug and
