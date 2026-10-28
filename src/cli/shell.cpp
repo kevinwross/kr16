@@ -319,7 +319,7 @@ int run_shell(std::istream& input, std::ostream& output, std::ostream& error,
         history.load(history_path);
     }
     if (interactive) {
-        output << "kr16 " << format_version() << " interactive\n"
+        output << format_version() << " interactive\n"
                << "Type 'help' for commands; 'quit' or Ctrl-D to leave.\n";
     }
 

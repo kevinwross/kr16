@@ -2024,3 +2024,10 @@ Entry format:
 - Tests: shell tokenizer/history/loop unit tests; Windows 24/24 CTest, doctest
   86/86 (2953 assertions); Linux 23/23.
 - Next: manual interactive-editor smoke if desired.
+
+### 2026-10-27 22:55:37 -07:00 — Interactive shell smoke fixes
+
+- Fixed the duplicated `kr16 kr16` banner and verified the POSIX line editor
+  through a PTY: prompt, typed commands, Up-arrow history recall, and `quit`.
+- Windows Debug/CTest and Linux CTest remain green.
+- Next: optional manual Windows-console smoke.
