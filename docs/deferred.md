@@ -21,7 +21,7 @@ release.
 
 - Full preprocessor: `#include`, object/function macros, variadic macros,
   conditionals, `#error`, `#line`, and `#pragma once`.
-- Qualifiers and function pointers.
+- Function pointers.
 - `long`/32-bit arithmetic and the associated helper routines.
 - Variadic C functions and `va_list`.
 - Compiler-generated `.debug_types`, `.debug_vars`, and `.debug_frames`.
@@ -40,5 +40,6 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 

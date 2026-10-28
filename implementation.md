@@ -1845,3 +1845,15 @@ Entry format:
   initializers covered.
 - Remaining: threaded DAP, struct parameters/returns, `long`, and M13 1.0.
 - Next: M11 threading and M13 closure.
+
+### 2026-10-27 21:53:49 -07:00 — M8: qualifiers and _Bool
+
+- Status: accepts `volatile`, `restrict`, `auto`, `register`, and `inline`
+  qualifiers; adds `_Bool` and `long long` spellings.
+- Changes: qualifier skipping in scalar/pointer declarations; `_Bool` maps to a
+  one-byte value.
+- Tests: compiler suite 11/11; volatile/register locals, `_Bool`, and inline
+  functions.
+- Remaining: threaded DAP, struct parameters/returns, 32-bit `long`, and
+  M13 1.0.
+- Next: M11 threading and M13 closure.

@@ -324,6 +324,11 @@ TEST_CASE("compiled control flow works") {
                 "int f(void) { static struct S s = {{1, 2}, 3}; "
                 "return s.a[0] + s.b; } "
                 "int main(void) { return f(); }\n") == 4);
+    CHECK(run_c("int main(void) { volatile int x = 3; "
+                "register int y = 4; return x + y; }\n") == 7);
+    CHECK(run_c("int main(void) { _Bool b = 1; return b; }\n") == 1);
+    CHECK(run_c("inline int f(void) { return 5; } "
+                "int main(void) { return f(); }\n") == 5);
 }
 
 TEST_CASE("compiled C calls libc") {

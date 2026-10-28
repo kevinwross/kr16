@@ -855,14 +855,19 @@ private:
                text == "long" || text == "short" || text == "unsigned" ||
                text == "signed" || text == "const" || text == "static" ||
                text == "enum" || text == "typedef" || text == "struct" ||
-               text == "union" ||
+               text == "union" || text == "_Bool" || text == "volatile" ||
+               text == "restrict" || text == "auto" || text == "register" ||
+               text == "inline" ||
                typedefs_.count(std::string(text)) != 0;
     }
 
     std::shared_ptr<Type> parse_base_type() {
         while (is_type(peek().text) &&
                (peek().text == "const" || peek().text == "static" ||
-                peek().text == "unsigned" || peek().text == "signed")) {
+                peek().text == "unsigned" || peek().text == "signed" ||
+                peek().text == "volatile" || peek().text == "restrict" ||
+                peek().text == "auto" || peek().text == "register" ||
+                peek().text == "inline")) {
             if (peek().text == "static") {
                 pending_static_ = true;
             }
@@ -977,6 +982,7 @@ private:
             return make_type(TypeKind::Int);
         }
         if (accept("void")) return make_type(TypeKind::Void);
+        if (accept("_Bool")) return make_type(TypeKind::Char);
         if (accept("char")) return make_type(TypeKind::Char);
         if (accept("int")) return make_type(TypeKind::Int);
         if (accept("short")) {
@@ -984,6 +990,7 @@ private:
             return make_type(TypeKind::Int);
         }
         if (accept("long")) {
+            accept("long");
             accept("int");
             return make_type(TypeKind::Int);
         }
@@ -995,6 +1002,8 @@ private:
         auto type = parse_base_type();
         while (accept("*")) {
             type = make_type(TypeKind::Pointer, type);
+            accept("restrict");
+            accept("const");
         }
         return type;
     }
