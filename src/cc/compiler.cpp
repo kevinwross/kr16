@@ -271,6 +271,34 @@ std::string expand_macros(const std::string& line,
     return out;
 }
 
+std::string builtin_header(std::string_view name) {
+    if (name == "stdio.h") {
+        return "int putchar(int c);\n"
+               "int puts(char *s);\n"
+               "int getchar(void);\n"
+               "int printf(char *fmt, ...);\n";
+    }
+    if (name == "stdlib.h") {
+        return "void exit(int code);\n";
+    }
+    if (name == "stdint.h") {
+        return "typedef char int8_t;\n"
+               "typedef unsigned char uint8_t;\n"
+               "typedef int int16_t;\n"
+               "typedef unsigned int uint16_t;\n";
+    }
+    if (name == "stddef.h") {
+        return "typedef int size_t;\n";
+    }
+    if (name == "stdbool.h") {
+        return "#define bool int\n#define true 1\n#define false 0\n";
+    }
+    if (name == "limits.h") {
+        return "#define INT_MAX 32767\n#define INT_MIN (-32768)\n";
+    }
+    return {};
+}
+
 std::string preprocess_source_impl(
     const std::string& source, const std::string& base_dir,
     std::map<std::string, Macro>& macros, int depth) {
@@ -302,23 +330,48 @@ std::string preprocess_source_impl(
                 space == std::string::npos ? "" : trim_copy(rest.substr(space));
             if (directive == "include" && active() && depth < 10) {
                 std::string file;
+                bool system_header = false;
                 if (argument.size() >= 2 && argument.front() == '"' &&
                     argument.back() == '"') {
                     file = argument.substr(1, argument.size() - 2);
+                } else if (argument.size() >= 2 && argument.front() == '<' &&
+                           argument.back() == '>') {
+                    file = argument.substr(1, argument.size() - 2);
+                    system_header = true;
                 }
-                if (!file.empty()) {
+                bool included = false;
+                if (!system_header && !file.empty()) {
                     std::filesystem::path path(file);
                     if (path.is_relative()) {
                         path = std::filesystem::path(base_dir) / path;
                     }
                     std::ifstream include(path, std::ios::binary);
                     if (include.good()) {
-                        std::string included{
+                        std::string included_text{
                             std::istreambuf_iterator<char>(include),
                             std::istreambuf_iterator<char>()};
                         out += preprocess_source_impl(
-                            included, path.parent_path().string(), macros,
+                            included_text, path.parent_path().string(), macros,
                             depth + 1);
+                        included = true;
+                    }
+                }
+                if (!included && !file.empty()) {
+                    const std::string header = builtin_header(file);
+                    if (!header.empty()) {
+                        std::string guard = "__KR16_HEADER_";
+                        for (const char ch : file) {
+                            guard +=
+                                (std::isalnum(static_cast<unsigned char>(ch)) != 0)
+                                    ? static_cast<char>(std::toupper(
+                                          static_cast<unsigned char>(ch)))
+                                    : '_';
+                        }
+                        if (macros.count(guard) == 0) {
+                            macros[guard] = Macro{};
+                            out += preprocess_source_impl(
+                                header, base_dir, macros, depth + 1);
+                        }
                     }
                 }
                 out += '\n';

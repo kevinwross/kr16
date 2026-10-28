@@ -269,6 +269,13 @@ TEST_CASE("compiled control flow works") {
                 "#elif 1\n"
                 "int main(void) { return 5; }\n"
                 "#endif\n") == 4);
+    CHECK(run_c("#include <stdint.h>\n"
+                "int main(void) { uint8_t x = 65; return x; }\n") == 65);
+    CHECK(run_c("#include <stdbool.h>\n"
+                "int main(void) { bool x = true; return x; }\n") == 1);
+    CHECK(run_c_with_libc("#include <stdio.h>\n"
+                          "int main(void) { putchar('A'); return 0; }\n") ==
+          "A");
 }
 
 TEST_CASE("compiled C calls libc") {

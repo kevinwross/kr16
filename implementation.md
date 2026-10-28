@@ -1712,3 +1712,15 @@ Entry format:
 - Remaining: system header search, variadic definitions, struct parameters/
   returns, `long`, full libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:29:17 -07:00 — M8: built-in system headers
+
+- Status: `#include <stdio.h>`, `<stdlib.h>`, `<stdint.h>`, `<stddef.h>`,
+  `<stdbool.h>`, and `<limits.h>` resolve to built-in declarations/macros with
+  include guards.
+- Changes: angular includes and missing quoted includes fall back to a built-in
+  header table; guards are stored in the macro table.
+- Tests: compiler suite; stdint/stdbool and stdio+libc programs covered.
+- Remaining: configurable system header paths, variadic definitions, struct
+  parameters/returns, `long`, full libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.
