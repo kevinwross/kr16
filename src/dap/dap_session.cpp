@@ -989,30 +989,50 @@ std::vector<std::string> DapSession::Impl::handle_stack_trace(
                         "program is not loaded");
         return out;
     }
-    const auto pc = cpu.pc();
-    const auto line = line_for_address(line_rows, pc);
-    JsonValue frame = JsonValue::object();
-    frame.set("id", JsonValue::integer(1));
-    auto name = function_name(container, pc);
-    if (name.empty()) {
-        name = "<program>";
-    }
-    frame.set("name", JsonValue::string(std::move(name)));
-    frame.set("line", JsonValue::integer(line));
-    frame.set("column", JsonValue::integer(0));
-    frame.set("instructionPointerReference",
-              JsonValue::string(format_hex(pc)));
-    if (!source_path.empty()) {
-        JsonValue source = JsonValue::object();
-        source.set("name", JsonValue::string(base_name(source_path)));
-        source.set("path", JsonValue::string(source_path));
-        frame.set("source", std::move(source));
-    }
     JsonValue frames = JsonValue::array();
-    frames.push(std::move(frame));
+    auto add_frame = [&](std::uint16_t frame_pc, std::int64_t id) {
+        const auto line = line_for_address(line_rows, frame_pc);
+        JsonValue frame = JsonValue::object();
+        frame.set("id", JsonValue::integer(id));
+        auto name = function_name(container, frame_pc);
+        if (name.empty()) {
+            name = "<program>";
+        }
+        frame.set("name", JsonValue::string(std::move(name)));
+        frame.set("line", JsonValue::integer(line));
+        frame.set("column", JsonValue::integer(0));
+        frame.set("instructionPointerReference",
+                  JsonValue::string(format_hex(frame_pc)));
+        if (!source_path.empty()) {
+            JsonValue source = JsonValue::object();
+            source.set("name", JsonValue::string(base_name(source_path)));
+            source.set("path", JsonValue::string(source_path));
+            frame.set("source", std::move(source));
+        }
+        frames.push(std::move(frame));
+    };
+
+    std::uint16_t frame_pc = cpu.pc();
+    std::uint16_t frame_pointer = cpu.reg(4);
+    std::int64_t frame_id = 1;
+    add_frame(frame_pc, frame_id);
+    for (int depth = 0; depth < 15; ++depth) {
+        if (frame_pointer < 0x0100 || frame_pointer >= 0xEFFE) {
+            break;
+        }
+        const auto saved_pointer = machine.read16(frame_pointer);
+        const auto return_address =
+            machine.read16(static_cast<std::uint16_t>(frame_pointer + 2));
+        if (saved_pointer == 0 || return_address < 0x0100) {
+            break;
+        }
+        frame_pc = return_address;
+        frame_pointer = saved_pointer;
+        add_frame(frame_pc, ++frame_id);
+    }
     JsonValue body = JsonValue::object();
     body.set("stackFrames", std::move(frames));
-    body.set("totalFrames", JsonValue::integer(1));
+    body.set("totalFrames", JsonValue::integer(frame_id));
     append_response(out, request, "stackTrace", true, std::move(body));
     return out;
 }

@@ -1930,3 +1930,12 @@ Entry format:
 - Tests: compiler/libc suite; grow-and-preserve data.
 - Remaining: 32-bit `long`, type/frame debug records, and M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:08:18 -07:00 — M11: multi-frame stack walk
+
+- Status: DAP `stackTrace` now follows saved `R4` frames and return addresses.
+- Changes: up to 16 frames, validity guards, per-frame function/source/line
+  lookup.
+- Tests: DAP smoke still passes; full suites green.
+- Remaining: 32-bit `long`, type/frame debug records, and M13 1.0.
+- Next: M13 release gate and remaining C gaps.
