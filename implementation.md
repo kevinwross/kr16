@@ -1869,3 +1869,13 @@ Entry format:
 - Tests: Windows 24/24 CTest, doctest 82/82 (2862 assertions); Linux 23/23.
 - Remaining: M9/M8 full C99 gaps, M13 1.0 tag/release.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 21:56:29 -07:00 — M8: by-value struct parameters
+
+- Status: local functions can take struct/union parameters by value.
+- Changes: callers allocate a stack temporary, copy the argument into it, and
+  pass its address; callees store the pointer and access members indirectly.
+  Caller stack cleanup includes temporaries.
+- Tests: compiler suite 11/11; callee mutation does not affect the caller copy.
+- Remaining: struct returns, 32-bit `long`, and M13 1.0.
+- Next: M13 release gate and remaining C gaps.

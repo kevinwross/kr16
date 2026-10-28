@@ -329,6 +329,10 @@ TEST_CASE("compiled control flow works") {
     CHECK(run_c("int main(void) { _Bool b = 1; return b; }\n") == 1);
     CHECK(run_c("inline int f(void) { return 5; } "
                 "int main(void) { return f(); }\n") == 5);
+    CHECK(run_c("struct P { int x; int y; }; "
+                "int sum(struct P p) { p.x = 9; return p.x + p.y; } "
+                "int main(void) { struct P q = {2, 3}; "
+                "return sum(q) + q.x; }\n") == 14);
 }
 
 TEST_CASE("compiled C calls libc") {

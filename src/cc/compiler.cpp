@@ -1744,6 +1744,7 @@ private:
         std::shared_ptr<Type> type;
         int offset = 0;
         bool global = false;
+        bool indirect = false;
         std::string name;
         std::string symbol;
     };
@@ -1974,7 +1975,7 @@ private:
         function_label_ = function.name;
         if (debug_) {
             for (const auto& [name, variable] : locals_) {
-                if (!variable.global) {
+                if (!variable.global && !variable.indirect) {
                     debug_vars_.push_back(DebugVar{
                         function.name, name, variable.offset,
                         variable.type ? variable.type->size() : 2});
@@ -1993,6 +1994,18 @@ private:
             const auto& parameter = function.parameters[i];
             const auto it = locals_.find(parameter.name);
             if (it == locals_.end()) {
+                continue;
+            }
+            if (parameter.type->kind == TypeKind::Struct ||
+                parameter.type->kind == TypeKind::Union) {
+                if (i < 3) {
+                    out << "  ST [R4-" << it->second.offset << "], R"
+                        << (i + 1) << "\n";
+                } else {
+                    out << "  LD R0, [R4+" << (4 + (i - 3) * 2) << "]\n";
+                    out << "  ST [R4-" << it->second.offset << "], R0\n";
+                }
+                locals_[parameter.name].indirect = true;
                 continue;
             }
             if (function.variadic) {
@@ -2447,7 +2460,9 @@ private:
         if (expr->kind == Expr::Kind::Identifier) {
             const auto local = locals_.find(expr->text);
             if (local != locals_.end()) {
-                if (!local->second.symbol.empty()) {
+                if (local->second.indirect) {
+                    out << "  LD R0, [R4-" << local->second.offset << "]\n";
+                } else if (!local->second.symbol.empty()) {
                     out << "  MOV R0, #" << local->second.symbol << "\n";
                 } else {
                     out << "  LEA R0, [R4-" << local->second.offset << "]\n";
@@ -2664,9 +2679,44 @@ private:
             return;
         }
         external_calls_.insert(expr->text);
-        for (auto it = expr->children.rbegin(); it != expr->children.rend(); ++it) {
-            gen_expr(it->get(), out);
+        std::vector<bool> struct_args(expr->children.size(), false);
+        if (local_function != function_map_.end()) {
+            for (std::size_t i = 0; i < struct_args.size(); ++i) {
+                const auto& parameters = local_function->second->parameters;
+                if (i < parameters.size() &&
+                    (parameters[i].type->kind == TypeKind::Struct ||
+                     parameters[i].type->kind == TypeKind::Union)) {
+                    struct_args[i] = true;
+                }
+            }
+        }
+        int temporary_bytes = 0;
+        for (std::size_t i = expr->children.size(); i-- > 0;) {
+            const auto* argument = expr->children[i].get();
+            if (!struct_args[i]) {
+                gen_expr(argument, out);
+                out << "  PUSH R0\n";
+                continue;
+            }
+            const auto type = expression_type(argument);
+            const int size = type ? type->size() : 2;
+            gen_addr(argument, out);
+            out << "  SUB SP, #" << size << "\n";
+            out << "  MOV R1, SP\n";
+            for (int offset = 0; offset < size;) {
+                if (size - offset == 1) {
+                    out << "  LDB R3, [R0+" << offset << "]\n";
+                    out << "  STB [R1+" << offset << "], R3\n";
+                    ++offset;
+                } else {
+                    out << "  LD R3, [R0+" << offset << "]\n";
+                    out << "  ST [R1+" << offset << "], R3\n";
+                    offset += 2;
+                }
+            }
+            out << "  MOV R0, SP\n";
             out << "  PUSH R0\n";
+            temporary_bytes += size;
         }
         const std::size_t count = expr->children.size();
         const std::size_t register_count = std::min<std::size_t>(3, count);
@@ -2674,8 +2724,11 @@ private:
             out << "  POP R" << (i + 1) << "\n";
         }
         out << "  CALL " << expr->text << "\n";
-        if (count > 3) {
-            out << "  ADD SP, #" << (count - 3) * 2 << "\n";
+        const int stack_bytes =
+            (count > 3 ? static_cast<int>(count - 3) * 2 : 0) +
+            temporary_bytes;
+        if (stack_bytes > 0) {
+            out << "  ADD SP, #" << stack_bytes << "\n";
         }
     }
 
