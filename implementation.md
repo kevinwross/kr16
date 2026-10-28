@@ -145,7 +145,7 @@ churn.
 - [x] Add Debug, Release, and Linux sanitizer presets.
 - [x] Vendor doctest; register CTest and test labels.
 - [x] Add warnings-as-errors and the `platform/` boundary rule.
-- [ ] Implement the `kr16` CLI dispatcher skeleton with `help`, `version`, and
+- [x] Implement the `kr16` CLI dispatcher skeleton with `help`, `version`, and
       unknown-command handling.
 - [ ] Fix the `kr16 version` format:
       `kr16 <semver> (ISA 1, container 1, host ABI 1, debug 1)`.
@@ -987,3 +987,13 @@ Entry format:
   the platform-boundary policy test.
 - Regressions: none.
 - Next: CLI dispatcher skeleton.
+
+### 2026-10-27 18:44:43 -07:00 — M0: CLI dispatcher skeleton
+
+- Status: M0 in progress.
+- Changes: added `kr16 help`, `kr16 version`, known-command dispatch, and
+  unknown-command handling with exit code 2.
+- Tests: Windows Debug build passed; all five CTest tests passed, including
+  help, unknown-command, and version checks.
+- Regressions: none.
+- Next: lock the version output format and add its regression coverage.

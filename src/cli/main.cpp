@@ -1,8 +1,5 @@
-#include "kr16/version.hpp"
+#include "kr16/cli.hpp"
 
-#include <iostream>
-
-int main() {
-    std::cout << kr16::format_version() << '\n';
-    return 0;
+int main(int argc, char** argv) {
+    return kr16::cli::run(argc, argv);
 }
