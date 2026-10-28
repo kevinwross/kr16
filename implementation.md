@@ -1497,3 +1497,14 @@ Entry format:
 - Remaining: switch, structs/unions/enums/typedefs, `long`, variadics, full
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 20:53:03 -07:00 — M8: C switch/case support
+
+- Status: added `switch` / `case` / `default` with fallthrough and `break`.
+- Changes: parser collects case bodies, codegen emits compare/jump dispatch;
+  docs and tests updated.
+- Tests: compiler suite 9/9; case selection, default, fallthrough, and break
+  covered.
+- Remaining: structs/unions/enums/typedefs, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

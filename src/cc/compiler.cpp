@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -296,7 +297,7 @@ struct Decl {
 struct Stmt {
     enum class Kind {
         Empty, Expr, Return, Compound, If, While, DoWhile, For, Decl, Break,
-        Continue
+        Continue, Switch
     };
     Kind kind = Kind::Empty;
     std::unique_ptr<Expr> expr;
@@ -307,6 +308,9 @@ struct Stmt {
     std::unique_ptr<Stmt> init;
     std::vector<std::unique_ptr<Stmt>> statements;
     std::vector<Decl> declarations;
+    std::vector<std::unique_ptr<Stmt>> cases;
+    std::vector<std::int64_t> case_values;
+    std::vector<bool> case_defaults;
     int line = 0;
 };
 
@@ -553,6 +557,44 @@ private:
             if (accept("else")) {
                 stmt->else_body = parse_statement();
             }
+            return stmt;
+        }
+        if (accept("switch")) {
+            auto stmt = std::make_unique<Stmt>();
+            stmt->kind = Stmt::Kind::Switch;
+            stmt->line = peek().line;
+            expect("(");
+            stmt->expr = parse_expression();
+            expect(")");
+            expect("{");
+            while (!check("}") && !at_end()) {
+                bool is_default = false;
+                std::int64_t value = 0;
+                if (accept("case")) {
+                    auto label = parse_expression();
+                    if (label->kind != Expr::Kind::Number) {
+                        error("case label must be an integer constant");
+                    }
+                    value = label->value;
+                    expect(":");
+                } else if (accept("default")) {
+                    is_default = true;
+                    expect(":");
+                } else {
+                    error("expected case or default");
+                }
+                auto body = std::make_unique<Stmt>();
+                body->kind = Stmt::Kind::Compound;
+                body->line = peek().line;
+                while (!check("case") && !check("default") &&
+                       !check("}") && !at_end()) {
+                    body->statements.push_back(parse_statement());
+                }
+                stmt->cases.push_back(std::move(body));
+                stmt->case_values.push_back(value);
+                stmt->case_defaults.push_back(is_default);
+            }
+            expect("}");
             return stmt;
         }
         if (accept("while")) {
@@ -1194,6 +1236,34 @@ private:
                     gen_stmt(stmt->else_body.get(), out);
                 }
                 out << end_label << ":\n";
+                return;
+            }
+            case Stmt::Kind::Switch: {
+                const auto end = new_label("endswitch");
+                std::vector<std::string> labels;
+                labels.reserve(stmt->cases.size());
+                for (std::size_t i = 0; i < stmt->cases.size(); ++i) {
+                    labels.push_back(new_label("case"));
+                }
+                gen_expr(stmt->expr.get(), out);
+                std::optional<std::size_t> default_index;
+                for (std::size_t i = 0; i < stmt->cases.size(); ++i) {
+                    if (stmt->case_defaults[i]) {
+                        default_index = i;
+                        continue;
+                    }
+                    out << "  CMP R0, #" << stmt->case_values[i] << "\n";
+                    out << "  BEQ " << labels[i] << "\n";
+                }
+                out << "  BRA "
+                    << (default_index ? labels[*default_index] : end) << "\n";
+                break_labels_.push_back(end);
+                for (std::size_t i = 0; i < stmt->cases.size(); ++i) {
+                    out << labels[i] << ":\n";
+                    gen_stmt(stmt->cases[i].get(), out);
+                }
+                out << end << ":\n";
+                break_labels_.pop_back();
                 return;
             }
             case Stmt::Kind::While: {

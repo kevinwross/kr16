@@ -146,6 +146,13 @@ TEST_CASE("compiled control flow works") {
     CHECK(run_c("int main(void) { int i = 0; int s = 0; do { i++; "
                 "if (i == 3) continue; s = s + i; } while (i < 5); "
                 "return s; }\n") == 12);
+    CHECK(run_c("int main(void) { int x = 2; switch (x) { case 1: return 1; "
+                "case 2: return 2; default: return 9; } return 0; }\n") == 2);
+    CHECK(run_c("int main(void) { int x = 1; int s = 0; switch (x) { "
+                "case 1: s = s + 1; case 2: s = s + 2; break; "
+                "default: s = 9; } return s; }\n") == 3);
+    CHECK(run_c("int main(void) { int x = 5; switch (x) { case 1: return 1; "
+                "default: break; } return 7; }\n") == 7);
 }
 
 TEST_CASE("compiled C calls libc") {
