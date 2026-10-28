@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Partial (DAP/VS Code; live session and prologue refinement pending) | Debug-session gate |
+| M11 | DAP and VS Code extension | Partial (DAP/VS Code; live session and threading pending) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Partial (Windows 0.1.0 RC; Linux CI pending) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC, Linux/sanitizer matrix verified; 1.0 pending) | 1.0 gate |
 
@@ -740,9 +740,9 @@ its console I/O.
 - [x] Implement simple watch/register evaluation through the DAP `evaluate`
       request.
 - [x] Implement the host-call trace view through `evaluate("$syscall_trace")`.
-- [x] Implement function-entry breakpoints at symbol entry; prologue-boundary
-      refinement remains.
-- [ ] Keep program output on the terminal; DAP output is debugger messages only.
+- [x] Implement function-entry breakpoints at the first source line after the
+      prologue when line information is available.
+- [x] Keep program output on the terminal; DAP output is debugger messages only.
 - [x] Build the separate `vscode/` extension with
       `DebugAdapterServer(22152)`, terminal launch, launch configuration, and
       manual attach.
@@ -1393,3 +1393,16 @@ Entry format:
   full Windows suite remains green.
 - Remaining: auto-crt0/libc, `--rom`, live VS Code, and 1.0 release.
 - Next: final release gates and remaining debugger/runtime work.
+
+### 2026-10-27 20:13:18 -07:00 — M11: prologue entry and terminal console split
+
+- Status: DAP function breakpoints resolve to the first source line after the
+  prologue; program output is written to the DAP terminal process, not the
+  debug protocol socket.
+- Changes: function breakpoint address selection scans `.debug_line` rows;
+  `flush_console()` drains MMIO output to stdout after runs/steps; duplicate
+  checklist item removed.
+- Tests: live DAP smoke still passes; full Windows suite remains green.
+- Remaining: live VS Code session, threaded console/DAP coordination, and 1.0
+  release.
+- Next: release closure.

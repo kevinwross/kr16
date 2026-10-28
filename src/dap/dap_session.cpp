@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <map>
 #include <optional>
@@ -519,8 +520,20 @@ struct DapSession::Impl {
         return result;
     }
 
+    void flush_console() {
+        const auto& output = machine.console_output();
+        if (!output.empty()) {
+            std::cout.write(
+                reinterpret_cast<const char*>(output.data()),
+                static_cast<std::streamsize>(output.size()));
+            std::cout.flush();
+            machine.clear_console_output();
+        }
+    }
+
     void report_run(std::vector<std::string>& out, const RunResult& result,
                     const char* step_reason) {
+        flush_console();
         switch (result.kind) {
             case RunKind::Breakpoint:
                 paused = true;
@@ -561,14 +574,17 @@ struct DapSession::Impl {
         }
         const auto used = cpu.step(machine);
         if (used == 0) {
+            flush_console();
             append_termination(out);
             return;
         }
         machine.tick(used);
         if (cpu.halted()) {
+            flush_console();
             append_termination(out);
             return;
         }
+        flush_console();
         paused = true;
         last_stop_address = cpu.pc();
         last_stop_reason = "step";
@@ -746,7 +762,17 @@ std::vector<std::string> DapSession::Impl::handle_set_function_breakpoints(
                 function_entry.set("verified", JsonValue::boolean(false));
                 function_entry.set("message", JsonValue::string("function not found"));
             } else {
-                const auto address = static_cast<std::uint16_t>(found->value);
+                auto address = static_cast<std::uint16_t>(found->value);
+                // Prefer the first source line after the prologue, when
+                // compiler line information is available.
+                for (const auto& row : line_rows) {
+                    if (row.address >= found->value &&
+                        row.address < static_cast<std::uint32_t>(found->value) +
+                                          0x400u) {
+                        address = row.address;
+                        break;
+                    }
+                }
                 const auto id =
                     add_breakpoint(address, line_for_address(line_rows, address));
                 function_entry.set("id", JsonValue::integer(id));
