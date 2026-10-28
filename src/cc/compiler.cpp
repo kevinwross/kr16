@@ -88,6 +88,157 @@ struct Token {
     int column = 1;
 };
 
+std::string trim_copy(std::string_view text) {
+    std::size_t begin = 0;
+    while (begin < text.size() &&
+           std::isspace(static_cast<unsigned char>(text[begin])) != 0) {
+        ++begin;
+    }
+    std::size_t end = text.size();
+    while (end > begin &&
+           std::isspace(static_cast<unsigned char>(text[end - 1])) != 0) {
+        --end;
+    }
+    return std::string(text.substr(begin, end - begin));
+}
+
+std::string expand_macros(
+    const std::string& line,
+    const std::map<std::string, std::string>& macros, int depth) {
+    if (depth > 20) {
+        return line;
+    }
+    std::string out;
+    for (std::size_t i = 0; i < line.size();) {
+        const char ch = line[i];
+        if (ch == '"' || ch == '\'') {
+            const char quote = ch;
+            out += ch;
+            ++i;
+            while (i < line.size()) {
+                out += line[i];
+                if (line[i] == '\\' && i + 1 < line.size()) {
+                    out += line[i + 1];
+                    i += 2;
+                    continue;
+                }
+                if (line[i] == quote) {
+                    ++i;
+                    break;
+                }
+                ++i;
+            }
+            continue;
+        }
+        if (ch == '/' && i + 1 < line.size() && line[i + 1] == '/') {
+            out += line.substr(i);
+            break;
+        }
+        if (std::isalpha(static_cast<unsigned char>(ch)) != 0 || ch == '_') {
+            const std::size_t start = i;
+            while (i < line.size() &&
+                   (std::isalnum(static_cast<unsigned char>(line[i])) != 0 ||
+                    line[i] == '_')) {
+                ++i;
+            }
+            const std::string name = line.substr(start, i - start);
+            const auto macro = macros.find(name);
+            if (macro != macros.end()) {
+                out += expand_macros(macro->second, macros, depth + 1);
+            } else {
+                out += name;
+            }
+            continue;
+        }
+        out += ch;
+        ++i;
+    }
+    return out;
+}
+
+std::string preprocess_source(const std::string& source) {
+    std::istringstream input(source);
+    std::string line;
+    std::string out;
+    std::map<std::string, std::string> macros;
+    struct Conditional {
+        bool parent = true;
+        bool condition = true;
+        bool else_seen = false;
+    };
+    std::vector<Conditional> conditionals;
+    auto active = [&]() {
+        if (conditionals.empty()) {
+            return true;
+        }
+        const auto& top = conditionals.back();
+        return top.parent &&
+               (top.else_seen ? !top.condition : top.condition);
+    };
+    while (std::getline(input, line)) {
+        const std::string trimmed = trim_copy(line);
+        if (!trimmed.empty() && trimmed.front() == '#') {
+            std::string rest = trim_copy(trimmed.substr(1));
+            const auto space = rest.find_first_of(" \t");
+            const std::string directive =
+                space == std::string::npos ? rest : rest.substr(0, space);
+            const std::string argument =
+                space == std::string::npos ? "" : trim_copy(rest.substr(space));
+            if (directive == "define") {
+                if (active()) {
+                    const auto name_space = argument.find_first_of(" \t");
+                    const std::string name =
+                        name_space == std::string::npos
+                            ? argument
+                            : argument.substr(0, name_space);
+                    const std::string value =
+                        name_space == std::string::npos
+                            ? ""
+                            : trim_copy(argument.substr(name_space));
+                    const bool function_like =
+                        !name.empty() && name.back() == '(';
+                    if (!name.empty() && !function_like) {
+                        macros[name] = value;
+                    }
+                }
+            } else if (directive == "undef") {
+                if (active()) {
+                    macros.erase(argument);
+                }
+            } else if (directive == "ifdef" || directive == "ifndef" ||
+                       directive == "if") {
+                const bool parent = active();
+                bool condition = false;
+                if (directive == "ifdef") {
+                    condition = macros.count(argument) != 0;
+                } else if (directive == "ifndef") {
+                    condition = macros.count(argument) == 0;
+                } else {
+                    condition = argument != "0";
+                }
+                conditionals.push_back(
+                    Conditional{parent, condition, false});
+            } else if (directive == "else") {
+                if (!conditionals.empty()) {
+                    conditionals.back().else_seen = true;
+                }
+            } else if (directive == "endif") {
+                if (!conditionals.empty()) {
+                    conditionals.pop_back();
+                }
+            }
+            // Directive lines are removed but their line number is preserved.
+            out += '\n';
+            continue;
+        }
+        if (active()) {
+            out += expand_macros(line, macros, 0);
+        }
+        out += '\n';
+    }
+    return out;
+}
+
 class Lexer {
 public:
     Lexer(std::string_view source) : source_(source) {}
@@ -2057,7 +2208,8 @@ private:
 CompileResult compile_c(const std::string& source, const CompileOptions& options) {
     CompileResult result;
     try {
-        Lexer lexer(source);
+        const std::string preprocessed = preprocess_source(source);
+        Lexer lexer(preprocessed);
         auto tokens = lexer.run();
         Parser parser(std::move(tokens), options.source_name);
         auto program = parser.parse();

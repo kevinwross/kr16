@@ -1668,3 +1668,14 @@ Entry format:
 - Remaining: variadic function definitions/`stdarg.h`, struct parameters/
   returns, `long`, full preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:21:47 -07:00 — M8: basic preprocessor
+
+- Status: added object-like `#define`/`#undef`, recursive macro expansion,
+  `#ifdef`/`#ifndef`/`#else`/`#endif`, and `#if 0`/`#if 1`.
+- Changes: preprocessing pass preserves source line numbers; directives are
+  removed before lexing; macro expansion skips strings and comments.
+- Tests: compiler suite 9/9; macros, recursive macros, and conditionals covered.
+- Remaining: `#include`, function-like macros, `#elif`, variadic definitions,
+  struct parameters/returns, `long`, full libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

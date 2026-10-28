@@ -220,6 +220,21 @@ TEST_CASE("compiled control flow works") {
                 "int main(void) { return a[2]; }\n") == 3);
     CHECK(run_c("int main(void) { int a[] = {4, 5}; "
                 "return sizeof(a) + a[1]; }\n") == 9);
+    CHECK(run_c("#define N 5\n"
+                "int main(void) { return N; }\n") == 5);
+    CHECK(run_c("#define A 2\n"
+                "#define B A + 3\n"
+                "int main(void) { return B; }\n") == 5);
+    CHECK(run_c("#ifdef MISSING\n"
+                "int main(void) { return 1; }\n"
+                "#else\n"
+                "int main(void) { return 2; }\n"
+                "#endif\n") == 2);
+    CHECK(run_c("#if 0\n"
+                "int main(void) { return 1; }\n"
+                "#else\n"
+                "int main(void) { return 3; }\n"
+                "#endif\n") == 3);
 }
 
 TEST_CASE("compiled C calls libc") {
