@@ -115,6 +115,14 @@ std::uint32_t Cpu::step(MemoryBus& bus) {
     if (halted_) {
         return 0;
     }
+    if (flag(FlagI) && interrupt_ack_) {
+        const auto vector = interrupt_ack_();
+        if (vector.has_value()) {
+            raise_exception(*vector, pc_, bus);
+            cycles_ += 7;
+            return 7;
+        }
+    }
     const std::uint16_t instruction_pc = pc_;
     if ((instruction_pc & 1u) != 0) {
         raise_exception(5, instruction_pc, bus);

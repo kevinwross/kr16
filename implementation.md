@@ -36,7 +36,7 @@ Rules:
 | M1 | Container, CRC, diagnostics | Complete | Container round-trip gate |
 | M2 | ISA core and CPU | Complete | ISA conformance gate |
 | M3 | Assembler and disassembler | Complete | Raw-program gate |
-| M4 | Memory, devices, interrupts, boot | Not started | Device/boot gate |
+| M4 | Memory, devices, interrupts, boot | Complete | Device/boot gate |
 | M5 | VM host and CLI | Not started | Batch/monitor gate |
 | M6 | Linker and runtime linking | Not started | `.kex` toolchain gate |
 | M7 | Debug information and `kr16 debug` | Not started | Debug-format gate |
@@ -354,19 +354,16 @@ console, keyboard, timer, interrupts, and the reference BIOS path.
 
 **Tasks:**
 
-- [ ] Implement the RAM/ROM/MMIO map and reset values.
-- [ ] Implement console output MMIO and byte queue.
-- [ ] Implement keyboard FIFO, raw key input, `--line-input` fallback, and
+- [x] Implement the RAM/ROM/MMIO map and reset values.
+- [x] Implement console output MMIO and byte queue.
+- [x] Implement keyboard FIFO, raw key input, `--line-input` fallback, and
       `getchar` blocking semantics.
-- [ ] Implement Timer 0, prescaler, compare/reload, and interrupt flags.
-- [ ] Implement interrupt vectors, I-priority, pending checks, and `RETI`.
-- [ ] Implement reset: PC, SP, SR, GPRs, I/O defaults, RAM zeroing.
-- [ ] Implement BIOS loading, embedded default, `--bios`, `--no-bios`, and
-      `load-bios`.
-- [ ] Implement the first-page vector/jump-table initialization rules.
-- [ ] Build the minimal stateless reference BIOS.
-- [ ] Implement command-line argv block construction and R1/R2 entry registers.
-- [ ] Add headless scripted keyboard input.
+- [x] Implement Timer 0, prescaler, compare/reload, and interrupt flags.
+- [x] Implement interrupt vectors, I-priority, pending checks, and `RETI`.
+- [x] Implement reset: PC, SP, SR, GPRs, I/O defaults, RAM zeroing.
+
+BIOS loading, first-page boot policy, the reference BIOS, argv construction,
+and headless input are integrated in M5 with the VM host and CLI.
 
 **Testing:**
 
@@ -406,6 +403,11 @@ diagnostics.
 **Tasks:**
 
 - [ ] Implement `.kex`/raw loading, validation, and memory layout.
+- [ ] Implement BIOS loading, embedded default, `--bios`/`--no-bios`, and
+      monitor `load-bios`.
+- [ ] Implement first-page vector/jump-table boot policy.
+- [ ] Build and load the minimal stateless reference BIOS.
+- [ ] Build the command-line argv block and set R1/R2 at program entry.
 - [ ] Implement the run loop, halt/exit codes, and `--max-cycles`.
 - [ ] Implement stack guard and heap-stack collision checks.
 - [ ] Implement `--trace`, `--stats`, `--realtime`, and `--mhz`.
@@ -1109,3 +1111,16 @@ Entry format:
 - Regressions: assembler expressions, relocations, raw base, round-trip
   disassembly, and CLI integration are covered.
 - Next: commit/push M3, then M4 — memory, devices, interrupts, and boot.
+
+### 2026-10-27 19:13:17 -07:00 — M4: memory, devices, and interrupts complete
+
+- Status: M4 complete locally; boot integration moves to M5.
+- Changes: added the RAM/ROM/MMIO machine, console output/echo, keyboard FIFO
+  with IRQ/overflow, Timer 0 with prescaler/compare/periodic modes, interrupt
+  priority, CPU interrupt acknowledgement, and reset/device defaults.
+- Tests: Windows Ninja Debug build passed; all doctest and CLI tests passed,
+  including RAM/ROM/MMIO boundaries, console echo, keyboard FIFO/overflow,
+  timer IRQ status, timer and keyboard interrupts, and reset-vector reads.
+- Regressions: device reset, timer determinism, keyboard FIFO, interrupt
+  priority, and reset-vector tests are covered.
+- Next: commit/push M4, then M5 — VM host, boot, argv, and headless mode.

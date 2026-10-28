@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -86,6 +87,10 @@ public:
         syscall_handler_ = std::move(handler);
     }
 
+    void set_interrupt_ack(std::function<std::optional<std::uint16_t>()> ack) {
+        interrupt_ack_ = std::move(ack);
+    }
+
     // Returns the number of simulated cycles consumed by this instruction.
     std::uint32_t step(MemoryBus& bus);
 
@@ -106,6 +111,7 @@ private:
     std::string halt_reason_;
     std::uint64_t cycles_ = 0;
     std::function<void(std::uint8_t)> syscall_handler_;
+    std::function<std::optional<std::uint16_t>()> interrupt_ack_;
 };
 
 }  // namespace kr16
