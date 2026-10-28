@@ -1626,3 +1626,13 @@ Entry format:
 - Remaining: struct parameters/returns, `long`, variadics, full
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:14:47 -07:00 — M8: self-referential structs
+
+- Status: struct/union tags are provisionally registered before member parsing,
+  enabling `struct Node { int v; struct Node *next; };` and forward tags.
+- Changes: tag reuse and member clearing on definition; tests for linked nodes.
+- Tests: compiler suite 9/9; pointer-based linked node access covered.
+- Remaining: struct parameters/returns, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

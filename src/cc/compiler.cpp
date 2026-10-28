@@ -430,8 +430,22 @@ private:
             if (peek().kind == TokenKind::Identifier) {
                 tag = tokens_[position_++].text;
             }
+            std::shared_ptr<Type> type;
+            if (!tag.empty()) {
+                const auto found = structs_.find(tag);
+                if (found != structs_.end()) {
+                    type = found->second;
+                } else {
+                    type = make_type(TypeKind::Struct);
+                    structs_[tag] = type;
+                }
+            }
             if (accept("{")) {
-                auto type = make_type(TypeKind::Struct);
+                if (!type) {
+                    type = make_type(TypeKind::Struct);
+                }
+                type->kind = TypeKind::Struct;
+                type->members.clear();
                 while (!check("}") && !at_end()) {
                     auto member_type = parse_type();
                     const std::string member_name = parse_name();
@@ -444,27 +458,34 @@ private:
                         Member{member_name, member_type, offset});
                 }
                 expect("}");
-                if (!tag.empty()) {
-                    structs_[tag] = type;
-                }
                 return type;
             }
-            if (tag.empty()) {
+            if (!type) {
                 error("expected a struct tag or body");
             }
-            const auto found = structs_.find(tag);
-            if (found == structs_.end()) {
-                error("unknown struct '" + tag + "'");
-            }
-            return found->second;
+            return type;
         }
         if (accept("union")) {
             std::string tag;
             if (peek().kind == TokenKind::Identifier) {
                 tag = tokens_[position_++].text;
             }
+            std::shared_ptr<Type> type;
+            if (!tag.empty()) {
+                const auto found = unions_.find(tag);
+                if (found != unions_.end()) {
+                    type = found->second;
+                } else {
+                    type = make_type(TypeKind::Union);
+                    unions_[tag] = type;
+                }
+            }
             if (accept("{")) {
-                auto type = make_type(TypeKind::Union);
+                if (!type) {
+                    type = make_type(TypeKind::Union);
+                }
+                type->kind = TypeKind::Union;
+                type->members.clear();
                 while (!check("}") && !at_end()) {
                     auto member_type = parse_type();
                     const std::string member_name = parse_name();
@@ -473,19 +494,12 @@ private:
                     type->members.push_back(Member{member_name, member_type, 0});
                 }
                 expect("}");
-                if (!tag.empty()) {
-                    unions_[tag] = type;
-                }
                 return type;
             }
-            if (tag.empty()) {
+            if (!type) {
                 error("expected a union tag or body");
             }
-            const auto found = unions_.find(tag);
-            if (found == unions_.end()) {
-                error("unknown union '" + tag + "'");
-            }
-            return found->second;
+            return type;
         }
         if (accept("enum")) {
             if (peek().kind == TokenKind::Identifier) {
