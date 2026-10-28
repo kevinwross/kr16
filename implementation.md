@@ -155,7 +155,7 @@ churn.
 - [x] Add GitHub Actions workflows for `windows-2025` and `ubuntu-22.04`,
       including push, PR, and `v*` tag triggers.
 - [x] Add `.gitignore` for build outputs; do not ignore checked-in resources.
-- [ ] Add this implementation plan and its initial log entry.
+- [x] Add this implementation plan and its initial log entry.
 
 **Testing:**
 
@@ -1036,3 +1036,12 @@ Entry format:
 - Tests: `git check-ignore` confirmed `build/` is ignored and resources are not.
 - Regressions: none.
 - Next: final M0 build/test/determinism verification.
+
+### 2026-10-27 18:47:26 -07:00 — M0: implementation checklist and log
+
+- Status: M0 checklist complete; final verification pending.
+- Changes: marked the implementation-plan/log checklist item complete; the log
+  is append-only with local timestamps.
+- Tests: none; documentation-only step.
+- Regressions: none.
+- Next: final M0 verification and push.
