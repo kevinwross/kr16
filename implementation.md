@@ -44,8 +44,8 @@ Rules:
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Partial (DAP/VS Code; live session and threading pending) | Debug-session gate |
-| M12 | Bootstrap, CI, and release | Complete (0.1.0 RC, GitHub CI green) | Release-candidate gate |
-| M13 | Hardening, curriculum, `1.0.0` | Partial (CI green; 1.0 pending) | 1.0 gate |
+| M12 | Bootstrap, CI, and release | Complete (0.1.0 published, CI green) | Release-candidate gate |
+| M13 | Hardening, curriculum, `1.0.0` | Partial (0.1.0 published; 1.0 pending) | 1.0 gate |
 
 Dependency order:
 
@@ -1420,6 +1420,16 @@ Entry format:
 - Remaining: M11 live VS Code/threading and M13 1.0 release; C compiler remains
   a teaching subset.
 - Next: final 1.0 gate work.
+
+### 2026-10-27 20:20:40 -07:00 — M12: 0.1.0 GitHub release published
+
+- Status: M12 complete and published.
+- Release: `https://github.com/kevinwross/kr16/releases/tag/v0.1.0`
+- Assets: Windows ZIP (1,034,085 bytes), VSIX (5,038 bytes), SHA256SUMS.
+- Evidence: release created from `v0.1.0` with release notes; CI run
+  `40625771119` green on all five jobs; package test suite 24/24.
+- Remaining: M11 live VS Code/threading, M13 1.0, full C99 subset.
+- Next: continue M11/M13 hardening toward 1.0.
 
 ### 2026-10-27 20:13:47 -07:00 — M12: 0.1.0 release candidate notes
 
