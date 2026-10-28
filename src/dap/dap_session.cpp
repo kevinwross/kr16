@@ -20,6 +20,7 @@
 #include "kr16/debug_info.hpp"
 #include "kr16/debug_objects.hpp"
 #include "kr16/disassembler.hpp"
+#include "kr16/host.hpp"
 #include "kr16/instruction.hpp"
 #include "kr16/machine.hpp"
 
@@ -257,6 +258,7 @@ struct DapSession::Impl {
     DapOptions options;
     Machine machine;
     Cpu cpu;
+    HostServices host{true};
     Container container;
     bool has_container = false;
     std::vector<DebugLineRow> line_rows;
@@ -383,6 +385,9 @@ struct DapSession::Impl {
         machine.zero_ram();
         cpu = Cpu{};
         cpu.reset();
+        cpu.set_syscall_handler(
+            [this](std::uint8_t service, std::uint16_t block,
+                   MemoryBus& bus) { host.call(service, block, bus); });
         container = Container{};
         has_container = false;
         line_rows.clear();
@@ -1081,6 +1086,14 @@ std::vector<std::string> DapSession::Impl::handle_evaluate(
     std::string name = expression;
     for (auto& ch : name) {
         ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (name == "$syscall_trace" || name == "$syscalls") {
+        JsonValue body = JsonValue::object();
+        body.set("result", JsonValue::string(host.trace()));
+        body.set("type", JsonValue::string("string"));
+        body.set("variablesReference", JsonValue::integer(0));
+        append_response(out, request, "evaluate", true, std::move(body));
+        return out;
     }
     std::optional<std::uint16_t> value;
     if (name == "$pc") value = cpu.pc();

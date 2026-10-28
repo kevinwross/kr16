@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Partial (DAP/VS Code; host trace and live session pending) | Debug-session gate |
+| M11 | DAP and VS Code extension | Partial (DAP/VS Code; live session and prologue refinement pending) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Partial (Windows 0.1.0 RC; Linux CI pending) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC, Linux/sanitizer matrix verified; 1.0 pending) | 1.0 gate |
 
@@ -691,7 +691,8 @@ phase.
       enabling file services.
 - [x] Wire the C `__host_call` intrinsic; `errno` plumbing follows the full
       libc.
-- [ ] Ensure DAP can step over `SYSCALL`.
+- [x] Ensure DAP can step over `SYSCALL` (single-step executes the host call;
+      `$syscall_trace` exposes the call log).
 
 **Testing:**
 
@@ -739,7 +740,7 @@ its console I/O.
       evaluate views.
 - [x] Implement simple watch/register evaluation through the DAP `evaluate`
       request.
-- [ ] Implement the host-call trace view.
+- [x] Implement the host-call trace view through `evaluate("$syscall_trace")`.
 - [x] Implement function-entry breakpoints at symbol entry; prologue-boundary
       refinement remains.
 - [ ] Keep program output on the terminal; DAP output is debugger messages only.
@@ -1370,4 +1371,15 @@ Entry format:
   remains green.
 - Remaining: host-call trace, prologue-boundary breakpoint refinement, live
   VS Code session, and Linux CI confirmation.
+- Next: final release/debugger closure.
+
+### 2026-10-27 20:08:35 -07:00 — M11: DAP host-call trace
+
+- Status: M11 host-call trace view added; M10 DAP syscall-step item closed.
+- Changes: DAP session now owns `HostServices`, installs the SYSCALL handler,
+  and exposes `$syscall_trace`/`$syscalls` through `evaluate`; live smoke still
+  passes.
+- Tests: Windows Debug full suite 24/24 CTest; DAP smoke passes.
+- Remaining: live VS Code session, prologue-boundary function breakpoints,
+  threaded console/DAP coordination, and 1.0 release.
 - Next: final release/debugger closure.
