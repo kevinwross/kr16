@@ -1898,7 +1898,54 @@ private:
                 variable.symbol = symbol;
                 locals_[declaration->name] = variable;
                 if (declaration->init &&
-                    declaration->init->kind == Expr::Kind::Number) {
+                    declaration->init->kind == Expr::Kind::InitList &&
+                    (declaration->type->kind == TypeKind::Array ||
+                     declaration->type->kind == TypeKind::Struct ||
+                     declaration->type->kind == TypeKind::Union)) {
+                    out << ".data\n.align 2\n" << symbol << ":\n";
+                    int cursor = 0;
+                    for (std::size_t i = 0;
+                         i < declaration->init->children.size(); ++i) {
+                        int offset = 0;
+                        std::shared_ptr<Type> element_type =
+                            declaration->type;
+                        if (declaration->type->kind == TypeKind::Struct ||
+                            declaration->type->kind == TypeKind::Union) {
+                            if (i >= declaration->type->members.size()) {
+                                break;
+                            }
+                            offset = declaration->type->members[i].offset;
+                            element_type =
+                                declaration->type->members[i].type;
+                        } else {
+                            offset = static_cast<int>(i) *
+                                     (declaration->type->base
+                                          ? declaration->type->base->size()
+                                          : 2);
+                            element_type = declaration->type->base;
+                        }
+                        if (offset > cursor) {
+                            out << "  .space " << (offset - cursor) << "\n";
+                        }
+                        const auto* value =
+                            declaration->init->children[i].get();
+                        if (value->kind == Expr::Kind::Number) {
+                            out << (element_type && element_type->is_char()
+                                        ? "  .byte "
+                                        : "  .word ")
+                                << value->value << "\n";
+                        } else {
+                            out << "  .word 0\n";
+                        }
+                        cursor =
+                            offset + (element_type ? element_type->size() : 2);
+                    }
+                    if (cursor < declaration->type->size()) {
+                        out << "  .space "
+                            << (declaration->type->size() - cursor) << "\n";
+                    }
+                } else if (declaration->init &&
+                           declaration->init->kind == Expr::Kind::Number) {
                     out << ".data\n.align 2\n" << symbol << ":\n";
                     out << (declaration->type->is_char() ? "  .byte "
                                                         : "  .word ")

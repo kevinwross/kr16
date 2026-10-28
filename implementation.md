@@ -1792,3 +1792,14 @@ Entry format:
 - Remaining: static initializer edge cases, threaded DAP, variadic definitions,
   struct parameters/returns, and M13 1.0.
 - Next: M11 threading and M13 closure.
+
+### 2026-10-27 21:44:23 -07:00 — M8: static aggregate initializers
+
+- Status: function-local static arrays and structs can use aggregate
+  initializers.
+- Changes: static storage emission handles `InitList` with member/element
+  offsets and padding.
+- Tests: compiler suite 11/11; static int array and struct initializers.
+- Remaining: threaded DAP, variadic definitions, struct parameters/returns,
+  and M13 1.0.
+- Next: M11 threading and M13 closure.

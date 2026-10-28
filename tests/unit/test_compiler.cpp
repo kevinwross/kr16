@@ -301,6 +301,13 @@ TEST_CASE("compiled control flow works") {
           7);
     CHECK(run_c("int next(void) { static int n = 0; return ++n; } "
                 "int main(void) { next(); next(); return next(); }\n") == 3);
+    CHECK(run_c("int sum(void) { static int a[] = {1, 2, 3}; "
+                "return a[0] + a[2]; } "
+                "int main(void) { return sum(); }\n") == 4);
+    CHECK(run_c("struct P { int x; int y; }; "
+                "int sum(void) { static struct P p = {4, 5}; "
+                "return p.x + p.y; } "
+                "int main(void) { return sum(); }\n") == 9);
 }
 
 TEST_CASE("compiled C calls libc") {
