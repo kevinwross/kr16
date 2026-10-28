@@ -138,6 +138,9 @@ function frame(value) {
                   'configurationDone response');
     await waitFor((m) => m.type === 'event' && m.event === 'stopped',
                   'stopped event');
+    await waitFor((m) => m.type === 'event' &&
+                         m.event === 'kr16.stopped',
+                  'kr16.stopped event');
 
     socket.write(frame({
       seq: 4,
@@ -242,4 +245,5 @@ function frame(value) {
     stop(1);
   }
 })();
+
 

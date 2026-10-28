@@ -2072,3 +2072,18 @@ Entry format:
   the screenshot belong to PlatformIO, not KR16; the native VS Code
   disassembly view is opened from the stack-frame context menu.
 - Next: manual VS Code smoke of the new command.
+
+### 2026-10-28 05:51:30 -07:00 — live disassembly refresh
+
+- The C source is the correct debug source: the stopped PC maps to
+  `bigtest.c` line 14. The custom disassembly document was a snapshot, which is
+  why it did not change while stepping.
+- DAP now emits a `kr16.stopped` custom event carrying the current PC.
+- Extension 1.2.0 listens for it and replaces the open disassembly document
+  around the new PC on every stop/step.
+- Bumped/packaged/installed `kr16-debug-1.2.0.vsix`; no generated `.S` file is
+  needed for disassembly.
+- Tests: DAP smoke asserts `kr16.stopped`; 89/89 doctest (2970 assertions);
+  Linux 23/23; extension JS syntax check passes.
+- Next: rebuild the adapter after stopping the active debug session, then
+  reload VS Code.

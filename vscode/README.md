@@ -36,7 +36,7 @@ Copy this directory into a VS Code extension development host, or package it:
 
 ```text
 npx @vscode/vsce package
-code --install-extension kr16-debug-1.1.0.vsix
+code --install-extension kr16-debug-1.2.0.vsix
 ```
 
 The debugger supports initialize/launch/configurationDone, source and address
@@ -67,6 +67,7 @@ npm test
 The adapter writes a readiness marker next to the program after binding its
 TCP port; the extension waits for that marker instead of probing the
 single-client socket.
+
 
 
 

@@ -96,6 +96,66 @@ class Kr16DescriptorFactory {
   }
 }
 
+let disassemblyDocument = null;
+
+async function disassemblyText(session, reference) {
+  const disassembly = await session.customRequest('disassemble', {
+    memoryReference: reference,
+    instructionCount: 80
+  });
+  const lines = ['; KR16 disassembly at ' + reference];
+  for (const instruction of disassembly.instructions || []) {
+    const marker = instruction.address === reference ? '>' : ' ';
+    lines.push(marker + ' ' + instruction.address + '  ' + instruction.instruction);
+  }
+  return lines.join('\n');
+}
+
+async function replaceDisassembly(text) {
+  const editor = vscode.window.visibleTextEditors.find(
+    (candidate) => candidate.document === disassemblyDocument
+  );
+  if (editor) {
+    const range = new vscode.Range(
+      0,
+      0,
+      disassemblyDocument.lineCount,
+      0
+    );
+    await editor.edit((edit) => edit.replace(range, text));
+  }
+}
+
+async function openOrUpdateDisassembly(session, reference) {
+  const text = await disassemblyText(session, reference);
+  if (disassemblyDocument === null) {
+    disassemblyDocument = await vscode.workspace.openTextDocument({
+      language: 'asm',
+      content: text
+    });
+    await vscode.window.showTextDocument(disassemblyDocument, {
+      preview: true,
+      viewColumn: vscode.ViewColumn.Beside
+    });
+  } else {
+    await replaceDisassembly(text);
+  }
+}
+
+async function currentReference(session) {
+  const trace = await session.customRequest('stackTrace', { threadId: 1 });
+  const frame = trace && trace.stackFrames ? trace.stackFrames[0] : null;
+  let reference = frame && frame.instructionPointerReference;
+  if (!reference) {
+    const evaluated = await session.customRequest('evaluate', {
+      expression: '$pc',
+      context: 'repl'
+    });
+    reference = evaluated && evaluated.result;
+  }
+  return reference;
+}
+
 async function showDisassembly() {
   const session = vscode.debug.activeDebugSession;
   if (!session || session.type !== 'kr16') {
@@ -103,35 +163,8 @@ async function showDisassembly() {
     return;
   }
   try {
-    const trace = await session.customRequest('stackTrace', { threadId: 1 });
-    const frame = trace && trace.stackFrames ? trace.stackFrames[0] : null;
-    let reference = frame && frame.instructionPointerReference;
-    if (!reference) {
-      const evaluated = await session.customRequest('evaluate', {
-        expression: '$pc',
-        context: 'repl'
-      });
-      reference = evaluated && evaluated.result;
-    }
-    const disassembly = await session.customRequest('disassemble', {
-      memoryReference: reference,
-      instructionCount: 80
-    });
-    const lines = [
-      '; KR16 disassembly at ' + reference
-    ];
-    for (const instruction of disassembly.instructions || []) {
-      const marker = instruction.address === reference ? '>' : ' ';
-      lines.push(marker + ' ' + instruction.address + '  ' + instruction.instruction);
-    }
-    const document = await vscode.workspace.openTextDocument({
-      language: 'asm',
-      content: lines.join('\n')
-    });
-    await vscode.window.showTextDocument(document, {
-      preview: true,
-      viewColumn: vscode.ViewColumn.Beside
-    });
+    const reference = await currentReference(session);
+    await openOrUpdateDisassembly(session, reference);
   } catch (error) {
     vscode.window.showErrorMessage(
       'KR16 disassembly failed: ' +
@@ -144,6 +177,32 @@ function activate(context) {
   const factory = new Kr16DescriptorFactory(context);
   context.subscriptions.push(
     vscode.debug.registerDebugAdapterDescriptorFactory('kr16', factory)
+  );
+  context.subscriptions.push(
+    vscode.debug.onDidReceiveDebugSessionCustomEvent(async (event) => {
+      if (event.session.type !== 'kr16' ||
+          event.event !== 'kr16.stopped' ||
+          disassemblyDocument === null) {
+        return;
+      }
+      const reference = event.body && event.body.pc;
+      if (!reference) {
+        return;
+      }
+      try {
+        const text = await disassemblyText(event.session, reference);
+        await replaceDisassembly(text);
+      } catch (_) {
+        // Keep the last disassembly visible if the adapter is unavailable.
+      }
+    })
+  );
+  context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument((document) => {
+      if (document === disassemblyDocument) {
+        disassemblyDocument = null;
+      }
+    })
   );
   context.subscriptions.push(
     vscode.commands.registerCommand('kr16.disassembly', showDisassembly)

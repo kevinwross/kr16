@@ -457,7 +457,10 @@ struct DapSession::Impl {
             ids.push(JsonValue::integer(breakpoint->id));
             body.set("hitBreakpointIds", std::move(ids));
         }
+        JsonValue disassembly_state = body;
+        disassembly_state.set("pc", JsonValue::string(format_hex(cpu.pc())));
         append_event(out, "stopped", std::move(body));
+        append_event(out, "kr16.stopped", std::move(disassembly_state));
     }
 
     void append_termination(std::vector<std::string>& out) {
@@ -1570,6 +1573,7 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
 
 
 
