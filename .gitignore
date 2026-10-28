@@ -17,3 +17,8 @@ compile_commands.json
 node_modules/
 *.vsix
 vscode/.vscode-test/
+
+# Local bigtest artifacts
+tests/kevin/*.o
+tests/kevin/*.kex
+
