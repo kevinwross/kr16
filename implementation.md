@@ -628,8 +628,8 @@ preprocessor are not part of the current teaching subset.
 - [x] Implement `_start`, `exit`, and HLT termination; `.bss` is zeroed by the
       VM loader.
 - [x] Implement `main(void)` and `main(int argc, char **argv)` via R1/R2.
-- [x] Implement the teaching libc subset: `putchar`, `puts`, `getchar`, and
-      `exit`.
+- [x] Implement the teaching libc subset: `putchar`, `puts`, `getchar`,
+      `printf` (`%d`, `%s`, `%c`, `%%`), and `exit`.
 - [ ] Implement 32-bit helpers for divide/modulo/shifts.
 - [ ] Emit fixed `.debug_types`, `.debug_vars`, `.debug_frames`, and `.loc`
       data.

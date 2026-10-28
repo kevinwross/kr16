@@ -149,6 +149,9 @@ TEST_CASE("compiled C calls libc") {
     CHECK(run_c_with_libc(
               "int main(void) { puts(\"Hello\"); return 0; }\n") ==
           "Hello\n");
+    CHECK(run_c_with_libc(
+              "int main(void) { printf(\"%d %s %c\\n\", 42, \"hi\", '!'); "
+              "return 0; }\n") == "42 hi !\n");
 }
 
 TEST_CASE("compiled char locals and globals") {

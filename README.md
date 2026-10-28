@@ -26,9 +26,10 @@ C or assembly → .o → .kex → VM
 The C compiler currently implements a teaching subset: `int`/`char`, pointers,
 arrays, functions, local/global variables, `if`/`else`, `while`, `for`,
 `return`, arithmetic/comparisons/logical operators, strings, and
-`main(argc, argv)`. A small `libc.s` provides `putchar`, `puts`, `getchar`, and
-`exit`. Structs, unions, enums, typedefs, `long`, variadics, the full
-preprocessor, `printf`, and `malloc` are not implemented yet.
+`main(argc, argv)`. A small `libc.s` provides `putchar`, `puts`, `getchar`,
+`printf` (`%d`, `%s`, `%c`, `%%`), and `exit`. Structs, unions, enums,
+typedefs, `long`, variadics, the full preprocessor, the full `printf` family,
+and `malloc` are not implemented yet.
 
 The DAP server, VS Code extension, release packaging, and the remaining
 curriculum docs are still pending.

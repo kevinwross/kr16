@@ -23,8 +23,10 @@ release.
 - `long`/32-bit arithmetic and the associated helper routines.
 - Variadic C functions and `va_list`.
 - Compiler-generated `.debug_types`, `.debug_vars`, and `.debug_frames`.
-- Full libc: `printf` family, `malloc`/`free`, string functions, std headers,
-  and `errno` plumbing.
+- Full libc: the complete `printf` family, `malloc`/`free`, string functions,
+  std headers, and `errno` plumbing. The current libc has `putchar`, `puts`,
+  `getchar`, `exit`, and a small `printf` supporting `%d`, `%s`, `%c`, and
+  `%%`.
 - Floating point, locale, signals, `setjmp`/`longjmp`, and wide characters.
 
 ## Release engineering
