@@ -1891,3 +1891,14 @@ Entry format:
 - Tests: compiler suite 11/11; `struct P q = make();` covered.
 - Remaining: 32-bit `long`, full libc/type-frame debug records, M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:00:58 -07:00 — M7: libc string functions
+
+- Status: added `strlen`, `strcpy`, `strcmp`, `memset`, and `memcpy` to
+  `resources/libc.s`; `<string.h>` is a built-in header.
+- Changes: resource manifest hashes regenerated with LF normalization.
+- Tests: compiler/libc suite; copy, length, compare, fill, and copy-bytes
+  covered.
+- Remaining: 32-bit `long`, malloc/full libc, type/frame debug records, and
+  M13 1.0.
+- Next: M13 release gate and remaining C gaps.

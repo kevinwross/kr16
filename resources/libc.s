@@ -170,6 +170,83 @@ printf:
   STB [R3], R0
   RET
 
+.global strlen
+strlen:
+  MOV R0, #0
+.Lstrlen_loop:
+  LDB R2, [R1]
+  CMP R2, #0
+  BEQ .Lstrlen_done
+  INC R0
+  INC R1
+  BRA .Lstrlen_loop
+.Lstrlen_done:
+  RET
+
+.global strcpy
+strcpy:
+  MOV R0, R1
+.Lstrcpy_loop:
+  LDB R3, [R2]
+  STB [R1], R3
+  CMP R3, #0
+  BEQ .Lstrcpy_done
+  INC R1
+  INC R2
+  BRA .Lstrcpy_loop
+.Lstrcpy_done:
+  RET
+
+.global strcmp
+strcmp:
+.Lstrcmp_loop:
+  LDB R0, [R1]
+  LDB R3, [R2]
+  CMP R0, R3
+  BNE .Lstrcmp_diff
+  CMP R0, #0
+  BEQ .Lstrcmp_equal
+  INC R1
+  INC R2
+  BRA .Lstrcmp_loop
+.Lstrcmp_diff:
+  SUB R0, R3
+  RET
+.Lstrcmp_equal:
+  MOV R0, #0
+  RET
+
+.global memset
+memset:
+  MOV R0, R1
+.Lmemset_loop:
+  CMP R3, #0
+  BEQ .Lmemset_done
+  STB [R1], R2
+  INC R1
+  DEC R3
+  BRA .Lmemset_loop
+.Lmemset_done:
+  RET
+
+.global memcpy
+memcpy:
+  PUSH R4
+  MOV R4, R1
+.Lmemcpy_loop:
+  CMP R3, #0
+  BEQ .Lmemcpy_done
+  LDB R0, [R2]
+  STB [R1], R0
+  INC R1
+  INC R2
+  DEC R3
+  BRA .Lmemcpy_loop
+.Lmemcpy_done:
+  MOV R0, R4
+  POP R4
+  RET
+
 .global exit
 exit:
   HLT

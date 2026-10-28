@@ -43,8 +43,7 @@ int run_c(const std::string& source,
 }
 
 std::string run_c_with_libc(const std::string& source,
-                            const std::vector<std::string>& arguments = {}) {
-    const auto compiled = kr16::compile_c(source, kr16::CompileOptions{});
+                            const std::vector<std::string>& arguments = {}) {    const auto compiled = kr16::compile_c(source, kr16::CompileOptions{});
     REQUIRE(compiled.ok);
     const auto assembled =
         kr16::assemble_text(compiled.assembly, kr16::AsmOptions{});
@@ -69,6 +68,32 @@ std::string run_c_with_libc(const std::string& source,
     std::filesystem::remove(path);
     REQUIRE(result.ok);
     return result.output;
+}
+
+int run_c_libc_exit(const std::string& source) {
+    const auto compiled = kr16::compile_c(source, kr16::CompileOptions{});
+    REQUIRE(compiled.ok);
+    const auto assembled =
+        kr16::assemble_text(compiled.assembly, kr16::AsmOptions{});
+    REQUIRE(assembled.ok);
+    const auto libc = kr16::assemble_file(
+        std::string(KR16_SOURCE_DIR) + "/resources/libc.s", kr16::AsmOptions{});
+    REQUIRE(libc.ok);
+    const auto linked = kr16::link_objects({libc.object, assembled.object});
+    REQUIRE(linked.ok);
+    static int counter = 0;
+    const auto path = std::filesystem::current_path() /
+                      ("kr16_c_libc_exit_" + std::to_string(counter++) + ".kex");
+    {
+        std::ofstream output(path, std::ios::binary);
+        const auto bytes = linked.image.write();
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+    }
+    const auto result = kr16::run_vm(path.string(), kr16::VmOptions{});
+    std::filesystem::remove(path);
+    REQUIRE(result.ok);
+    return result.exit_code;
 }
 
 }  // namespace
@@ -356,6 +381,21 @@ TEST_CASE("compiled C calls libc") {
               "int printf(char *fmt, ...); "
               "int main(void) { printf(\"%d\\n\", 7); return 0; }\n") ==
           "7\n");
+    CHECK(run_c_libc_exit(
+              "#include <string.h>\n"
+              "int main(void) { char b[8]; strcpy(b, \"hi\"); "
+              "return strlen(b); }\n") == 2);
+    CHECK(run_c_libc_exit(
+              "#include <string.h>\n"
+              "int main(void) { return strcmp(\"a\", \"a\") == 0; }\n") == 1);
+    CHECK(run_c_libc_exit(
+              "#include <string.h>\n"
+              "int main(void) { char b[8]; memset(b, 'x', 3); "
+              "return b[2]; }\n") == 120);
+    CHECK(run_c_libc_exit(
+              "#include <string.h>\n"
+              "int main(void) { char b[8]; memcpy(b, \"abc\", 3); "
+              "return b[1]; }\n") == 98);
 }
 
 TEST_CASE("compiled char locals and globals") {

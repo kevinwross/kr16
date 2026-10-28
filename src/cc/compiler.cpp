@@ -336,6 +336,14 @@ std::string builtin_header(std::string_view name) {
     if (name == "stddef.h") {
         return "typedef int size_t;\n";
     }
+    if (name == "string.h") {
+        return "typedef int size_t;\n"
+               "size_t strlen(char *s);\n"
+               "char *strcpy(char *d, char *s);\n"
+               "int strcmp(char *a, char *b);\n"
+               "void *memset(void *d, int v, size_t n);\n"
+               "void *memcpy(void *d, void *s, size_t n);\n";
+    }
     if (name == "stdbool.h") {
         return "#define bool int\n#define true 1\n#define false 0\n";
     }
