@@ -34,7 +34,7 @@ Rules:
 |---|---|---|---|
 | M0 | Repository, build skeleton, ISA freeze | Complete | Build and spec gate |
 | M1 | Container, CRC, diagnostics | Complete | Container round-trip gate |
-| M2 | ISA core and CPU | Not started | ISA conformance gate |
+| M2 | ISA core and CPU | Complete | ISA conformance gate |
 | M3 | Assembler and disassembler | Not started | Raw-program gate |
 | M4 | Memory, devices, interrupts, boot | Not started | Device/boot gate |
 | M5 | VM host and CLI | Not started | Batch/monitor gate |
@@ -243,21 +243,21 @@ execution, flags, exceptions, and cycle accounting.
 
 **Tasks:**
 
-- [ ] Add the ISA table and encoder/decoder for R, I, M, B, M8, S, BIT, C, and
+- [x] Add the ISA table and encoder/decoder for R, I, M, B, M8, S, BIT, C, and
       X formats.
-- [ ] Implement the C-type `SYSCALL #n` decode path.
-- [ ] Implement registers R0–R4, PC, SP, SR, flags, and reset state.
-- [ ] Implement memory bus hooks and RAM/ROM/MMIO access policy.
-- [ ] Implement arithmetic, logic, shifts, bit operations, and compare/test.
-- [ ] Implement `MUL`, `MULS`, `MULU`, `DIV`, `DIVU`, `MOD`, and `MODU`,
+- [x] Implement the C-type `SYSCALL #n` decode path.
+- [x] Implement registers R0–R4, PC, SP, SR, flags, and reset state.
+- [x] Implement memory bus hooks and RAM/ROM/MMIO access policy.
+- [x] Implement arithmetic, logic, shifts, bit operations, and compare/test.
+- [x] Implement `MUL`, `MULS`, `MULU`, `DIV`, `DIVU`, `MOD`, and `MODU`,
       including pair rules and illegal encodings.
-- [ ] Implement loads/stores, indexed/absolute/PC-relative forms, and byte
+- [x] Implement loads/stores, indexed/absolute/PC-relative forms, and byte
       variants.
-- [ ] Implement branches, `JMP`, `CALL`, `RET`, `TRAP`, `BRK`, `HLT`, `EI`,
+- [x] Implement branches, `JMP`, `CALL`, `RET`, `TRAP`, `BRK`, `HLT`, `EI`,
       `DI`, `PUSH`, and `POP`.
-- [ ] Implement exception vectors and illegal-instruction handling.
-- [ ] Implement exact cycle counts from the design.
-- [ ] Add a CPU test harness that executes raw instruction sequences.
+- [x] Implement exception vectors and illegal-instruction handling.
+- [x] Implement exact cycle counts from the design.
+- [x] Add a CPU test harness that executes raw instruction sequences.
 
 **Testing:**
 
@@ -1078,3 +1078,19 @@ Entry format:
 - Regressions: container round-trip, CRC, string dedup, bad version, and
   truncated table are covered.
 - Next: commit/push M1, then M2 — ISA core and CPU.
+
+### 2026-10-27 19:01:02 -07:00 — M2: ISA core and CPU complete
+
+- Status: M2 complete locally.
+- Changes: added the instruction model and encoder/decoder, CPU registers and
+  flags, ALU/multiply/divide/shift/bit execution, loads/stores, stack and
+  control flow, exceptions, `SYSCALL` dispatch, cycle accounting, and a
+  raw-sequence CPU test harness.
+- Tests: Windows Ninja Debug build passed; 31 doctest cases passed, including
+  encode/decode examples, ALU flags, pair multiplication, divide-by-zero,
+  loads/stores, calls/returns, branches, traps, breakpoints, HLT, illegal
+  instructions, and random decode fuzzing.
+- Regressions: `reg-cpu-0201-flags`, `reg-cpu-0202-pair-mul`,
+  `reg-cpu-0203-divide-by-zero`, `reg-cpu-0204-illegal-encoding`, and
+  `reg-cpu-0205-cycle-counts` are covered by the CPU/instruction suite.
+- Next: commit/push M2, then M3 — assembler and disassembler.
