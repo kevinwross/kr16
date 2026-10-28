@@ -216,6 +216,10 @@ TEST_CASE("compiled control flow works") {
                 "int main(void) { struct Node a; struct Node b; "
                 "a.v = 1; a.next = &b; b.v = 2; b.next = 0; "
                 "return a.next->v; }\n") == 2);
+    CHECK(run_c("int a[] = {1, 2, 3}; "
+                "int main(void) { return a[2]; }\n") == 3);
+    CHECK(run_c("int main(void) { int a[] = {4, 5}; "
+                "return sizeof(a) + a[1]; }\n") == 9);
 }
 
 TEST_CASE("compiled C calls libc") {

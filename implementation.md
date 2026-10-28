@@ -1636,3 +1636,14 @@ Entry format:
 - Remaining: struct parameters/returns, `long`, variadics, full
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:16:40 -07:00 — M8: inferred array sizes
+
+- Status: `int a[] = {1, 2, 3};` infers the element count for local and global
+  arrays.
+- Changes: parser updates zero-sized array types after aggregate initializers;
+  `sizeof(a)` and indexing use the inferred count.
+- Tests: compiler suite 9/9; local/global inference and `sizeof` covered.
+- Remaining: struct parameters/returns, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

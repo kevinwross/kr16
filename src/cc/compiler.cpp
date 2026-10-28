@@ -562,6 +562,16 @@ private:
         return type;
     }
 
+    std::shared_ptr<Type> infer_array_size(std::shared_ptr<Type> type,
+                                           const Expr* init) {
+        if (type && type->kind == TypeKind::Array && type->count == 0 &&
+            init != nullptr && init->kind == Expr::Kind::InitList) {
+            return make_type(TypeKind::Array, type->base,
+                             static_cast<int>(init->children.size()));
+        }
+        return type;
+    }
+
     std::string parse_name() {
         if (peek().kind != TokenKind::Identifier) {
             error("expected an identifier");
@@ -635,6 +645,7 @@ private:
         }
         if (accept("=")) {
             global.init = parse_initializer();
+            global.type = infer_array_size(global.type, global.init.get());
         }
         expect(";");
         program.globals.push_back(std::move(global));
@@ -703,6 +714,7 @@ private:
                 }
                 if (accept("=")) {
                     decl.init = parse_initializer();
+                    decl.type = infer_array_size(decl.type, decl.init.get());
                 }
                 stmt->declarations.push_back(std::move(decl));
                 if (!accept(",")) {
@@ -810,6 +822,7 @@ private:
                     decl.type = type;
                     if (accept("=")) {
                         decl.init = parse_initializer();
+                    decl.type = infer_array_size(decl.type, decl.init.get());
                     }
                     init->declarations.push_back(std::move(decl));
                     expect(";");
