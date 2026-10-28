@@ -147,7 +147,7 @@ churn.
 - [x] Add warnings-as-errors and the `platform/` boundary rule.
 - [x] Implement the `kr16` CLI dispatcher skeleton with `help`, `version`, and
       unknown-command handling.
-- [ ] Fix the `kr16 version` format:
+- [x] Fix the `kr16 version` format:
       `kr16 <semver> (ISA 1, container 1, host ABI 1, debug 1)`.
 - [ ] Freeze instruction encodings, mnemonics, flags, cycle counts, memory map,
       I/O map, and BIOS jump-table numbering.
@@ -997,3 +997,13 @@ Entry format:
   help, unknown-command, and version checks.
 - Regressions: none.
 - Next: lock the version output format and add its regression coverage.
+
+### 2026-10-27 18:44:54 -07:00 — M0: version output contract
+
+- Status: M0 in progress.
+- Changes: confirmed and documented the version line
+  `kr16 <semver> (ISA 1, container 1, host ABI 1, debug 1)`; the format is
+  covered by `kr16.unit` and `kr16.version`.
+- Tests: both version tests passed.
+- Regressions: none.
+- Next: freeze the ISA and write `docs/isa.md`.
