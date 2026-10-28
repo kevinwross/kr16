@@ -42,7 +42,7 @@ Rules:
 | M7 | Debug information and `kr16 debug` | Complete | Debug-format gate |
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
-| M10 | Host services (`SYSCALL`) | Not started | Host-call gate |
+| M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Not started | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Not started | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Not started | 1.0 gate |
@@ -680,13 +680,13 @@ phase.
 
 **Tasks:**
 
-- [ ] Implement `SYSCALL` execution: R0 block pointer, 16-byte block,
+- [x] Implement `SYSCALL` execution: R0 block pointer, 16-byte block,
       status/results/args, 10-cycle cost, flags unchanged.
-- [ ] Implement block/pointer validation and `EFAULT`.
-- [ ] Implement `SYS_VERSION` with ABI and capability bits.
-- [ ] Return `ENOSYS` for all unimplemented services.
-- [ ] Implement `--trace-syscalls`.
-- [ ] Add the `HostFs`/sandbox interface stubs and `--fs-root`,
+- [x] Implement block/pointer validation and `EFAULT`.
+- [x] Implement `SYS_VERSION` with ABI and capability bits.
+- [x] Return `ENOSYS` for all unimplemented services.
+- [x] Implement `--trace-syscalls`.
+- [x] Add the `HostFs`/sandbox interface stubs and `--fs-root`,
       `--fs-readonly`, `--fs-quota`, and `--no-host-fs` parsing, without
       enabling file services.
 - [ ] Wire the C `__host_call` intrinsic and `errno` plumbing.
@@ -1194,3 +1194,18 @@ Entry format:
   `long`, variadics, `printf`/malloc/string libc, compiler debug records,
   `-E`, and `__host_call`.
 - Next: continue expanding the C subset and libc, then M10 debugger/DAP.
+
+### 2026-10-27 19:37:28 -07:00 — M10: host services core complete
+
+- Status: M10 host-call core complete; C intrinsic and DAP stepping follow
+  with the debugger.
+- Changes: added the 16-byte host-call block, R0 block pointer passing,
+  alignment/RAM validation with `EFAULT`, `SYS_VERSION` ABI/capability results,
+  `ENOSYS` for unimplemented services, `--trace-syscalls`, and accepted
+  `--fs-root`/`--fs-readonly`/`--fs-quota`/`--no-host-fs` flags.
+- Tests: Windows Ninja Debug build passed; 73 doctest cases and 23 CTest
+  entries passed, including version/enosys/efault, flag/PC/cycle preservation,
+  and trace output.
+- Regressions: `reg-syscall-1001-version`, `reg-syscall-1002-enosys`,
+  `reg-syscall-1003-efault`, and `reg-syscall-1004-trace` are covered.
+- Next: continue M10 C intrinsic/DAP step-over and begin M11.

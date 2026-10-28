@@ -399,7 +399,8 @@ TEST_CASE("HLT and SYSCALL") {    kr16::FlatMemory memory;
     kr16::Cpu cpu;
     cpu.set_pc(0x0100);
     bool called = false;
-    cpu.set_syscall_handler([&called](std::uint8_t n) {
+    cpu.set_syscall_handler([&called](std::uint8_t n, std::uint16_t,
+                                     kr16::MemoryBus&) {
         called = true;
         CHECK(n == 3);
     });

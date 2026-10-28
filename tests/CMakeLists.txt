@@ -14,6 +14,7 @@ add_executable(kr16_tests
   unit/test_linker.cpp
   unit/test_debug_info.cpp
   unit/test_compiler.cpp
+  unit/test_host.cpp
 )
 target_include_directories(kr16_tests PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../third_party"

@@ -13,6 +13,7 @@
 
 #include "kr16/container.hpp"
 #include "kr16/cpu.hpp"
+#include "kr16/host.hpp"
 #include "kr16/machine.hpp"
 
 namespace kr16 {
@@ -154,6 +155,10 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
             input = read_file(options.input_path);
         }
 
+        HostServices host(options.trace_syscalls);
+        cpu.set_syscall_handler(
+            [&host](std::uint8_t service, std::uint16_t block,
+                    MemoryBus& bus) { host.call(service, block, bus); });
         cpu.set_interrupt_ack([&machine]() { return machine.pending_interrupt(); });
 
         std::size_t input_index = 0;
@@ -200,6 +205,7 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
         result.cycles = cycles;
         result.instructions = instructions;
         result.trace = trace.str();
+        result.syscall_trace = host.trace();
         if (!result.timed_out) {
             if (cpu.halt_reason() == "HLT") {
                 result.exit_code = static_cast<int>(cpu.reg(0) & 0xFF);

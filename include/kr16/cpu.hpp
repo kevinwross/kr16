@@ -85,7 +85,8 @@ public:
     const std::string& halt_reason() const noexcept { return halt_reason_; }
     std::uint64_t cycles() const noexcept { return cycles_; }
 
-    void set_syscall_handler(std::function<void(std::uint8_t)> handler) {
+    void set_syscall_handler(
+        std::function<void(std::uint8_t, std::uint16_t, MemoryBus&)> handler) {
         syscall_handler_ = std::move(handler);
     }
 
@@ -113,7 +114,7 @@ private:
     bool halted_ = false;
     std::string halt_reason_;
     std::uint64_t cycles_ = 0;
-    std::function<void(std::uint8_t)> syscall_handler_;
+    std::function<void(std::uint8_t, std::uint16_t, MemoryBus&)> syscall_handler_;
     std::function<std::optional<std::uint16_t>()> interrupt_ack_;
 };
 

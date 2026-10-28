@@ -16,6 +16,7 @@ struct VmOptions {
     bool trace = false;
     bool stats = false;
     bool realtime = false;
+    bool trace_syscalls = false;
     unsigned mhz = 1;
     std::string input_path;
     std::vector<std::string> program_args;
@@ -29,6 +30,7 @@ struct VmResult {
     bool timed_out = false;
     std::string output;
     std::string trace;
+    std::string syscall_trace;
     std::string error;
 };
 

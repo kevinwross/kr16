@@ -599,7 +599,7 @@ void Cpu::execute(const Instruction& instruction, MemoryBus& bus,
             return;
         case Op::Syscall:
             if (syscall_handler_) {
-                syscall_handler_(instruction.n);
+                syscall_handler_(instruction.n, reg(0), bus);
             }
             cycles = 10;
             return;

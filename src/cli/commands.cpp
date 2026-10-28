@@ -249,6 +249,8 @@ int run_vm_command(int argc, char** argv) {
             }
         } else if (argument == "--trace") {
             options.trace = true;
+        } else if (argument == "--trace-syscalls") {
+            options.trace_syscalls = true;
         } else if (argument == "--stats") {
             options.stats = true;
         } else if (argument == "--realtime") {
@@ -270,6 +272,14 @@ int run_vm_command(int argc, char** argv) {
                 return 2;
             }
             options.input_path = argv[i];
+        } else if (argument == "--fs-root" || argument == "--fs-quota") {
+            if (++i >= argc) {
+                std::cerr << "kr16 vm: " << argument << " needs a value\n";
+                return 2;
+            }
+            // Accepted; file services are deferred to the post-v1 file phase.
+        } else if (argument == "--fs-readonly" || argument == "--no-host-fs") {
+            // Accepted; file services are deferred to the post-v1 file phase.
         } else if (argument == "--headless" || argument == "--line-input") {
             options.headless = true;
         } else if (argument == "-i") {
@@ -312,6 +322,9 @@ int run_vm_command(int argc, char** argv) {
     }
     if (options.trace) {
         std::cerr << result.trace;
+    }
+    if (options.trace_syscalls) {
+        std::cerr << result.syscall_trace;
     }
     if (options.stats) {
         std::cerr << "cycles=" << result.cycles

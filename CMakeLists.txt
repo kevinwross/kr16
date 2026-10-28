@@ -34,6 +34,7 @@ add_library(kr16_core STATIC
   src/dis/disassembler.cpp
   src/vm/machine.cpp
   src/vm/runner.cpp
+  src/vm/host.cpp
   src/link/linker.cpp
   src/debug/debug_info.cpp
   src/cc/compiler.cpp
