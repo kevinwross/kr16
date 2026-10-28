@@ -136,7 +136,7 @@ churn.
 
 **Tasks:**
 
-- [ ] Create the repository layout: `src/`, `include/`, `tests/`, `cmake/`,
+- [x] Create the repository layout: `src/`, `include/`, `tests/`, `cmake/`,
       `third_party/doctest/`, `resources/prebuilt/`, `vscode/`, `docs/`,
       `examples/`.
 - [ ] Add `LICENSE` (MIT) and third-party notices for doctest.
@@ -929,3 +929,12 @@ Entry format:
 - Tests: none; Markdown-only.
 - Regressions: none.
 - Next: start M0 — repository/build skeleton and ISA freeze.
+
+### 2026-10-27 18:40:58 -07:00 — M0: repository layout
+
+- Status: M0 in progress.
+- Changes: created the source/test/docs/examples/resources/vscode/cmake
+  directory skeleton and placeholder READMEs.
+- Tests: none; documentation-only step.
+- Regressions: none.
+- Next: license and third-party notices.
