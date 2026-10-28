@@ -751,6 +751,7 @@ struct Decl {
     std::string name;
     std::shared_ptr<Type> type;
     std::unique_ptr<Expr> init;
+    bool is_static = false;
     int line = 0;
 };
 
@@ -853,6 +854,9 @@ private:
         while (is_type(peek().text) &&
                (peek().text == "const" || peek().text == "static" ||
                 peek().text == "unsigned" || peek().text == "signed")) {
+            if (peek().text == "static") {
+                pending_static_ = true;
+            }
             ++position_;
         }
         if (peek().kind == TokenKind::Identifier) {
@@ -1139,11 +1143,15 @@ private:
             auto stmt = std::make_unique<Stmt>();
             stmt->kind = Stmt::Kind::Decl;
             stmt->line = peek().line;
+            pending_static_ = false;
             auto type = parse_type();
+            const bool is_static = pending_static_;
+            pending_static_ = false;
             for (;;) {
                 Decl decl;
                 decl.name = parse_name();
                 decl.type = type;
+                decl.is_static = is_static;
                 decl.line = peek().line;
                 if (accept("[")) {
                     int count = 0;
@@ -1655,6 +1663,7 @@ private:
     std::vector<Token> tokens_;
     std::size_t position_ = 0;
     std::string source_name_;
+    bool pending_static_ = false;
     std::unordered_map<std::string, std::int64_t> enum_constants_;
     std::unordered_map<std::string, std::shared_ptr<Type>> typedefs_;
     std::unordered_map<std::string, std::shared_ptr<Type>> structs_;
@@ -1713,6 +1722,7 @@ private:
         int offset = 0;
         bool global = false;
         std::string name;
+        std::string symbol;
     };
     struct DebugVar {
         std::string function;
@@ -1878,6 +1888,28 @@ private:
             if (locals_.count(declaration->name) != 0) {
                 continue;
             }
+            if (declaration->is_static) {
+                const std::string symbol =
+                    ".Lstatic_" + function.name + "_" + declaration->name;
+                Variable variable;
+                variable.type = declaration->type;
+                variable.global = true;
+                variable.name = declaration->name;
+                variable.symbol = symbol;
+                locals_[declaration->name] = variable;
+                if (declaration->init &&
+                    declaration->init->kind == Expr::Kind::Number) {
+                    out << ".data\n.align 2\n" << symbol << ":\n";
+                    out << (declaration->type->is_char() ? "  .byte "
+                                                        : "  .word ")
+                        << declaration->init->value << "\n";
+                } else {
+                    out << ".bss\n.align 2\n" << symbol << ":\n  .space "
+                        << declaration->type->size() << "\n";
+                }
+                out << ".text\n";
+                continue;
+            }
             frame += align(declaration->type->size(), 2);
             Variable variable;
             variable.type = declaration->type;
@@ -2011,6 +2043,9 @@ private:
                 return;
             case Stmt::Kind::Decl:
                 for (const auto& decl : stmt->declarations) {
+                    if (decl.is_static) {
+                        continue;
+                    }
                     if (decl.init) {
                         const auto it = locals_.find(decl.name);
                         if (it == locals_.end()) {
@@ -2286,6 +2321,16 @@ private:
     void gen_load_identifier(const std::string& name, std::ostringstream& out) {
         const auto local = locals_.find(name);
         if (local != locals_.end()) {
+            if (!local->second.symbol.empty()) {
+                if (local->second.type->is_array()) {
+                    out << "  MOV R0, #" << local->second.symbol << "\n";
+                } else {
+                    out << (local->second.type->is_char() ? "  LDB R0, ["
+                                                          : "  LD R0, [")
+                        << local->second.symbol << "]\n";
+                }
+                return;
+            }
             if (local->second.type->is_array()) {
                 out << "  LEA R0, [R4-" << local->second.offset << "]\n";
             } else {
@@ -2314,7 +2359,11 @@ private:
         if (expr->kind == Expr::Kind::Identifier) {
             const auto local = locals_.find(expr->text);
             if (local != locals_.end()) {
-                out << "  LEA R0, [R4-" << local->second.offset << "]\n";
+                if (!local->second.symbol.empty()) {
+                    out << "  MOV R0, #" << local->second.symbol << "\n";
+                } else {
+                    out << "  LEA R0, [R4-" << local->second.offset << "]\n";
+                }
                 return;
             }
             out << "  MOV R0, #" << expr->text << "\n";

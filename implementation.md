@@ -1781,3 +1781,14 @@ Entry format:
 - Remaining: threaded console/DAP coordination, `#line`/pragmas, variadic
   definitions, struct parameters/returns, and M13 1.0.
 - Next: M11 threading and M13 closure.
+
+### 2026-10-27 21:42:54 -07:00 — M8: static locals
+
+- Status: function-local `static` variables now have persistent storage.
+- Changes: parser marks static declarations; codegen emits unique `.data`/
+  `.bss` symbols, skips stack allocation, and routes address/load through the
+  symbol.
+- Tests: compiler suite 11/11; a static counter persists across calls.
+- Remaining: static initializer edge cases, threaded DAP, variadic definitions,
+  struct parameters/returns, and M13 1.0.
+- Next: M11 threading and M13 closure.
