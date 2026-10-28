@@ -842,7 +842,8 @@ ship `1.0.0`.
 - [ ] Polish diagnostics and error messages.
 - [x] Run the Windows Debug and Release regression matrix.
 - [ ] Run the full regression suite on Linux and sanitizers.
-- [ ] Perform a classroom smoke test: install, compile, run, debug.
+- [x] Perform a Windows classroom smoke test: extract the release archive,
+      compile, assemble, link, and run the hello example.
 - [x] Verify deterministic Windows release artifact and SHA256SUMS.
 - [x] Document deferred features: host file I/O, BIOS RAM, linker scripts,
       `--gc-all`, `-r`, weak/common, arm64, installers, marketplace, signing.
@@ -1303,3 +1304,12 @@ Entry format:
 - Remaining: Linux/sanitizer matrix, live VS Code smoke, advanced DAP views,
   and 1.0 release/tag.
 - Next: M13 full release verification and remaining DAP coverage.
+
+### 2026-10-27 19:57:04 -07:00 — M13: extracted-archive classroom smoke
+
+- Status: Windows classroom smoke passes from the packaged archive.
+- Evidence: extracted `dist/kr16-0.1.0-windows-x64.zip`; ran version, compiled
+  `examples/hello.c` with `cc`, assembled/linked with libc, and ran the VM;
+  output was `Hello, KR16!` with exit 0.
+- Remaining: Linux/sanitizer matrix, live VS Code session, advanced DAP views,
+  1.0 tag/release.
