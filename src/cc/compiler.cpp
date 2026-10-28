@@ -383,7 +383,8 @@ private:
         return text == "int" || text == "char" || text == "void" ||
                text == "long" || text == "short" || text == "unsigned" ||
                text == "signed" || text == "const" || text == "static" ||
-               text == "enum";
+               text == "enum" || text == "typedef" ||
+               typedefs_.count(std::string(text)) != 0;
     }
 
     std::shared_ptr<Type> parse_base_type() {
@@ -391,6 +392,14 @@ private:
                (peek().text == "const" || peek().text == "static" ||
                 peek().text == "unsigned" || peek().text == "signed")) {
             ++position_;
+        }
+        if (peek().kind == TokenKind::Identifier) {
+            const auto alias = typedefs_.find(peek().text);
+            if (alias != typedefs_.end()) {
+                const auto type = alias->second;
+                ++position_;
+                return type;
+            }
         }
         if (accept("enum")) {
             if (peek().kind == TokenKind::Identifier) {
@@ -448,6 +457,13 @@ private:
 
     void parse_external(Program& program) {
         const int line = peek().line;
+        if (accept("typedef")) {
+            auto type = parse_type();
+            const std::string alias = parse_name();
+            expect(";");
+            typedefs_[alias] = std::move(type);
+            return;
+        }
         auto type = parse_type();
         if (accept(";")) {
             return;
@@ -981,6 +997,7 @@ private:
     std::size_t position_ = 0;
     std::string source_name_;
     std::unordered_map<std::string, std::int64_t> enum_constants_;
+    std::unordered_map<std::string, std::shared_ptr<Type>> typedefs_;
 };
 
 class Codegen {

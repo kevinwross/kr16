@@ -1520,3 +1520,13 @@ Entry format:
 - Remaining: structs/unions/typedefs, `long`, variadics, full
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 20:56:36 -07:00 — M8: C typedef support
+
+- Status: added `typedef` aliases for built-in, pointer, and enum types.
+- Changes: parser type-alias table; typedef declarations accepted at external
+  scope; aliases work in declarations, casts, and `sizeof`; docs/tests.
+- Tests: compiler suite 9/9; scalar, enum, and pointer aliases covered.
+- Remaining: structs/unions, `long`, variadics, full preprocessor/libc, and
+  M13 1.0.
+- Next: continue C subset and M11 locals views.

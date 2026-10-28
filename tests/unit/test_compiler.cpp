@@ -160,6 +160,12 @@ TEST_CASE("compiled control flow works") {
     CHECK(run_c("enum Color { RED, GREEN }; "
                 "int main(void) { enum Color c; c = GREEN; return c; }\n") ==
           1);
+    CHECK(run_c("typedef int Word; "
+                "int main(void) { Word x = 5; return x; }\n") == 5);
+    CHECK(run_c("typedef enum { A = 3, B } E; "
+                "int main(void) { E x = B; return x; }\n") == 4);
+    CHECK(run_c("typedef char *Str; "
+                "int main(void) { Str p = \"A\"; return p[0]; }\n") == 65);
 }
 
 TEST_CASE("compiled C calls libc") {

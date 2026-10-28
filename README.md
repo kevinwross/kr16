@@ -29,11 +29,12 @@ C or assembly → .o → .kex → VM
 
 The C compiler currently implements a teaching subset: `int`/`char`, pointers,
 arrays, functions, local/global variables, `if`/`else`, `while`, `do`/`while`,
-`for`, `switch`/`case`/`default`, `enum` constants/types, `return`,
-arithmetic/comparisons/logical operators, strings, and `main(argc, argv)`. A
-small `libc.s` provides `putchar`, `puts`, `getchar`, `printf` (`%d`, `%s`,
-`%c`, `%%`), and `exit`. Structs, unions, typedefs, `long`, variadics, the full
-preprocessor, the full `printf` family, and `malloc` are not implemented yet.
+`for`, `switch`/`case`/`default`, `enum` constants/types, `typedef` aliases,
+`return`, arithmetic/comparisons/logical operators, strings, and
+`main(argc, argv)`. A small `libc.s` provides `putchar`, `puts`, `getchar`,
+`printf` (`%d`, `%s`, `%c`, `%%`), and `exit`. Structs, unions, `long`,
+variadics, the full preprocessor, the full `printf` family, and `malloc` are not
+implemented yet.
 
 The DAP TCP server and a minimal VS Code extension are implemented. Advanced
 debug views (memory, disassembly, evaluate), threaded console separation, and
