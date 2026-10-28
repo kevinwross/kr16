@@ -1736,3 +1736,15 @@ Entry format:
 - Remaining: variadic definitions, struct parameters/returns, `long`, full
   libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:33:18 -07:00 — M11: DAP globals scope
+
+- Status: DAP now exposes a `Globals` scope for symbols located in `.data` or
+  `.bss`, with 16-bit values.
+- Changes: second scope/variables reference; section-range filtering so text
+  symbols are not shown as data.
+- Tests: DAP smoke still passes; full Windows suite green.
+- Remaining: locals/parameters scope, threaded console/DAP coordination,
+  variadic definitions, struct parameters/returns, `long`, full libc, and
+  M13 1.0.
+- Next: continue M11 locals and C subset.

@@ -30,6 +30,7 @@ namespace {
 
 constexpr std::int64_t kThreadId = 1;
 constexpr std::int64_t kRegistersReference = 1;
+constexpr std::int64_t kGlobalsReference = 2;
 
 std::vector<std::uint8_t> read_file(const std::string& path) {
     std::ifstream input(path, std::ios::binary);
@@ -953,6 +954,13 @@ std::vector<std::string> DapSession::Impl::handle_scopes(
     scope.set("expensive", JsonValue::boolean(false));
     JsonValue scopes = JsonValue::array();
     scopes.push(std::move(scope));
+    if (has_container) {
+        JsonValue globals = JsonValue::object();
+        globals.set("name", JsonValue::string("Globals"));
+        globals.set("variablesReference", JsonValue::integer(kGlobalsReference));
+        globals.set("expensive", JsonValue::boolean(true));
+        scopes.push(std::move(globals));
+    }
     JsonValue body = JsonValue::object();
     body.set("scopes", std::move(scopes));
     append_response(out, request, "scopes", true, std::move(body));
@@ -983,6 +991,36 @@ std::vector<std::string> DapSession::Impl::handle_variables(
         add_register("SP", cpu.sp());
         add_register("SR", cpu.sr());
         add_register("PC", cpu.pc());
+    } else if (reference == kGlobalsReference && has_container) {
+        auto in_data = [&](std::uint32_t address) {
+            for (const auto& section : container.sections) {
+                if (section.name != ".data" && section.name != ".bss") {
+                    continue;
+                }
+                const auto begin = section.address;
+                const auto end =
+                    begin + static_cast<std::uint32_t>(section.byte_size());
+                if (address >= begin && address < end) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        for (const auto& symbol : container.symbols) {
+            const auto address = static_cast<std::uint32_t>(symbol.value);
+            if (address > 0xFFFF || !in_data(address)) {
+                continue;
+            }
+            JsonValue variable = JsonValue::object();
+            variable.set("name", JsonValue::string(symbol.name));
+            variable.set(
+                "value",
+                JsonValue::string(format_hex(machine.read16(
+                    static_cast<std::uint16_t>(address)))));
+            variable.set("type", JsonValue::string("uint16"));
+            variable.set("variablesReference", JsonValue::integer(0));
+            variables.push(std::move(variable));
+        }
     }
 
     JsonValue body = JsonValue::object();
