@@ -6,6 +6,10 @@ target_include_directories(kr16_tests PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../third_party"
 )
 target_link_libraries(kr16_tests PRIVATE kr16_core)
+if(MSVC)
+  # doctest intentionally specializes std::tuple for its stringification.
+  target_compile_options(kr16_tests PRIVATE /wd5285)
+endif()
 
 add_test(NAME kr16.unit COMMAND kr16_tests)
 set_tests_properties(kr16.unit PROPERTIES LABELS "unit;smoke")

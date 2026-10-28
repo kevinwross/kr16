@@ -12,6 +12,13 @@ option(KR16_SANITIZE "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OF
 
 if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  add_compile_options(/W4 /WX /permissive- /Zc:__cplusplus)
+else()
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+  if(KR16_SANITIZE)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+  endif()
 endif()
 
 add_library(kr16_core STATIC
@@ -29,5 +36,11 @@ if(KR16_BUILD_TESTS)
   include(CTest)
   if(BUILD_TESTING)
     add_subdirectory(tests)
+    add_test(NAME kr16.platform-boundary
+      COMMAND "${CMAKE_COMMAND}"
+        -DKR16_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckPlatformBoundary.cmake"
+    )
+    set_tests_properties(kr16.platform-boundary PROPERTIES LABELS "unit;policy")
   endif()
 endif()

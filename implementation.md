@@ -144,7 +144,7 @@ churn.
       `windows-ninja`, `linux-gcc`, and `linux-clang`.
 - [x] Add Debug, Release, and Linux sanitizer presets.
 - [x] Vendor doctest; register CTest and test labels.
-- [ ] Add warnings-as-errors and the `platform/` boundary rule.
+- [x] Add warnings-as-errors and the `platform/` boundary rule.
 - [ ] Implement the `kr16` CLI dispatcher skeleton with `help`, `version`, and
       unknown-command handling.
 - [ ] Fix the `kr16 version` format:
@@ -976,3 +976,14 @@ Entry format:
 - Tests: Windows Debug build passed; both CTest tests passed.
 - Regressions: none.
 - Next: warnings-as-errors and platform boundary.
+
+### 2026-10-27 18:43:59 -07:00 — M0: warnings and platform boundary
+
+- Status: M0 in progress.
+- Changes: enabled `/W4 /WX` and `-Wall -Wextra -Wpedantic -Werror`; added the
+  `cmake/CheckPlatformBoundary.cmake` policy test that rejects host OS headers
+  outside `src/platform`.
+- Tests: Windows Debug build passed; all three CTest tests passed, including
+  the platform-boundary policy test.
+- Regressions: none.
+- Next: CLI dispatcher skeleton.
