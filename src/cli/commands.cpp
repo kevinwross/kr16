@@ -16,6 +16,7 @@
 #include "kr16/container.hpp"
 #include "kr16/diagnostic.hpp"
 #include "kr16/disassembler.hpp"
+#include "kr16/linker.hpp"
 #include "kr16/version.hpp"
 #include "kr16/vm.hpp"
 
@@ -323,8 +324,49 @@ int run_vm_command(int argc, char** argv) {
     return result.exit_code;
 }
 
-int run_size_command(int argc, char** argv) {
-    std::string input;
+int run_ld_command(int argc, char** argv) {
+    std::vector<std::string> inputs;
+    std::string output = "a.kex";
+    for (int i = 0; i < argc; ++i) {
+        const std::string argument = argv[i];
+        if (argument == "-o") {
+            if (++i >= argc) {
+                std::cerr << "kr16 ld: -o needs a path\n";
+                return 2;
+            }
+            output = argv[i];
+        } else if (argument == "--help" || argument == "-h") {
+            std::cout << "usage: kr16 ld [objects...] -o image.kex\n";
+            return 0;
+        } else if (!argument.empty() && argument.front() == '-') {
+            std::cerr << "kr16 ld: unknown option " << argument << '\n';
+            return 2;
+        } else {
+            inputs.push_back(argument);
+        }
+    }
+    if (inputs.empty()) {
+        std::cerr << "kr16 ld: no input objects\n";
+        return 2;
+    }
+
+    const auto linked = link_files(inputs);
+    if (!linked.ok) {
+        for (const auto& diagnostic : linked.diagnostics) {
+            std::cerr << "kr16 ld: " << diagnostic << '\n';
+        }
+        return 1;
+    }
+    try {
+        write_bytes(output, linked.image.write());
+    } catch (const std::exception& error) {
+        std::cerr << "kr16 ld: " << error.what() << '\n';
+        return 1;
+    }
+    return 0;
+}
+
+int run_size_command(int argc, char** argv) {    std::string input;
     for (int i = 0; i < argc; ++i) {
         const std::string argument = argv[i];
         if (argument == "--help" || argument == "-h") {
@@ -431,6 +473,9 @@ int run(int argc, char** argv) {
     }
     if (command == "size") {
         return run_size_command(argc - 2, argv + 2);
+    }
+    if (command == "ld") {
+        return run_ld_command(argc - 2, argv + 2);
     }
     if (!is_known_command(command)) {
         std::cerr << "kr16: unknown command '" << command << "'\n\n";

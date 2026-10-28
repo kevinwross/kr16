@@ -11,6 +11,7 @@ add_executable(kr16_tests
   unit/test_disassembler.cpp
   unit/test_machine.cpp
   unit/test_vm.cpp
+  unit/test_linker.cpp
 )
 target_include_directories(kr16_tests PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../third_party"
@@ -95,3 +96,29 @@ add_test(NAME kr16.vm.bios
 )
 set_tests_properties(kr16.vm.bios PROPERTIES LABELS "integration"
   DEPENDS "kr16.as.vm;kr16.as.bios")
+
+add_test(NAME kr16.as.link_lib
+  COMMAND kr16 as "${CMAKE_CURRENT_SOURCE_DIR}/integration/link_lib.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/link_lib.o"
+)
+set_tests_properties(kr16.as.link_lib PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.as.link_main
+  COMMAND kr16 as "${CMAKE_CURRENT_SOURCE_DIR}/integration/link_main.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/link_main.o"
+)
+set_tests_properties(kr16.as.link_main PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.ld.link
+  COMMAND kr16 ld "${CMAKE_CURRENT_BINARY_DIR}/link_lib.o"
+    "${CMAKE_CURRENT_BINARY_DIR}/link_main.o"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/link.kex"
+)
+set_tests_properties(kr16.ld.link PROPERTIES LABELS "integration"
+  DEPENDS "kr16.as.link_lib;kr16.as.link_main")
+
+add_test(NAME kr16.vm.kex
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/link.kex"
+)
+set_tests_properties(kr16.vm.kex PROPERTIES LABELS "integration"
+  DEPENDS kr16.ld.link)

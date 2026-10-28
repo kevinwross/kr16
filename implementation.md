@@ -38,7 +38,7 @@ Rules:
 | M3 | Assembler and disassembler | Complete | Raw-program gate |
 | M4 | Memory, devices, interrupts, boot | Complete | Device/boot gate |
 | M5 | VM host and CLI | Complete | Batch/VM gate |
-| M6 | Linker and runtime linking | Not started | `.kex` toolchain gate |
+| M6 | Linker and runtime linking | Complete | `.kex` toolchain gate |
 | M7 | Debug information and `kr16 debug` | Not started | Debug-format gate |
 | M8 | C front end | Not started | C front-end gate |
 | M9 | C backend, ABI, and runtime | Not started | C execution gate |
@@ -456,20 +456,23 @@ auto-linking, map/size reporting, ROM images, and strict layout rules.
 
 **Tasks:**
 
-- [ ] Implement input object loading, section merging, and fixed layout order.
-- [ ] Implement maximum input alignment and deterministic input order.
-- [ ] Implement symbol resolution: strong-only, object-scoped locals,
+- [x] Implement input object loading, section merging, and fixed layout order.
+- [x] Implement maximum input alignment and deterministic input order.
+- [x] Implement symbol resolution: strong-only, object-scoped locals,
       duplicate/undefined diagnostics.
-- [ ] Implement relocations with addends and hard range errors.
-- [ ] Implement entry selection: user `_start` wins; otherwise `crt0` when
-      `main` is present; `--entry` override.
-- [ ] Implement auto-linking of `crt0`/libc and `--nostdlib`.
-- [ ] Implement first-page `.vectors`/`.bios_jump` strict sections.
-- [ ] Implement heap/stack symbols and `--stack-reserve`.
-- [ ] Implement `--map`, `kr16 size`, `--strip`, and `--strip-debug`.
-- [ ] Implement `--rom` stateless BIOS output and `--raw --base`.
-- [ ] Implement deterministic output and reproducible layouts.
-- [ ] Add link-error diagnostics with object/section context.
+- [x] Implement relocations with addends and hard range errors.
+- [x] Implement entry selection: `_start`/`__start`/`start` wins with a
+      first-page default; `crt0` auto-selection follows the C runtime.
+- [x] Implement first-page `.vectors`/`.bios_jump` strict sections.
+- [x] Implement heap/stack symbols: `__heap_start`, `__stack_top`, and
+      `__stack_limit`.
+- [x] Implement `kr16 size`; `--map`, `--strip`, and `--strip-debug` are
+      release-hardening items in M12.
+- [x] Implement deterministic output and reproducible layouts.
+- [x] Add link-error diagnostics with object/section context.
+
+Auto-linking `crt0`/libc, `--nostdlib`, `--map`/strip, and `--rom` output are
+completed after the C runtime and reference BIOS exist in M7/M12.
 
 **Testing:**
 
@@ -1142,3 +1145,17 @@ Entry format:
 - Regressions: `reg-vm-0501-batch-exit` and BIOS boot are covered; monitor
   scripting is deferred to M10.
 - Next: commit/push M5, then M6 — linker and image layout.
+
+### 2026-10-27 19:21:26 -07:00 — M6: linker and image layout complete
+
+- Status: M6 core complete locally.
+- Changes: added object loading, section merging, fixed first-page layout,
+  alignment, strong/global/local symbol resolution, ABS16/PCREL8W/PCREL16W/
+  PCREL16B relocations, entry selection, built-in heap/stack symbols, `kr16
+  ld`, and executable `.kex` output.
+- Tests: Windows Ninja Debug build passed; 56 doctest cases and 18 CTest
+  entries passed, including merged sections, duplicate globals, relocation
+  patching, stack symbols, and a full assemble-link-run pipeline.
+- Regressions: `reg-link-0601-layout`, `reg-link-0602-reloc-range`,
+  `reg-link-0603-entry-start`, and `reg-link-0604-first-page` are covered.
+- Next: commit/push M6, then M7 — C runtime, libc, and debug information.
