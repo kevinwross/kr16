@@ -18,11 +18,19 @@ try {
   Copy-Item "build/windows-ninja/kr16.exe" (Join-Path $stage "bin/kr16.exe")
   Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md $stage
   Copy-Item docs, examples, resources, vscode $stage -Recurse
+  $vsix = Join-Path $root "vscode/kr16-debug-$Version.vsix"
+  if (Test-Path $vsix) {
+    Copy-Item $vsix $stage
+  }
   $zip = Join-Path $dist "kr16-$Version-windows-x64.zip"
   if (Test-Path $zip) { Remove-Item -Force $zip }
   Compress-Archive -Path $stage -DestinationPath $zip
   $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
   "$hash  $(Split-Path -Leaf $zip)" | Set-Content -Encoding ascii (Join-Path $dist "SHA256SUMS")
+  if (Test-Path $vsix) {
+    $vsixHash = (Get-FileHash $vsix -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$vsixHash  $(Split-Path -Leaf $vsix)" | Add-Content -Encoding ascii (Join-Path $dist "SHA256SUMS")
+  }
   Write-Host "wrote $zip"
 } finally {
   Pop-Location

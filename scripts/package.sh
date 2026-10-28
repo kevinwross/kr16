@@ -16,9 +16,16 @@ mkdir -p "$STAGE/bin"
 cp "build/linux-gcc-release/kr16" "$STAGE/bin/kr16"
 cp README.md LICENSE THIRD_PARTY_NOTICES.md "$STAGE/"
 cp -R docs examples resources vscode "$STAGE/"
+VSIX="$ROOT/vscode/kr16-debug-$VERSION.vsix"
+if [ -f "$VSIX" ]; then
+  cp "$VSIX" "$STAGE/"
+fi
 
 ARCHIVE="$DIST/kr16-$VERSION-linux-x64.tar.gz"
 rm -f "$ARCHIVE"
 tar -C "$DIST" -czf "$ARCHIVE" "kr16-$VERSION-linux-x64"
 ( cd "$DIST" && sha256sum "$(basename "$ARCHIVE")" > SHA256SUMS )
+if [ -f "$VSIX" ]; then
+  ( cd "$DIST" && sha256sum "$(basename "$VSIX")" >> SHA256SUMS )
+fi
 echo "wrote $ARCHIVE"
