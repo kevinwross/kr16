@@ -2174,3 +2174,33 @@ Entry format:
 
 
 
+
+### 2026-10-28 15:48:30 -07:00 — Reusing heap allocator
+
+- Status: replaced the bump allocator in `resources/libc.s` with a first-fit
+  allocator that reuses freed memory. `free` coalesces with both neighbours,
+  `realloc` grows and shrinks in place when it can, and `calloc` checks for
+  overflow before zeroing.
+- Design: 2-byte header (size | used, minimum block 4 bytes); an
+  address-ordered free list whose links live in the free blocks themselves;
+  split only when the remainder can hold a 4-byte block; the topmost block is
+  handed back so the footprint follows live data. The pool is a 16 KiB `.bss`
+  array rather than the region above the image, because a `__heap_start`
+  relocation cannot be resolved yet; that also keeps the heap clear of the
+  stack at 0xF000.
+- Accounting: `__kr16_heap_used()` and `__kr16_heap_peak()` exist for tests
+  and the debugger. `exit` now returns its argument in R0.
+- Toolchain finding: the linker defines `__heap_start`, `__stack_top` and
+  `__stack_limit` *after* applying relocations, so a relocation against them
+  either fails to link or silently assembles to zero. The old bump allocator
+  was handing out addresses starting at 2 as a result. The allocator now avoids
+  those symbols; the linker fix is still outstanding.
+- Tests: new `tests/support/heapcheck.s` (invariant walker, linked by tests
+  only), `tests/support/heap_stress.s` (400 seeded malloc/free operations with
+  the checker after each) and `tests/integration/heap.c` (reuse, coalescing,
+  churn, hole reuse, realloc grow/shrink/move, calloc zeroing and overflow,
+  double free, 16 KiB ceiling), wired to CTest as `kr16.*.heap*`.
+- 112/112 doctest (3126 assertions) with the existing malloc/free/calloc/realloc
+  cases still passing; stress run 173,821 instructions, `heap ok peak=16002`.
+- Next: fix `__heap_start` in the linker, then size the pool from the linker
+  instead of a constant.

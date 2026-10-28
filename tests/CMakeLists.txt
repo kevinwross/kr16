@@ -172,6 +172,65 @@ add_test(NAME kr16.vm.hello
 set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
 
+# Heap allocator: the checker is a test-only object, linked explicitly so the
+# runtime itself stays small.
+add_test(NAME kr16.as.heapcheck
+  COMMAND kr16 as "${CMAKE_SOURCE_DIR}/tests/support/heapcheck.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/heapcheck.o"
+)
+set_tests_properties(kr16.as.heapcheck PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.cc.heap
+  COMMAND kr16 cc "${CMAKE_CURRENT_SOURCE_DIR}/integration/heap.c"
+    -S -o "${CMAKE_CURRENT_BINARY_DIR}/heap.s"
+)
+set_tests_properties(kr16.cc.heap PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.as.heap
+  COMMAND kr16 as "${CMAKE_CURRENT_BINARY_DIR}/heap.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/heap.o"
+)
+set_tests_properties(kr16.as.heap PROPERTIES LABELS "integration"
+  DEPENDS kr16.cc.heap)
+
+add_test(NAME kr16.ld.heap
+  COMMAND kr16 ld "${CMAKE_CURRENT_BINARY_DIR}/heapcheck.o"
+    "${CMAKE_CURRENT_BINARY_DIR}/libc.o"
+    "${CMAKE_CURRENT_BINARY_DIR}/heap.o"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/heap.kex"
+)
+set_tests_properties(kr16.ld.heap PROPERTIES LABELS "integration"
+  DEPENDS "kr16.as.heapcheck;kr16.as.libc;kr16.as.heap")
+
+add_test(NAME kr16.vm.heap
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/heap.kex"
+)
+set_tests_properties(kr16.vm.heap PROPERTIES LABELS "integration"
+  DEPENDS kr16.ld.heap PASS_REGULAR_EXPRESSION "heap ok")
+
+# Randomised churn: malloc/free over 32 slots with the invariant checker after
+# every operation, seeded so failures reproduce.
+add_test(NAME kr16.as.heap_stress
+  COMMAND kr16 as "${CMAKE_SOURCE_DIR}/tests/support/heap_stress.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.o"
+)
+set_tests_properties(kr16.as.heap_stress PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.ld.heap_stress
+  COMMAND kr16 ld "${CMAKE_CURRENT_BINARY_DIR}/heapcheck.o"
+    "${CMAKE_CURRENT_BINARY_DIR}/libc.o"
+    "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.o"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.kex"
+)
+set_tests_properties(kr16.ld.heap_stress PROPERTIES LABELS "integration"
+  DEPENDS "kr16.as.heapcheck;kr16.as.libc;kr16.as.heap_stress")
+
+add_test(NAME kr16.vm.heap_stress
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.kex"
+)
+set_tests_properties(kr16.vm.heap_stress PROPERTIES LABELS "integration"
+  DEPENDS kr16.ld.heap_stress PASS_REGULAR_EXPRESSION "OK")
+
 # `build` writes intermediates beside its input, so build a copy in the
 # binary tree instead of polluting tests/integration.
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/integration/hello.c"

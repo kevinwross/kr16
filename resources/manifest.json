@@ -10,7 +10,7 @@
                       {
                           "name":  "libc",
                           "source":  "resources/libc.s",
-                          "sha256":  "F69272D17AB572FCBADD1A1F7EEEBDE03A8D4758CC1CE3CBC99C547EECF9915A"
+                          "sha256":  "92C95DAD3C853A1F34C52F566E738142E2C28C101D877E2EDD78F1ACEFB02D6A"
                       }
                   ]
 }
