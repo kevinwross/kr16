@@ -44,7 +44,7 @@ Rules:
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Not started | Debug-session gate |
-| M12 | Bootstrap, CI, and release | Not started | Release-candidate gate |
+| M12 | Bootstrap, CI, and release | Partial (docs/examples) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Not started | 1.0 gate |
 
 Dependency order:
@@ -1209,3 +1209,13 @@ Entry format:
 - Regressions: `reg-syscall-1001-version`, `reg-syscall-1002-enosys`,
   `reg-syscall-1003-efault`, and `reg-syscall-1004-trace` are covered.
 - Next: continue M10 C intrinsic/DAP step-over and begin M11.
+
+### 2026-10-27 19:38:11 -07:00 — documentation and examples refresh
+
+- Status: README now describes the working M0–M10 toolchain and its C subset;
+  examples/hello.c and examples/sum.c are runnable.
+- Tests: documentation changes only; last full run passed 73 doctest cases and
+  23 CTest entries.
+- Remaining: M11 DAP/VS Code, M12 bootstrap/release packaging, and M13
+  hardening/curriculum/1.0.0. The C compiler remains a teaching subset rather
+  than full C99.
