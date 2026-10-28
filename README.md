@@ -29,7 +29,7 @@ C or assembly → .o → .kex → VM
 
 The C compiler currently implements a teaching subset: `int`/`char`, pointers,
 arrays, function/variadic prototypes, object/function macros, `#`/`##` operators, conditionals, local `#include`, built-in system headers, `stdarg.h` variadics, `-I` include paths,  local/global/static variables, `if`/`else`, `while`, `do`/`while`,
-`for`, `switch`/`case`/`default`, `enum` constants/types, `typedef` aliases, `struct`/`union` members and aggregate initializers and inferred array sizes, nested local initializers, self-referential struct pointers, compound assignments, `goto` labels,
+`for`, `switch`/`case`/`default`, `enum` constants/types, `typedef` aliases, `struct`/`union` members and aggregate initializers and inferred array sizes, nested aggregate initializers, self-referential struct pointers, compound assignments, `goto` labels,
 `return`, arithmetic/comparisons/logical operators, strings, and
 `main(argc, argv)`. A small `libc.s` provides `putchar`, `puts`, `getchar`,
 `printf` (`%d`, `%s`, `%c`, `%%`), and `exit`. `long`, the full preprocessor
@@ -113,6 +113,7 @@ host-call tests, and compiled-C end-to-end execution tests.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 
 

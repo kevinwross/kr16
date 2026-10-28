@@ -1754,6 +1754,52 @@ private:
         }
     }
 
+    int emit_initializer(const Type* type, const Expr* list, int base,
+                         int cursor, std::ostringstream& out) {
+        for (std::size_t i = 0; i < list->children.size(); ++i) {
+            int offset = 0;
+            const Type* element_type = type;
+            if (type->kind == TypeKind::Struct ||
+                type->kind == TypeKind::Union) {
+                if (i >= type->members.size()) {
+                    break;
+                }
+                offset = type->members[i].offset;
+                element_type = type->members[i].type.get();
+            } else {
+                offset = static_cast<int>(i) *
+                         (type->base ? type->base->size() : 2);
+                element_type = type->base.get();
+            }
+            const int target = base + offset;
+            if (target > cursor) {
+                out << "  .space " << (target - cursor) << "\n";
+                cursor = target;
+            }
+            const auto* child = list->children[i].get();
+            if (child->kind == Expr::Kind::InitList && element_type != nullptr &&
+                (element_type->kind == TypeKind::Array ||
+                 element_type->kind == TypeKind::Struct ||
+                 element_type->kind == TypeKind::Union)) {
+                cursor = emit_initializer(element_type, child, target, cursor,
+                                          out);
+                continue;
+            }
+            if (child->kind == Expr::Kind::Number) {
+                out << (element_type != nullptr && element_type->is_char()
+                            ? "  .byte "
+                            : "  .word ")
+                    << child->value << "\n";
+            } else {
+                out << "  .word 0\n";
+            }
+            cursor = target + (element_type != nullptr
+                                   ? element_type->size()
+                                   : 2);
+        }
+        return cursor;
+    }
+
     void emit_globals(std::ostringstream& out) {
         for (const auto& global : program_.globals) {
             if (global.init && global.init->kind == Expr::Kind::Number) {
@@ -1775,39 +1821,9 @@ private:
                 out << ".align 2\n";
                 out << ".global " << global.name << "\n";
                 out << global.name << ":\n";
-                int cursor = 0;
-                for (std::size_t i = 0;
-                     i < global.init->children.size(); ++i) {
-                    int offset = 0;
-                    std::shared_ptr<Type> element_type = global.type;
-                    if (global.type->kind == TypeKind::Struct ||
-                        global.type->kind == TypeKind::Union) {
-                        if (i >= global.type->members.size()) {
-                            break;
-                        }
-                        offset = global.type->members[i].offset;
-                        element_type = global.type->members[i].type;
-                    } else {
-                        offset = static_cast<int>(i) *
-                                 (global.type->base
-                                      ? global.type->base->size()
-                                      : 2);
-                        element_type = global.type->base;
-                    }
-                    if (offset > cursor) {
-                        out << "  .space " << (offset - cursor) << "\n";
-                    }
-                    const auto* value = global.init->children[i].get();
-                    if (value->kind == Expr::Kind::Number) {
-                        out << (element_type && element_type->is_char()
-                                    ? "  .byte "
-                                    : "  .word ")
-                            << value->value << "\n";
-                    } else {
-                        out << "  .word 0\n";
-                    }
-                    cursor = offset + (element_type ? element_type->size() : 2);
-                }
+                int cursor =
+                    emit_initializer(global.type.get(), global.init.get(), 0,
+                                     0, out);
                 if (cursor < global.type->size()) {
                     out << "  .space " << (global.type->size() - cursor) << "\n";
                 }
@@ -1918,43 +1934,9 @@ private:
                      declaration->type->kind == TypeKind::Struct ||
                      declaration->type->kind == TypeKind::Union)) {
                     out << ".data\n.align 2\n" << symbol << ":\n";
-                    int cursor = 0;
-                    for (std::size_t i = 0;
-                         i < declaration->init->children.size(); ++i) {
-                        int offset = 0;
-                        std::shared_ptr<Type> element_type =
-                            declaration->type;
-                        if (declaration->type->kind == TypeKind::Struct ||
-                            declaration->type->kind == TypeKind::Union) {
-                            if (i >= declaration->type->members.size()) {
-                                break;
-                            }
-                            offset = declaration->type->members[i].offset;
-                            element_type =
-                                declaration->type->members[i].type;
-                        } else {
-                            offset = static_cast<int>(i) *
-                                     (declaration->type->base
-                                          ? declaration->type->base->size()
-                                          : 2);
-                            element_type = declaration->type->base;
-                        }
-                        if (offset > cursor) {
-                            out << "  .space " << (offset - cursor) << "\n";
-                        }
-                        const auto* value =
-                            declaration->init->children[i].get();
-                        if (value->kind == Expr::Kind::Number) {
-                            out << (element_type && element_type->is_char()
-                                        ? "  .byte "
-                                        : "  .word ")
-                                << value->value << "\n";
-                        } else {
-                            out << "  .word 0\n";
-                        }
-                        cursor =
-                            offset + (element_type ? element_type->size() : 2);
-                    }
+                    int cursor = emit_initializer(
+                        declaration->type.get(), declaration->init.get(), 0,
+                        0, out);
                     if (cursor < declaration->type->size()) {
                         out << "  .space "
                             << (declaration->type->size() - cursor) << "\n";

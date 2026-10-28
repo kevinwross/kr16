@@ -317,6 +317,13 @@ TEST_CASE("compiled control flow works") {
     CHECK(run_c("struct S { int a[2]; int b; }; "
                 "int main(void) { struct S s = {{1, 2}, 3}; "
                 "return s.a[0] + s.a[1] + s.b; }\n") == 6);
+    CHECK(run_c("struct S { int a[2]; int b; }; "
+                "struct S s = {{1, 2}, 3}; "
+                "int main(void) { return s.a[1] + s.b; }\n") == 5);
+    CHECK(run_c("struct S { int a[2]; int b; }; "
+                "int f(void) { static struct S s = {{1, 2}, 3}; "
+                "return s.a[0] + s.b; } "
+                "int main(void) { return f(); }\n") == 4);
 }
 
 TEST_CASE("compiled C calls libc") {

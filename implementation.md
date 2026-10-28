@@ -1834,3 +1834,14 @@ Entry format:
 - Remaining: global/static nested initializers, threaded DAP, struct
   parameters/returns, `long`, and M13 1.0.
 - Next: M11 threading and M13 closure.
+
+### 2026-10-27 21:52:02 -07:00 — M8: nested global/static initializers
+
+- Status: recursive `.data` emission supports nested aggregates for globals and
+  static locals.
+- Changes: shared `emit_initializer` helper walks member/element offsets,
+  emits padding, and zero-fills trailing bytes.
+- Tests: compiler suite 11/11; nested local, global, and static struct
+  initializers covered.
+- Remaining: threaded DAP, struct parameters/returns, `long`, and M13 1.0.
+- Next: M11 threading and M13 closure.
