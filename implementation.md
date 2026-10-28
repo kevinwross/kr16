@@ -1879,3 +1879,15 @@ Entry format:
 - Tests: compiler suite 11/11; callee mutation does not affect the caller copy.
 - Remaining: struct returns, 32-bit `long`, and M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 21:58:33 -07:00 — M8: by-value struct returns
+
+- Status: local functions can return structs/unions by value.
+- Changes: each struct-returning function has a static return scratch buffer;
+  `return` copies into it and returns its address; callers copy from the
+  returned address for initialization/assignment/member access.
+- Limit: scratch is per function and not reentrant; nested calls of the same
+  struct-returning function overwrite the buffer.
+- Tests: compiler suite 11/11; `struct P q = make();` covered.
+- Remaining: 32-bit `long`, full libc/type-frame debug records, M13 1.0.
+- Next: M13 release gate and remaining C gaps.

@@ -1973,6 +1973,16 @@ private:
         }
         frame_size_ = align(frame, 2);
         function_label_ = function.name;
+        current_return_type_ = function.return_type;
+        current_return_symbol_.clear();
+        if (current_return_type_ &&
+            (current_return_type_->kind == TypeKind::Struct ||
+             current_return_type_->kind == TypeKind::Union)) {
+            current_return_symbol_ = ".Lret_" + function.name;
+            out << ".bss\n.align 2\n" << current_return_symbol_
+                << ":\n  .space " << current_return_type_->size() << "\n";
+            out << ".text\n";
+        }
         if (debug_) {
             for (const auto& [name, variable] : locals_) {
                 if (!variable.global && !variable.indirect) {
@@ -2081,6 +2091,12 @@ private:
                 return base->base;
             }
         }
+        if (expr->kind == Expr::Kind::Call) {
+            const auto function = function_map_.find(expr->text);
+            if (function != function_map_.end()) {
+                return function->second->return_type;
+            }
+        }
         if (expr->kind == Expr::Kind::String) {
             return make_type(TypeKind::Pointer, make_type(TypeKind::Char));
         }
@@ -2101,10 +2117,32 @@ private:
                 gen_expr(stmt->expr.get(), out);
                 return;
             case Stmt::Kind::Return:
-                if (stmt->expr) {
-                    gen_expr(stmt->expr.get(), out);
+                if (current_return_symbol_.empty()) {
+                    if (stmt->expr) {
+                        gen_expr(stmt->expr.get(), out);
+                    } else {
+                        out << "  MOV R0, #0\n";
+                    }
                 } else {
-                    out << "  MOV R0, #0\n";
+                    if (stmt->expr) {
+                        gen_addr(stmt->expr.get(), out);
+                        out << "  MOV R1, R0\n";
+                        out << "  MOV R2, #" << current_return_symbol_
+                            << "\n";
+                        const int size = current_return_type_->size();
+                        for (int offset = 0; offset < size;) {
+                            if (size - offset == 1) {
+                                out << "  LDB R3, [R1+" << offset << "]\n";
+                                out << "  STB [R2+" << offset << "], R3\n";
+                                ++offset;
+                            } else {
+                                out << "  LD R3, [R1+" << offset << "]\n";
+                                out << "  ST [R2+" << offset << "], R3\n";
+                                offset += 2;
+                            }
+                        }
+                    }
+                    out << "  MOV R0, #" << current_return_symbol_ << "\n";
                 }
                 out << "  BRA " << return_label_ << "\n";
                 return;
@@ -2121,6 +2159,32 @@ private:
                     if (decl.init) {
                         const auto it = locals_.find(decl.name);
                         if (it == locals_.end()) {
+                            continue;
+                        }
+                        if (decl.init &&
+                            (decl.type->kind == TypeKind::Struct ||
+                             decl.type->kind == TypeKind::Union) &&
+                            expression_type(decl.init.get())->kind ==
+                                decl.type->kind) {
+                            gen_addr(decl.init.get(), out);
+                            out << "  MOV R1, R0\n";
+                            out << "  LEA R2, [R4-" << it->second.offset
+                                << "]\n";
+                            const int size = decl.type->size();
+                            for (int offset = 0; offset < size;) {
+                                if (size - offset == 1) {
+                                    out << "  LDB R3, [R1+" << offset
+                                        << "]\n";
+                                    out << "  STB [R2+" << offset
+                                        << "], R3\n";
+                                    ++offset;
+                                } else {
+                                    out << "  LD R3, [R1+" << offset << "]\n";
+                                    out << "  ST [R2+" << offset
+                                        << "], R3\n";
+                                    offset += 2;
+                                }
+                            }
                             continue;
                         }
                         if (decl.init->kind == Expr::Kind::InitList &&
@@ -2472,6 +2536,10 @@ private:
             out << "  MOV R0, #" << expr->text << "\n";
             return;
         }
+        if (expr->kind == Expr::Kind::Call) {
+            gen_call(expr, out);
+            return;
+        }
         if (expr->kind == Expr::Kind::Unary && expr->op == "*") {
             gen_expr(expr->children[0].get(), out);
             return;
@@ -2748,6 +2816,8 @@ private:
     int current_named_params_ = 0;
     int label_counter_ = 0;
     std::string function_label_;
+    std::shared_ptr<Type> current_return_type_;
+    std::string current_return_symbol_;
 };
 
 }  // namespace

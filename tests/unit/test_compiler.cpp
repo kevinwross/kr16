@@ -333,6 +333,10 @@ TEST_CASE("compiled control flow works") {
                 "int sum(struct P p) { p.x = 9; return p.x + p.y; } "
                 "int main(void) { struct P q = {2, 3}; "
                 "return sum(q) + q.x; }\n") == 14);
+    CHECK(run_c("struct P { int x; int y; }; "
+                "struct P make(void) { struct P p = {3, 4}; return p; } "
+                "int main(void) { struct P q = make(); "
+                "return q.x + q.y; }\n") == 7);
 }
 
 TEST_CASE("compiled C calls libc") {
