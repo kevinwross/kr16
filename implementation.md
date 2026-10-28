@@ -1658,3 +1658,13 @@ Entry format:
 - Remaining: variadic prototypes, struct parameters/returns, `long`, full
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:19:52 -07:00 — M8: variadic prototypes
+
+- Status: prototypes accept `...`; `int printf(char *fmt, ...);` parses and
+  links against libc.
+- Changes: parser treats `...` as the end of the parameter list.
+- Tests: compiler/libc suite; printf variadic prototype covered.
+- Remaining: variadic function definitions/`stdarg.h`, struct parameters/
+  returns, `long`, full preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

@@ -603,6 +603,10 @@ private:
                     ++position_;
                 } else {
                     for (;;) {
+                        if (peek().text == "...") {
+                            ++position_;
+                            break;
+                        }
                         auto param_type = parse_type();
                         Decl parameter;
                         parameter.type = param_type;

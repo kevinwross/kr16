@@ -235,6 +235,10 @@ TEST_CASE("compiled C calls libc") {
     CHECK(run_c_with_libc(
               "int putchar(int c); "
               "int main(void) { putchar('A'); return 0; }\n") == "A");
+    CHECK(run_c_with_libc(
+              "int printf(char *fmt, ...); "
+              "int main(void) { printf(\"%d\\n\", 7); return 0; }\n") ==
+          "7\n");
 }
 
 TEST_CASE("compiled char locals and globals") {
