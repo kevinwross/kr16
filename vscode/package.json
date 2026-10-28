@@ -2,7 +2,7 @@
   "name": "kr16-debug",
   "displayName": "KR16 Debug",
   "description": "Debug KR16 programs with the KR16 DAP server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "kr16",
   "license": "MIT",
   "repository": {
@@ -18,7 +18,8 @@
   "activationEvents": [
     "onDebug",
     "onDebugResolve:kr16",
-    "onCommand:kr16.debug"
+    "onCommand:kr16.debug",
+    "onCommand:kr16.disassembly"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -26,8 +27,21 @@
       {
         "command": "kr16.debug",
         "title": "KR16: Debug Program"
+      },
+      {
+        "command": "kr16.disassembly",
+        "title": "KR16: Show Disassembly"
       }
     ],
+    "menus": {
+      "debug/toolbar": [
+        {
+          "command": "kr16.disassembly",
+          "when": "debugType == 'kr16'",
+          "group": "navigation"
+        }
+      ]
+    },
     "debuggers": [
       {
         "type": "kr16",
@@ -108,4 +122,6 @@
     "mocha": "^12.0.3"
   }
 }
+
+
 

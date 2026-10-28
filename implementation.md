@@ -2060,3 +2060,15 @@ Entry format:
 - Tests: DAP frame source path `hello.c`; 89/89 doctest (2970 assertions),
   Windows 24/24 CTest, Linux 23/23; DAP source/disassembly smoke green.
 - Next: verify VS Code's Open Disassembly View context action manually.
+
+### 2026-10-28 05:34:27 -07:00 — VS Code disassembly command
+
+- Added **KR16: Show Disassembly** (`kr16.disassembly`) to the extension:
+  requests `stackTrace`, then `disassemble` around the current PC, and opens a
+  read-only disassembly document beside the source.
+- Added a debug-toolbar menu entry and activation event; bumped the extension
+  to 1.1.0 and packaged/installed `kr16-debug-1.1.0.vsix`.
+- Clarified that the Disassembly/Registers/Memory/Peripherals sidebar views in
+  the screenshot belong to PlatformIO, not KR16; the native VS Code
+  disassembly view is opened from the stack-frame context menu.
+- Next: manual VS Code smoke of the new command.

@@ -96,10 +96,57 @@ class Kr16DescriptorFactory {
   }
 }
 
+async function showDisassembly() {
+  const session = vscode.debug.activeDebugSession;
+  if (!session || session.type !== 'kr16') {
+    vscode.window.showErrorMessage('KR16: start a KR16 debug session first');
+    return;
+  }
+  try {
+    const trace = await session.customRequest('stackTrace', { threadId: 1 });
+    const frame = trace && trace.stackFrames ? trace.stackFrames[0] : null;
+    let reference = frame && frame.instructionPointerReference;
+    if (!reference) {
+      const evaluated = await session.customRequest('evaluate', {
+        expression: '$pc',
+        context: 'repl'
+      });
+      reference = evaluated && evaluated.result;
+    }
+    const disassembly = await session.customRequest('disassemble', {
+      memoryReference: reference,
+      instructionCount: 80
+    });
+    const lines = [
+      '; KR16 disassembly at ' + reference
+    ];
+    for (const instruction of disassembly.instructions || []) {
+      const marker = instruction.address === reference ? '>' : ' ';
+      lines.push(marker + ' ' + instruction.address + '  ' + instruction.instruction);
+    }
+    const document = await vscode.workspace.openTextDocument({
+      language: 'asm',
+      content: lines.join('\n')
+    });
+    await vscode.window.showTextDocument(document, {
+      preview: true,
+      viewColumn: vscode.ViewColumn.Beside
+    });
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      'KR16 disassembly failed: ' +
+        (error && error.message ? error.message : String(error))
+    );
+  }
+}
+
 function activate(context) {
   const factory = new Kr16DescriptorFactory(context);
   context.subscriptions.push(
     vscode.debug.registerDebugAdapterDescriptorFactory('kr16', factory)
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('kr16.disassembly', showDisassembly)
   );
   context.subscriptions.push(
     vscode.commands.registerCommand('kr16.debug', async () => {
@@ -133,4 +180,6 @@ function activate(context) {
 function deactivate() {}
 
 module.exports = { activate, deactivate };
+
+
 
