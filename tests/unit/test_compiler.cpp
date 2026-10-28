@@ -429,7 +429,10 @@ TEST_CASE("compiler emits local variable debug records") {
     options.debug = true;
     options.source_name = "debug.c";
     const auto compiled = kr16::compile_c(
-        "int main(void) { int counter = 5; return counter; }\n", options);
+        "struct P { int x; }; "
+        "int main(void) { struct P p; int counter = 5; "
+        "return counter; }\n",
+        options);
     REQUIRE(compiled.ok);
     CHECK(compiled.assembly.find(".debug_vars") != std::string::npos);
     CHECK(compiled.assembly.find("main|counter|") != std::string::npos);
@@ -446,6 +449,10 @@ TEST_CASE("compiler emits local variable debug records") {
     REQUIRE(frames != nullptr);
     const std::string frame_data(frames->data.begin(), frames->data.end());
     CHECK(frame_data.find("main|") != std::string::npos);
+    const auto* types = linked.image.find_section(".debug_types");
+    REQUIRE(types != nullptr);
+    const std::string type_data(types->data.begin(), types->data.end());
+    CHECK(type_data.find("struct P|2") != std::string::npos);
 }
 
 TEST_CASE("compiler emits source line information with -g") {

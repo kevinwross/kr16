@@ -1965,3 +1965,14 @@ Entry format:
   committed by that session; the premature README link was removed.
 - Remaining: `.debug_types`, 32-bit `long`, and M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:14:36 -07:00 — M9: .debug_types records
+
+- Status: `cc -g` emits named struct/union/enum/typedef types with sizes into
+  `.debug_types`; the linker preserves/merges the section.
+- Changes: type names tracked in the parser; codegen records named parameter,
+  local, and global types.
+- Tests: compiler/linker debug test checks `.debug_types` includes
+  `struct P|2`.
+- Remaining: 32-bit `long`, M13 1.0.
+- Next: M13 release gate and remaining C gaps.

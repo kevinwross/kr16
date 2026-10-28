@@ -42,6 +42,7 @@ struct Type {
     int count = 0;
     std::shared_ptr<Type> base;
     std::vector<Member> members;
+    std::string name;
 
     int size() const {
         switch (kind) {
@@ -915,6 +916,9 @@ private:
                 }
                 type->kind = TypeKind::Struct;
                 type->members.clear();
+                if (!tag.empty()) {
+                    type->name = "struct " + tag;
+                }
                 while (!check("}") && !at_end()) {
                     auto member_type = parse_type();
                     const std::string member_name = parse_name();
@@ -955,6 +959,9 @@ private:
                 }
                 type->kind = TypeKind::Union;
                 type->members.clear();
+                if (!tag.empty()) {
+                    type->name = "union " + tag;
+                }
                 while (!check("}") && !at_end()) {
                     auto member_type = parse_type();
                     const std::string member_name = parse_name();
@@ -971,8 +978,9 @@ private:
             return type;
         }
         if (accept("enum")) {
+            std::string tag;
             if (peek().kind == TokenKind::Identifier) {
-                ++position_;
+                tag = tokens_[position_++].text;
             }
             if (accept("{")) {
                 std::int64_t next = 0;
@@ -992,7 +1000,11 @@ private:
                 }
                 expect("}");
             }
-            return make_type(TypeKind::Int);
+            auto type = make_type(TypeKind::Int);
+            if (!tag.empty()) {
+                type->name = "enum " + tag;
+            }
+            return type;
         }
         if (accept("void")) return make_type(TypeKind::Void);
         if (accept("_Bool")) return make_type(TypeKind::Char);
@@ -1058,6 +1070,9 @@ private:
             auto type = parse_type();
             const std::string alias = parse_name();
             expect(";");
+            if (type->name.empty()) {
+                type->name = alias;
+            }
             typedefs_[alias] = std::move(type);
             return;
         }
@@ -1757,6 +1772,13 @@ public:
             }
             out << ".text\n";
         }
+        if (debug_ && !debug_types_.empty()) {
+            out << ".section .debug_types\n";
+            for (const auto& type : debug_types_) {
+                out << ".asciz \"" << type.name << "|" << type.size << "\"\n";
+            }
+            out << ".text\n";
+        }
         return out.str();
     }
 
@@ -1779,10 +1801,29 @@ private:
         std::string function;
         int size = 0;
     };
+    struct DebugType {
+        std::string name;
+        int size = 0;
+    };
+
+    void record_type(const std::shared_ptr<Type>& type) {
+        if (!type || type->name.empty()) {
+            return;
+        }
+        for (const auto& existing : debug_types_) {
+            if (existing.name == type->name) {
+                return;
+            }
+        }
+        debug_types_.push_back(DebugType{type->name, type->size()});
+    }
 
     void collect_globals() {
         for (auto& global : program_.globals) {
             global_map_[global.name] = &global;
+            if (debug_) {
+                record_type(global.type);
+            }
         }
         for (auto& function : program_.functions) {
             function_map_[function.name] = &function;
@@ -2010,7 +2051,11 @@ private:
         }
         if (debug_) {
             debug_frames_.push_back(DebugFrame{function.name, frame_size_});
+            for (const auto& parameter : function.parameters) {
+                record_type(parameter.type);
+            }
             for (const auto& [name, variable] : locals_) {
+                record_type(variable.type);
                 if (!variable.global && !variable.indirect) {
                     debug_vars_.push_back(DebugVar{
                         function.name, name, variable.offset,
@@ -2838,6 +2883,7 @@ private:
     std::vector<std::string> continue_labels_;
     std::vector<DebugVar> debug_vars_;
     std::vector<DebugFrame> debug_frames_;
+    std::vector<DebugType> debug_types_;
     std::string return_label_;
     int frame_size_ = 0;
     int current_named_params_ = 0;

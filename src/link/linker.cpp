@@ -79,7 +79,8 @@ LinkResult link_objects(const std::vector<Container>& objects,
                 const auto& input = object.sections[section_index];
                 if (!options.strip_debug &&
                     (input.name == ".debug_vars" ||
-                     input.name == ".debug_frames")) {
+                     input.name == ".debug_frames" ||
+                     input.name == ".debug_types")) {
                     Section* target = nullptr;
                     for (auto& output : outputs) {
                         if (output.name == input.name) {
