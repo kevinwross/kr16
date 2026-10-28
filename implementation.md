@@ -1589,6 +1589,17 @@ Entry format:
   variadics, full preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
 
+### 2026-10-27 21:09:44 -07:00 — M8: struct/union member arrays
+
+- Status: member arrays are parsed for structs/unions, with indexing and
+  overlapping union access.
+- Changes: array-suffix parser for members; indexing through member addresses;
+  tests for union char arrays and struct int arrays.
+- Tests: compiler suite 9/9; member-array indexing and union overlap covered.
+- Remaining: struct parameters/returns, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.
+
 ### 2026-10-27 21:04:38 -07:00 — Linux -Werror follow-up
 
 - Fixed GCC `-Wswitch` on the new `InitList` expression kind; Linux Debug and

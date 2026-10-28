@@ -434,6 +434,7 @@ private:
                 while (!check("}") && !at_end()) {
                     auto member_type = parse_type();
                     const std::string member_name = parse_name();
+                    member_type = parse_array_suffix(member_type);
                     expect(";");
                     const int align = member_type->size() > 1 ? 2 : 1;
                     int offset = type->size();
@@ -466,6 +467,7 @@ private:
                 while (!check("}") && !at_end()) {
                     auto member_type = parse_type();
                     const std::string member_name = parse_name();
+                    member_type = parse_array_suffix(member_type);
                     expect(";");
                     type->members.push_back(Member{member_name, member_type, 0});
                 }
@@ -527,6 +529,20 @@ private:
         auto type = parse_base_type();
         while (accept("*")) {
             type = make_type(TypeKind::Pointer, type);
+        }
+        return type;
+    }
+
+    std::shared_ptr<Type> parse_array_suffix(std::shared_ptr<Type> type) {
+        while (accept("[")) {
+            int count = 0;
+            if (peek().kind == TokenKind::Number) {
+                count = static_cast<int>(tokens_[position_++].value);
+            } else {
+                error("expected an array size");
+            }
+            expect("]");
+            type = make_type(TypeKind::Array, type, count);
         }
         return type;
     }

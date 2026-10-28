@@ -197,6 +197,12 @@ TEST_CASE("compiled control flow works") {
                 "return u.c; }\n") == 66);
     CHECK(run_c("union U { int i; char c; }; "
                 "int main(void) { return sizeof(union U); }\n") == 2);
+    CHECK(run_c("union U { int i; char c[2]; }; "
+                "int main(void) { union U u; u.i = 0x4142; "
+                "return u.c[1]; }\n") == 65);
+    CHECK(run_c("struct S { int a[2]; }; "
+                "int main(void) { struct S s; s.a[0] = 3; s.a[1] = 4; "
+                "return s.a[0] + s.a[1]; }\n") == 7);
 }
 
 TEST_CASE("compiled C calls libc") {
