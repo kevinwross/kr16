@@ -296,6 +296,9 @@ TEST_CASE("compiled control flow works") {
     CHECK(run_c_with_libc("#define STR(x) #x\n"
                           "int main(void) { puts(STR(hello)); return 0; }\n") ==
           "hello\n");
+    CHECK(run_c("#define CAT(a, b) a##b\n"
+                "int main(void) { int foobar = 7; return CAT(foo, bar); }\n") ==
+          7);
 }
 
 TEST_CASE("compiled C calls libc") {

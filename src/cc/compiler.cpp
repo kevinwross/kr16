@@ -158,6 +158,18 @@ std::string substitute_macro(const std::string& body,
             }
             continue;
         }
+        if (ch == '#' && i + 1 < body.size() && body[i + 1] == '#') {
+            while (!out.empty() &&
+                   std::isspace(static_cast<unsigned char>(out.back())) != 0) {
+                out.pop_back();
+            }
+            i += 2;
+            while (i < body.size() &&
+                   std::isspace(static_cast<unsigned char>(body[i])) != 0) {
+                ++i;
+            }
+            continue;
+        }
         if (ch == '#' && (i + 1 >= body.size() || body[i + 1] != '#')) {
             std::size_t next = i + 1;
             while (next < body.size() &&

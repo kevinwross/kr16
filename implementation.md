@@ -1758,3 +1758,13 @@ Entry format:
 - Remaining: `##`, `#line`, pragmas, variadic definitions, struct parameters/
   returns, locals views, and M13 1.0.
 - Next: continue preprocessor/M11 work.
+
+### 2026-10-27 21:36:32 -07:00 — M8: token pasting
+
+- Status: added the `##` token-pasting operator.
+- Changes: macro substitution removes `##` and surrounding whitespace,
+  concatenating the substituted operands.
+- Tests: compiler suite; `CAT(foo, bar)` resolves to the `foobar` identifier.
+- Remaining: `#line`, pragmas, variadic definitions, struct parameters/
+  returns, locals views, and M13 1.0.
+- Next: continue preprocessor/M11 work.
