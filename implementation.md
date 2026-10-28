@@ -32,7 +32,7 @@ Rules:
 
 | Milestone | Scope | Status | Gate |
 |---|---|---|---|
-| M0 | Repository, build skeleton, ISA freeze | Not started | Build and spec gate |
+| M0 | Repository, build skeleton, ISA freeze | In verification | Build and spec gate |
 | M1 | Container, CRC, diagnostics | Not started | Container round-trip gate |
 | M2 | ISA core and CPU | Not started | ISA conformance gate |
 | M3 | Assembler and disassembler | Not started | Raw-program gate |
@@ -1045,3 +1045,14 @@ Entry format:
 - Tests: none; documentation-only step.
 - Regressions: none.
 - Next: final M0 verification and push.
+
+### 2026-10-27 18:48:36 -07:00 — M0: final verification
+
+- Status: M0 complete locally; hosted CI verification pending.
+- Changes: added `/Brepro` to MSVC compile/link flags so repeated release
+  builds are byte-identical.
+- Tests: Visual Studio Debug/Release and Ninja Debug/Release builds passed;
+  all five CTest tests passed; two clean Ninja Release links produced the same
+  SHA256 hash.
+- Regressions: none.
+- Next: push M0, confirm CI, then start M1 — container, CRC, and diagnostics.

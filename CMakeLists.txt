@@ -12,7 +12,8 @@ option(KR16_SANITIZE "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OF
 
 if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-  add_compile_options(/W4 /WX /permissive- /Zc:__cplusplus)
+  add_compile_options(/W4 /WX /permissive- /Zc:__cplusplus /Brepro)
+  add_link_options(/Brepro)
 else()
   add_compile_options(-Wall -Wextra -Wpedantic -Werror)
   if(KR16_SANITIZE)
