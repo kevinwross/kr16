@@ -1701,3 +1701,14 @@ Entry format:
 - Remaining: `#elif`, system headers, variadic definitions, struct parameters/
   returns, `long`, full libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:27:32 -07:00 — M8: #elif
+
+- Status: added `#elif` to conditional preprocessing with first-true branch
+  selection.
+- Changes: conditional state tracks whether a branch was already taken;
+  `#else` activates only when no prior branch matched.
+- Tests: compiler suite; `#if 0`/`#elif 1`/`#else` and short-circuit cases.
+- Remaining: system header search, variadic definitions, struct parameters/
+  returns, `long`, full libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

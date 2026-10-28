@@ -281,6 +281,7 @@ std::string preprocess_source_impl(
         bool parent = true;
         bool condition = true;
         bool else_seen = false;
+        bool taken = false;
     };
     std::vector<Conditional> conditionals;
     auto active = [&]() {
@@ -288,8 +289,7 @@ std::string preprocess_source_impl(
             return true;
         }
         const auto& top = conditionals.back();
-        return top.parent &&
-               (top.else_seen ? !top.condition : top.condition);
+        return top.parent && top.condition;
     };
     while (std::getline(input, line)) {
         const std::string trimmed = trim_copy(line);
@@ -376,10 +376,22 @@ std::string preprocess_source_impl(
                     condition = argument != "0";
                 }
                 conditionals.push_back(
-                    Conditional{parent, condition, false});
+                    Conditional{parent, condition, false, condition});
+            } else if (directive == "elif") {
+                if (!conditionals.empty() && !conditionals.back().else_seen) {
+                    auto& top = conditionals.back();
+                    const bool condition = !top.taken && argument != "0";
+                    top.condition = condition;
+                    if (condition) {
+                        top.taken = true;
+                    }
+                }
             } else if (directive == "else") {
                 if (!conditionals.empty()) {
-                    conditionals.back().else_seen = true;
+                    auto& top = conditionals.back();
+                    top.else_seen = true;
+                    top.condition = !top.taken;
+                    top.taken = true;
                 }
             } else if (directive == "endif") {
                 if (!conditionals.empty()) {

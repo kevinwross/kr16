@@ -257,6 +257,18 @@ TEST_CASE("compiled control flow works") {
                 "int main(void) { return ADD(2, 3); }\n") == 5);
     CHECK(run_c("#define MAX(a, b) ((a) > (b) ? (a) : (b))\n"
                 "int main(void) { return MAX(3, 7); }\n") == 7);
+    CHECK(run_c("#if 0\n"
+                "int main(void) { return 1; }\n"
+                "#elif 1\n"
+                "int main(void) { return 2; }\n"
+                "#else\n"
+                "int main(void) { return 3; }\n"
+                "#endif\n") == 2);
+    CHECK(run_c("#if 1\n"
+                "int main(void) { return 4; }\n"
+                "#elif 1\n"
+                "int main(void) { return 5; }\n"
+                "#endif\n") == 4);
 }
 
 TEST_CASE("compiled C calls libc") {
