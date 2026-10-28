@@ -36,9 +36,11 @@ arrays, function/variadic prototypes, object/function macros, `#`/`##` operators
 `memcpy`, `malloc`, `calloc`, `realloc`, `free`, and `exit`. `long`, the full preprocessor
 (`#line`, pragmas), and the full `printf` family are not implemented yet.
 
-The DAP TCP server and a minimal VS Code extension are implemented. Advanced
-debug views (memory, disassembly, evaluate), threaded console separation, and
-the full release packaging/curriculum pass are still pending.
+The DAP TCP server, live VS Code debug session, locals/globals scopes,
+multi-frame stack walking, memory/disassembly/evaluate views, and terminal
+console separation are implemented. See
+[`KR16-Assembly-Language.md`](KR16-Assembly-Language.md) for the programmer's
+manual.
 
 ## Build
 

@@ -1950,3 +1950,10 @@ Entry format:
   `.debug_frames`.
 - Remaining: `.debug_types`, 32-bit `long`, and M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:11:37 -07:00 — documentation: assembly manual
+
+- Added the user-provided `KR16-Assembly-Language.md` programmer's manual and
+  linked it from the README; refreshed the debugger status text.
+- Remaining: `.debug_types`, 32-bit `long`, and M13 1.0.
+- Next: M13 release gate and remaining C gaps.
