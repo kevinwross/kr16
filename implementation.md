@@ -1679,3 +1679,14 @@ Entry format:
 - Remaining: `#include`, function-like macros, `#elif`, variadic definitions,
   struct parameters/returns, `long`, full libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:23:39 -07:00 — M8: function-like macros
+
+- Status: added function-like `#define` macros with parameter substitution and
+  nested macro expansion.
+- Changes: macro table stores parameter lists/bodies; call arguments are split
+  with parenthesis awareness; arguments/body expand recursively.
+- Tests: compiler suite 9/9; `ADD(a,b)` and `MAX(a,b)` covered.
+- Remaining: `#include`, `#elif`, variadic definitions, struct parameters/
+  returns, `long`, full libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

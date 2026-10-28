@@ -235,6 +235,10 @@ TEST_CASE("compiled control flow works") {
                 "#else\n"
                 "int main(void) { return 3; }\n"
                 "#endif\n") == 3);
+    CHECK(run_c("#define ADD(a, b) ((a) + (b))\n"
+                "int main(void) { return ADD(2, 3); }\n") == 5);
+    CHECK(run_c("#define MAX(a, b) ((a) > (b) ? (a) : (b))\n"
+                "int main(void) { return MAX(3, 7); }\n") == 7);
 }
 
 TEST_CASE("compiled C calls libc") {

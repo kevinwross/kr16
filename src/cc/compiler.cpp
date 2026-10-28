@@ -102,9 +102,90 @@ std::string trim_copy(std::string_view text) {
     return std::string(text.substr(begin, end - begin));
 }
 
-std::string expand_macros(
-    const std::string& line,
-    const std::map<std::string, std::string>& macros, int depth) {
+struct Macro {
+    bool function = false;
+    std::vector<std::string> params;
+    std::string body;
+};
+
+std::vector<std::string> split_macro_args(const std::string& text) {
+    std::vector<std::string> args;
+    std::string current;
+    int depth = 0;
+    for (const char ch : text) {
+        if (ch == '(') {
+            ++depth;
+        } else if (ch == ')') {
+            --depth;
+        }
+        if (ch == ',' && depth == 0) {
+            args.push_back(trim_copy(current));
+            current.clear();
+        } else {
+            current += ch;
+        }
+    }
+    if (!trim_copy(current).empty() || !args.empty()) {
+        args.push_back(trim_copy(current));
+    }
+    return args;
+}
+
+std::string substitute_macro(const std::string& body,
+                             const std::vector<std::string>& params,
+                             const std::vector<std::string>& args) {
+    std::string out;
+    for (std::size_t i = 0; i < body.size();) {
+        const char ch = body[i];
+        if (ch == '"' || ch == '\'') {
+            const char quote = ch;
+            out += ch;
+            ++i;
+            while (i < body.size()) {
+                out += body[i];
+                if (body[i] == '\\' && i + 1 < body.size()) {
+                    out += body[i + 1];
+                    i += 2;
+                    continue;
+                }
+                if (body[i] == quote) {
+                    ++i;
+                    break;
+                }
+                ++i;
+            }
+            continue;
+        }
+        if (std::isalpha(static_cast<unsigned char>(ch)) != 0 || ch == '_') {
+            const std::size_t start = i;
+            while (i < body.size() &&
+                   (std::isalnum(static_cast<unsigned char>(body[i])) != 0 ||
+                    body[i] == '_')) {
+                ++i;
+            }
+            const std::string name = body.substr(start, i - start);
+            bool replaced = false;
+            for (std::size_t p = 0; p < params.size(); ++p) {
+                if (params[p] == name && p < args.size()) {
+                    out += args[p];
+                    replaced = true;
+                    break;
+                }
+            }
+            if (!replaced) {
+                out += name;
+            }
+            continue;
+        }
+        out += ch;
+        ++i;
+    }
+    return out;
+}
+
+std::string expand_macros(const std::string& line,
+                          const std::map<std::string, Macro>& macros,
+                          int depth) {
     if (depth > 20) {
         return line;
     }
@@ -143,11 +224,43 @@ std::string expand_macros(
             }
             const std::string name = line.substr(start, i - start);
             const auto macro = macros.find(name);
-            if (macro != macros.end()) {
-                out += expand_macros(macro->second, macros, depth + 1);
-            } else {
+            if (macro == macros.end()) {
                 out += name;
+                continue;
             }
+            if (!macro->second.function) {
+                out += expand_macros(macro->second.body, macros, depth + 1);
+                continue;
+            }
+            std::size_t open = i;
+            while (open < line.size() &&
+                   std::isspace(static_cast<unsigned char>(line[open])) != 0) {
+                ++open;
+            }
+            if (open >= line.size() || line[open] != '(') {
+                out += name;
+                continue;
+            }
+            std::size_t close = open + 1;
+            int parens = 1;
+            while (close < line.size() && parens > 0) {
+                if (line[close] == '(') {
+                    ++parens;
+                } else if (line[close] == ')') {
+                    --parens;
+                }
+                ++close;
+            }
+            if (parens != 0) {
+                out += name;
+                continue;
+            }
+            const auto args =
+                split_macro_args(line.substr(open + 1, close - open - 2));
+            const auto substituted = substitute_macro(
+                macro->second.body, macro->second.params, args);
+            out += expand_macros(substituted, macros, depth + 1);
+            i = close;
             continue;
         }
         out += ch;
@@ -160,7 +273,7 @@ std::string preprocess_source(const std::string& source) {
     std::istringstream input(source);
     std::string line;
     std::string out;
-    std::map<std::string, std::string> macros;
+    std::map<std::string, Macro> macros;
     struct Conditional {
         bool parent = true;
         bool condition = true;
@@ -186,19 +299,38 @@ std::string preprocess_source(const std::string& source) {
                 space == std::string::npos ? "" : trim_copy(rest.substr(space));
             if (directive == "define") {
                 if (active()) {
-                    const auto name_space = argument.find_first_of(" \t");
-                    const std::string name =
-                        name_space == std::string::npos
-                            ? argument
-                            : argument.substr(0, name_space);
-                    const std::string value =
-                        name_space == std::string::npos
-                            ? ""
-                            : trim_copy(argument.substr(name_space));
-                    const bool function_like =
-                        !name.empty() && name.back() == '(';
-                    if (!name.empty() && !function_like) {
-                        macros[name] = value;
+                    std::size_t name_end = 0;
+                    while (name_end < argument.size() &&
+                           (std::isalnum(
+                                static_cast<unsigned char>(argument[name_end])) !=
+                                0 ||
+                            argument[name_end] == '_')) {
+                        ++name_end;
+                    }
+                    const std::string name = argument.substr(0, name_end);
+                    if (!name.empty()) {
+                        Macro macro;
+                        std::size_t body_start = name_end;
+                        if (name_end < argument.size() &&
+                            argument[name_end] == '(') {
+                            std::size_t close = name_end + 1;
+                            int parens = 1;
+                            while (close < argument.size() && parens > 0) {
+                                if (argument[close] == '(') {
+                                    ++parens;
+                                } else if (argument[close] == ')') {
+                                    --parens;
+                                }
+                                ++close;
+                            }
+                            macro.function = true;
+                            macro.params = split_macro_args(
+                                argument.substr(name_end + 1,
+                                                close - name_end - 2));
+                            body_start = close;
+                        }
+                        macro.body = trim_copy(argument.substr(body_start));
+                        macros[name] = std::move(macro);
                     }
                 }
             } else if (directive == "undef") {
