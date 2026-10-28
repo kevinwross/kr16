@@ -420,6 +420,21 @@ TEST_CASE("HLT and SYSCALL") {    kr16::FlatMemory memory;
     CHECK(cpu.step(memory) == 0);
 }
 
+TEST_CASE("stack guard takes vector 5") {
+    kr16::FlatMemory memory;
+    kr16::Cpu cpu;
+    memory.write16(10, 0x0300);
+    cpu.set_pc(0x0100);
+    cpu.set_sp(0xF000);
+    cpu.set_stack_limit(0xF000);
+    kr16::Instruction push;
+    push.op = kr16::Op::Push;
+    push.rd = 0;
+    emit(memory, 0x0100, push);
+    CHECK(cpu.step(memory) == 9);
+    CHECK(cpu.pc() == 0x0300);
+}
+
 TEST_CASE("illegal instruction takes vector 0") {
     kr16::FlatMemory memory;
     kr16::Cpu cpu;

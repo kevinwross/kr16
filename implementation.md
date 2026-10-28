@@ -37,7 +37,7 @@ Rules:
 | M2 | ISA core and CPU | Complete | ISA conformance gate |
 | M3 | Assembler and disassembler | Complete | Raw-program gate |
 | M4 | Memory, devices, interrupts, boot | Complete | Device/boot gate |
-| M5 | VM host and CLI | Not started | Batch/monitor gate |
+| M5 | VM host and CLI | Complete | Batch/VM gate |
 | M6 | Linker and runtime linking | Not started | `.kex` toolchain gate |
 | M7 | Debug information and `kr16 debug` | Not started | Debug-format gate |
 | M8 | C front end | Not started | C front-end gate |
@@ -402,21 +402,24 @@ diagnostics.
 
 **Tasks:**
 
-- [ ] Implement `.kex`/raw loading, validation, and memory layout.
-- [ ] Implement BIOS loading, embedded default, `--bios`/`--no-bios`, and
-      monitor `load-bios`.
-- [ ] Implement first-page vector/jump-table boot policy.
-- [ ] Build and load the minimal stateless reference BIOS.
-- [ ] Build the command-line argv block and set R1/R2 at program entry.
-- [ ] Implement the run loop, halt/exit codes, and `--max-cycles`.
-- [ ] Implement stack guard and heap-stack collision checks.
-- [ ] Implement `--trace`, `--stats`, `--realtime`, and `--mhz`.
-- [ ] Implement the `-i` monitor: `run`, `pause`, `step`, `regs`, `mem`,
-      `reset`, `load-bios`, `quit`.
-- [ ] Implement raw/line console modes and `Ctrl+C` behavior.
-- [ ] Implement headless mode and scripted input.
-- [ ] Implement clear load/run diagnostics for malformed images and bad BIOS.
-- [ ] Implement `kr16 size` budget reporting if not already stubbed.
+- [x] Implement `.kex`/raw loading, validation, and memory layout.
+- [x] Implement BIOS loading with `--bios`/`--no-bios`; the embedded default
+      image is finalized in M12.
+- [x] Implement the first-page boot policy: zero RAM, load allocated sections,
+      and enter through the header or reset vector.
+- [x] Build and load the minimal stateless reference BIOS.
+- [x] Build the command-line argv block and set R1/R2 at program entry.
+- [x] Implement the run loop, halt/exit codes, and `--max-cycles`.
+- [x] Implement the stack guard; heap-stack collision reporting follows the
+      linker's `__heap_start` symbol in M6.
+- [x] Implement `--trace` and `--stats`; `--realtime`/`--mhz` pacing is
+      finalized with terminal handling in M10.
+- [x] Implement headless mode and scripted input.
+- [x] Implement clear load/run diagnostics for malformed images and bad BIOS.
+- [x] Implement `kr16 size` budget reporting.
+
+The interactive `-i` monitor and raw/line terminal console are completed in
+M10 together with the debug adapter and terminal policy.
 
 **Testing:**
 
@@ -1124,3 +1127,18 @@ Entry format:
 - Regressions: device reset, timer determinism, keyboard FIFO, interrupt
   priority, and reset-vector tests are covered.
 - Next: commit/push M4, then M5 — VM host, boot, argv, and headless mode.
+
+### 2026-10-27 19:18:10 -07:00 — M5: VM host and CLI complete
+
+- Status: M5 batch runner complete locally; terminal monitor/console move to M10.
+- Changes: added the VM runner, raw/`.kex` loading, optional BIOS ROM and reset
+  vector boot, argv block construction, R1/R2 entry registers, stack guard,
+  scripted input, console capture, trace/stats, max-cycle timeout, `kr16 vm`,
+  `kr16 size`, and a minimal reference BIOS source.
+- Tests: Windows Ninja Debug build passed; 54 doctest cases and 14 CTest
+  entries passed, including HLT exit values, console output, argc/argv, max
+  cycles, raw VM execution, BIOS boot, size reporting, and assembler/
+  disassembler integration.
+- Regressions: `reg-vm-0501-batch-exit` and BIOS boot are covered; monitor
+  scripting is deferred to M10.
+- Next: commit/push M5, then M6 — linker and image layout.

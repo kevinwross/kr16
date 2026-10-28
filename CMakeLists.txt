@@ -33,6 +33,7 @@ add_library(kr16_core STATIC
   src/asm/assembler.cpp
   src/dis/disassembler.cpp
   src/vm/machine.cpp
+  src/vm/runner.cpp
 )
 target_include_directories(kr16_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_definitions(kr16_core PUBLIC KR16_VERSION="${PROJECT_VERSION}")

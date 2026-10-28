@@ -67,6 +67,8 @@ public:
     void set_pc(std::uint16_t value) noexcept { pc_ = value; }
     std::uint16_t sp() const noexcept { return sp_; }
     void set_sp(std::uint16_t value) noexcept { sp_ = value; }
+    void set_stack_limit(std::uint16_t value) noexcept { stack_limit_ = value; }
+    std::uint16_t stack_limit() const noexcept { return stack_limit_; }
     std::uint16_t sr() const noexcept { return sr_; }
     void set_sr(std::uint16_t value) noexcept { sr_ = value & FlagMask; }
 
@@ -106,6 +108,7 @@ private:
     std::uint16_t regs_[5]{};
     std::uint16_t pc_ = 0;
     std::uint16_t sp_ = 0xF000;
+    std::uint16_t stack_limit_ = 0xE000;
     std::uint16_t sr_ = 0;
     bool halted_ = false;
     std::string halt_reason_;

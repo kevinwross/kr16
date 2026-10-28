@@ -147,6 +147,11 @@ std::uint32_t Cpu::step(MemoryBus& bus) {
     std::uint32_t cycles = 1;
     execute(instruction, bus, next_pc, cycles);
     cycles_ += cycles;
+    if (!halted_ && (sp_ < stack_limit_ || sp_ > 0xF000)) {
+        raise_exception(5, next_pc, bus);
+        cycles_ += 7;
+        return cycles + 7;
+    }
     return cycles;
 }
 

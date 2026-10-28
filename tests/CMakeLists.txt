@@ -10,6 +10,7 @@ add_executable(kr16_tests
   unit/test_assembler.cpp
   unit/test_disassembler.cpp
   unit/test_machine.cpp
+  unit/test_vm.cpp
 )
 target_include_directories(kr16_tests PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../third_party"
@@ -62,3 +63,35 @@ add_test(NAME kr16.dis.object
 )
 set_tests_properties(kr16.dis.object PROPERTIES LABELS "integration"
   DEPENDS kr16.as.object)
+
+add_test(NAME kr16.as.vm
+  COMMAND kr16 as "${CMAKE_CURRENT_SOURCE_DIR}/integration/vm_hello.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/vm_hello.bin" --raw --base 0x100
+)
+set_tests_properties(kr16.as.vm PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.vm.raw
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/vm_hello.bin"
+    --raw --base 0x100 --stats
+)
+set_tests_properties(kr16.vm.raw PROPERTIES LABELS "integration"
+  DEPENDS kr16.as.vm)
+
+add_test(NAME kr16.size.object
+  COMMAND kr16 size "${CMAKE_CURRENT_BINARY_DIR}/asm_min.o"
+)
+set_tests_properties(kr16.size.object PROPERTIES LABELS "integration"
+  DEPENDS kr16.as.object)
+
+add_test(NAME kr16.as.bios
+  COMMAND kr16 as "${CMAKE_SOURCE_DIR}/resources/bios.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/bios.bin" --raw --base 0xF100
+)
+set_tests_properties(kr16.as.bios PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.vm.bios
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/vm_hello.bin"
+    --raw --base 0x100 --bios "${CMAKE_CURRENT_BINARY_DIR}/bios.bin"
+)
+set_tests_properties(kr16.vm.bios PROPERTIES LABELS "integration"
+  DEPENDS "kr16.as.vm;kr16.as.bios")
