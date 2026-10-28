@@ -304,6 +304,14 @@ LinkResult link_objects(const std::vector<Container>& objects,
             }
         }
 
+        const std::unordered_map<std::string, std::uint16_t> linker_symbols = {
+            {"__heap_start",
+             static_cast<std::uint16_t>(align_up(cursor, 2))},
+            {"__stack_top", static_cast<std::uint16_t>(0xF000)},
+            {"__stack_limit",
+             static_cast<std::uint16_t>(0xF000 - options.stack_reserve)},
+        };
+
         auto symbol_value = [&](std::size_t object_index,
                                 std::uint32_t symbol_index) -> std::uint16_t {
             if (symbol_index >= objects[object_index].symbols.size()) {
@@ -317,10 +325,14 @@ LinkResult link_objects(const std::vector<Container>& objects,
                                                   symbol.value);
             }
             const auto it = globals.find(symbol.name);
-            if (it == globals.end()) {
-                throw std::runtime_error("undefined symbol " + symbol.name);
+            if (it != globals.end()) {
+                return it->second;
             }
-            return it->second;
+            const auto provided = linker_symbols.find(symbol.name);
+            if (provided != linker_symbols.end()) {
+                return provided->second;
+            }
+            throw std::runtime_error("undefined symbol " + symbol.name);
         };
 
         for (std::size_t object_index = 0; object_index < objects.size();

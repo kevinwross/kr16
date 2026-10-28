@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -62,6 +63,40 @@ TEST_CASE("linker rejects duplicate globals") {
     CHECK_FALSE(linked.ok);
     REQUIRE(linked.diagnostics.size() == 1);
     CHECK(linked.diagnostics[0].find("duplicate global") != std::string::npos);
+}
+
+TEST_CASE("linker resolves its provided heap and stack symbols") {
+    const auto object = assemble(
+        ".data\n"
+        ".extern __heap_start\n"
+        ".extern __stack_limit\n"
+        ".global heap_word\n"
+        "heap_word:\n"
+        "  .word __heap_start\n"
+        "  .word __stack_limit\n"
+        ".text\n"
+        ".global _start\n"
+        "_start:\n"
+        "  HLT\n");
+    const auto linked = kr16::link_objects({object});
+    REQUIRE(linked.ok);
+    const auto* data = linked.image.find_section(".data");
+    REQUIRE(data != nullptr);
+    REQUIRE(data->data.size() == 4);
+    const auto word = [&](std::size_t offset) {
+        return static_cast<std::uint16_t>(
+            data->data[offset] |
+            (static_cast<std::uint16_t>(data->data[offset + 1]) << 8));
+    };
+    const auto heap = std::find_if(
+        linked.image.symbols.begin(), linked.image.symbols.end(),
+        [](const kr16::Symbol& symbol) {
+            return symbol.name == "__heap_start";
+        });
+    REQUIRE(heap != linked.image.symbols.end());
+    CHECK(word(0) == heap->value);
+    CHECK(word(0) != 0);
+    CHECK(word(2) == 0xF000 - kr16::LinkOptions{}.stack_reserve);
 }
 
 TEST_CASE("linker strip options remove debug and symbols") {
