@@ -2044,3 +2044,19 @@ Entry format:
 - Tests: shell load/history/tokenizer; Windows 88/88 doctest (2958 assertions),
   24/24 CTest; Linux 23/23; `load examples/hello.c` verified on both.
 - Next: optional `--no-run` load mode if needed.
+
+### 2026-10-28 05:15:08 -07:00 — DAP source loading and disassembly
+
+- Root cause: `.debug_line` carried file indices but the assembler discarded
+  `.file` names, so the DAP fell back to opening the `.kex` binary.
+- Fix: emit `.debug_sources`, merge it in the linker, resolve the source path
+  against the program/workspace, and never fall back to the binary path.
+- Fixed assembler string unescaping so single Windows backslashes in `.file`
+  paths survive.
+- Stack frames at entry report line 1 when no line row exists, so VS Code opens
+  the source file.
+- Disassembly requests now clamp large instruction counts instead of rejecting
+  them; DAP smoke requests 100 instructions.
+- Tests: DAP frame source path `hello.c`; 89/89 doctest (2970 assertions),
+  Windows 24/24 CTest, Linux 23/23; DAP source/disassembly smoke green.
+- Next: verify VS Code's Open Disassembly View context action manually.

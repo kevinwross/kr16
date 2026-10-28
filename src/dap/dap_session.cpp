@@ -286,20 +286,59 @@ std::vector<DebugLineRow> load_line_rows(const Container& container) {
     }
 }
 
+std::string resolve_source_path(const std::string& path, const std::string& program) {
+    if (path.empty()) {
+        return {};
+    }
+    std::error_code ec;
+    std::filesystem::path candidate(path);
+    if (candidate.is_absolute() && std::filesystem::exists(candidate, ec)) {
+        return candidate.lexically_normal().string();
+    }
+    const auto program_path = std::filesystem::path(program);
+    std::vector<std::filesystem::path> bases;
+    bases.push_back(std::filesystem::current_path(ec));
+    bases.push_back(program_path.parent_path());
+    bases.push_back(program_path.parent_path().parent_path());
+    for (const auto& base : bases) {
+        if (base.empty()) {
+            continue;
+        }
+        const auto resolved = base / candidate;
+        if (std::filesystem::exists(resolved, ec)) {
+            return resolved.lexically_normal().string();
+        }
+    }
+    if (candidate.is_absolute()) {
+        return candidate.lexically_normal().string();
+    }
+    return std::filesystem::absolute(candidate, ec).lexically_normal().string();
+}
+
 std::string load_source_path(const Container& container) {
     const Section* objects = container.find_section(".debug_objects");
     const Section* strings = container.find_section(".debug_str");
-    if (objects == nullptr || strings == nullptr) {
-        return {};
-    }
-    try {
-        const auto table = StringTable::parse(strings->data);
-        const auto decoded = parse_debug_objects(objects->data, table);
-        if (!decoded.sources.empty()) {
-            return decoded.sources.front().path;
+    if (objects != nullptr && strings != nullptr) {
+        try {
+            const auto table = StringTable::parse(strings->data);
+            const auto decoded = parse_debug_objects(objects->data, table);
+            if (!decoded.sources.empty()) {
+                return decoded.sources.front().path;
+            }
+        } catch (const std::exception&) {
         }
-    } catch (const std::exception&) {
-        return {};
+    }
+    if (const Section* sources = container.find_section(".debug_sources")) {
+        std::string path;
+        for (const auto byte : sources->data) {
+            if (byte == 0) {
+                if (!path.empty()) {
+                    return path;
+                }
+                continue;
+            }
+            path.push_back(static_cast<char>(byte));
+        }
     }
     return {};
 }
@@ -500,6 +539,7 @@ struct DapSession::Impl {
             start = container.entry;
             line_rows = load_line_rows(container);
             source_path = load_source_path(container);
+            source_path = resolve_source_path(source_path, options.program);
             stack_limit = symbol_value(container, "__stack_limit", 0xE000);
         }
 
@@ -520,9 +560,6 @@ struct DapSession::Impl {
                 "program entry is below the first page (0x0100)");
         }
 
-        if (source_path.empty()) {
-            source_path = options.program;
-        }
         entry = start;
         cpu.set_pc(start);
         cpu.set_sp(0xF000);
@@ -991,7 +1028,10 @@ std::vector<std::string> DapSession::Impl::handle_stack_trace(
     }
     JsonValue frames = JsonValue::array();
     auto add_frame = [&](std::uint16_t frame_pc, std::int64_t id) {
-        const auto line = line_for_address(line_rows, frame_pc);
+        auto line = line_for_address(line_rows, frame_pc);
+        if (line <= 0 && !source_path.empty()) {
+            line = 1;
+        }
         JsonValue frame = JsonValue::object();
         frame.set("id", JsonValue::integer(id));
         auto name = function_name(container, frame_pc);
@@ -1212,10 +1252,13 @@ std::vector<std::string> DapSession::Impl::handle_disassemble(
         return out;
     }
     auto count = integer_or(arguments, "instructionCount", 10);
-    if (count < 0 || count > 64) {
+    if (count < 0) {
         append_response(out, request, "disassemble", false, JsonValue::null(),
                         "invalid instruction count");
         return out;
+    }
+    if (count > 512) {
+        count = 512;
     }
     JsonValue instructions = JsonValue::array();
     std::uint32_t address = *base;
@@ -1527,3 +1570,10 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
+
+
+
+
+
+

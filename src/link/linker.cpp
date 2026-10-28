@@ -80,7 +80,8 @@ LinkResult link_objects(const std::vector<Container>& objects,
                 if (!options.strip_debug &&
                     (input.name == ".debug_vars" ||
                      input.name == ".debug_frames" ||
-                     input.name == ".debug_types")) {
+                     input.name == ".debug_types" ||
+                     input.name == ".debug_sources")) {
                     Section* target = nullptr;
                     for (auto& output : outputs) {
                         if (output.name == input.name) {
@@ -483,3 +484,4 @@ LinkResult link_files(const std::vector<std::string>& paths,
 }
 
 }  // namespace kr16
+

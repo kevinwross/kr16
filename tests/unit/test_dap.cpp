@@ -1,3 +1,5 @@
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -5,6 +7,9 @@
 
 #include "kr16/dap.hpp"
 #include "kr16/dap_json.hpp"
+#include "kr16/assembler.hpp"
+#include "kr16/compiler.hpp"
+#include "kr16/linker.hpp"
 
 TEST_CASE("DAP JSON preserves integer values") {
     const auto value = kr16::dap::JsonValue::parse(
@@ -49,3 +54,54 @@ TEST_CASE("DAP initialize session produces response and event") {
     const auto event = kr16::dap::JsonValue::parse(messages[1]);
     CHECK(event.find("event")->as_string() == "initialized");
 }
+
+
+TEST_CASE("DAP stack frame uses the compiled source path") {
+    kr16::CompileOptions options;
+    options.debug = true;
+    options.source_name = "main.c";
+    const auto compiled = kr16::compile_c(
+        "int main(void) { return 0; }\n", options);
+    REQUIRE(compiled.ok);
+    const auto assembled =
+        kr16::assemble_text(compiled.assembly, kr16::AsmOptions{});
+    REQUIRE(assembled.ok);
+    const auto linked = kr16::link_objects({assembled.object});
+    REQUIRE(linked.ok);
+    const auto image = linked.image.write();
+    const auto path = std::filesystem::current_path() / "dap_source.kex";
+    {
+        std::ofstream output(path, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(image.data()),
+                     static_cast<std::streamsize>(image.size()));
+    }
+
+    kr16::dap::DapOptions dap_options;
+    dap_options.program = path.string();
+    kr16::dap::DapSession session(dap_options);
+    session.handle_message(
+        "{\"seq\":1,\"type\":\"request\",\"command\":\"initialize\","
+        "\"arguments\":{}}");
+    session.handle_message(
+        "{\"seq\":2,\"type\":\"request\",\"command\":\"launch\","
+        "\"arguments\":{\"program\":\"dap_source.kex\"}}");
+    session.handle_message(
+        "{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\","
+        "\"arguments\":{}}");
+    const auto messages = session.handle_message(
+        "{\"seq\":4,\"type\":\"request\",\"command\":\"stackTrace\","
+        "\"arguments\":{\"threadId\":1}}");
+    REQUIRE(messages.size() == 1);
+    const auto response = kr16::dap::JsonValue::parse(messages[0]);
+    const auto* frames = response.find("body");
+    REQUIRE(frames != nullptr);
+    const auto* stack = frames->find("stackFrames");
+    REQUIRE(stack != nullptr);
+    REQUIRE(stack->as_array().size() == 1);
+    const auto* source = stack->as_array()[0].find("source");
+    REQUIRE(source != nullptr);
+    CHECK(source->find("path")->as_string().ends_with("main.c"));
+    CHECK(stack->as_array()[0].find("line")->as_integer() == 1);
+    std::filesystem::remove(path);
+}
+

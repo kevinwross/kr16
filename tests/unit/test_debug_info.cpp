@@ -28,6 +28,10 @@ TEST_CASE("debug line rows survive linking") {
     CHECK(rows[0].column == 5);
     CHECK(rows[1].address == 0x0102);
     CHECK(rows[1].line == 5);
+    const auto* sources = linked.image.find_section(".debug_sources");
+    REQUIRE(sources != nullptr);
+    const std::string source_data(sources->data.begin(), sources->data.end());
+    CHECK(source_data == std::string("main.c\0", 7));
 }
 
 TEST_CASE("debug dump renders line information") {
@@ -44,3 +48,4 @@ TEST_CASE("debug dump renders line information") {
     CHECK(text.find("0x0000") != std::string::npos);
     CHECK(text.find("file 0:7:2") != std::string::npos);
 }
+

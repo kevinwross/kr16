@@ -200,14 +200,14 @@ function frame(value) {
       seq: 8,
       type: 'request',
       command: 'disassemble',
-      arguments: { memoryReference: '0x0100', instructionCount: 1 }
+      arguments: { memoryReference: '0x0100', instructionCount: 100 }
     }));
     const disassembly = await waitFor((m) => m.type === 'response' &&
                                            m.command === 'disassemble',
                                      'disassemble response');
     if (!disassembly.success || !disassembly.body ||
         !Array.isArray(disassembly.body.instructions) ||
-        disassembly.body.instructions.length !== 1) {
+        disassembly.body.instructions.length !== 100) {
       console.error('disassemble response is malformed');
       stop(1);
     }
@@ -242,3 +242,4 @@ function frame(value) {
     stop(1);
   }
 })();
+

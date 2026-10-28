@@ -570,6 +570,7 @@ private:
                         std::size_t start_section);
     void append_line_row(std::uint32_t address, int line);
     void emit_debug_line();
+    void emit_debug_sources();
     void reset_for_pass(bool first);
     void process_line(const SourceLine& line);
     LineParts split_line(const SourceLine& line) const;
@@ -679,7 +680,10 @@ std::string unquote(std::string_view text) {
                 case 'r': result.push_back('\r'); break;
                 case '\\': result.push_back('\\'); break;
                 case '"': result.push_back('"'); break;
-                default: result.push_back(escape); break;
+                default:
+                    result.push_back('\\');
+                    result.push_back(escape);
+                    break;
             }
         } else {
             result.push_back(value[i]);
@@ -869,6 +873,7 @@ AsmResult Assembler::run() {
             process_line(line);
         }
         emit_debug_line();
+        emit_debug_sources();
 
         for (auto& symbol : symbols_) {
             if (globals_.count(symbol.name) != 0) {
@@ -1238,6 +1243,29 @@ void Assembler::emit_debug_line() {
     section.name = ".debug_line";
     section.flags = SectionDebug;
     section.alignment = 2;
+    section.data = std::move(data);
+    sections_.push_back(std::move(section));
+}
+
+void Assembler::emit_debug_sources() {
+    if (first_pass_ || options_.raw) {
+        return;
+    }
+    std::vector<std::uint8_t> data;
+    for (const auto& file : debug_files_) {
+        if (file.path.empty()) {
+            continue;
+        }
+        data.insert(data.end(), file.path.begin(), file.path.end());
+        data.push_back(0);
+    }
+    if (data.empty()) {
+        return;
+    }
+    SectionState section;
+    section.name = ".debug_sources";
+    section.flags = SectionDebug;
+    section.alignment = 1;
     section.data = std::move(data);
     sections_.push_back(std::move(section));
 }
@@ -2015,3 +2043,5 @@ AsmResult assemble_file(const std::string& path, AsmOptions options) {
 }
 
 }  // namespace kr16
+
+
