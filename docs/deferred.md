@@ -19,16 +19,12 @@ release.
 
 ## C language and runtime
 
-- Full preprocessor: `#include`, object/function macros, variadic macros,
-  conditionals, `#error`, `#line`, and `#pragma once`.
+- Full preprocessor: `#error`, `#line`, pragmas, and variadic macros.
 - Function pointers.
-- `long`/32-bit arithmetic and the associated helper routines.
-- Variadic C functions and `va_list`.
-- Compiler-generated `.debug_types`, `.debug_vars`, and `.debug_frames`.
-- Full libc: the complete `printf` family, `malloc`/`free`, string functions,
-  std headers, and `errno` plumbing. The current libc has `putchar`, `puts`,
-  `getchar`, `exit`, and a small `printf` supporting `%d`, `%s`, `%c`, and
-  `%%`.
+- True 32-bit `long`/`long long` arithmetic and helper routines. In 1.0,
+  `long` is a documented 16-bit alias (ADR 0001).
+- Full libc: the complete `printf` family, `errno` plumbing, and broader
+  string/stdio coverage.
 - Floating point, locale, signals, `setjmp`/`longjmp`, and wide characters.
 
 ## Release engineering

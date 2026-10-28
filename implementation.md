@@ -1976,3 +1976,13 @@ Entry format:
   `struct P|2`.
 - Remaining: 32-bit `long`, M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:19:04 -07:00 — ADR 0001: 16-bit long
+
+- Decision: `long`/`long long` are 16-bit aliases for `int` in the 1.0
+  teaching-toolchain release; true 32-bit long is deferred beyond 1.0.
+- Added `docs/decisions/0001-16-bit-long.md`; updated README and deferred
+  feature list to state the limitation explicitly.
+- 1.0 is a teaching-subset release, not a strict C99 conformance claim.
+- Remaining: M13 1.0 tag/release and final validation.
+- Next: M13 release gate.

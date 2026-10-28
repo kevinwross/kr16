@@ -28,13 +28,19 @@ C or assembly → .o → .kex → VM
 ```
 
 The C compiler currently implements a teaching subset: `int`/`char`/`_Bool`, pointers,
-arrays, function/variadic prototypes, object/function macros, `#`/`##` operators, conditionals, local `#include`, built-in system headers, `stdarg.h` variadics, `-I` include paths,  local/global/static variables, qualifiers, `if`/`else`, `while`, `do`/`while`,
-`for`, `switch`/`case`/`default`, `enum` constants/types, `typedef` aliases, `struct`/`union` members, by-value struct parameters/returns and aggregate initializers and inferred array sizes, nested aggregate initializers, self-referential struct pointers, compound assignments, `goto` labels,
-`return`, arithmetic/comparisons/logical operators, strings, and
-`main(argc, argv)`. A small `libc.s` provides `putchar`, `puts`, `getchar`,
-`printf` (`%d`, `%s`, `%c`, `%%`), `strlen`, `strcpy`, `strcat`, `strcmp`, `memset`,
-`memcpy`, `atoi`, `abs`, `malloc`, `calloc`, `realloc`, `free`, and `exit`. `long`, the full preprocessor
-(`#line`, pragmas), and the full `printf` family are not implemented yet.
+arrays, functions and prototypes, object/function macros, `#`/`##`, conditionals,
+quoted and built-in system headers, `-I` paths, `stdarg.h` variadics,
+local/global/static variables, qualifiers, `if`/`else`, `while`, `do`/`while`,
+`for`, `switch`, `enum`, `typedef`, `struct`/`union` (including by-value
+parameters/returns and aggregate initializers), compound assignments, and
+`goto` labels. A small `libc.s` provides `putchar`, `puts`, `getchar`,
+`printf` (`%d`, `%s`, `%c`, `%%`), string functions, `atoi`, `abs`, heap
+allocation, and `exit`.
+
+`long` is a **16-bit alias** for `int`; see
+[`docs/decisions/0001-16-bit-long.md`](docs/decisions/0001-16-bit-long.md).
+Strict C99 conformance, the full preprocessor (`#line`, pragmas), and the full
+`printf` family are deferred beyond 1.0.
 
 The DAP TCP server, live VS Code debug session, locals/globals scopes,
 multi-frame stack walking, memory/disassembly/evaluate views, and terminal
