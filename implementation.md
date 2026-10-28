@@ -1690,3 +1690,14 @@ Entry format:
 - Remaining: `#include`, `#elif`, variadic definitions, struct parameters/
   returns, `long`, full libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:25:51 -07:00 — M8: local #include
+
+- Status: quoted `#include "file.h"` resolves relative to the source file and
+  shares macros with the including file.
+- Changes: preprocessor context carries base directory and macro table;
+  recursive include depth limit; system `<...>` headers remain ignored.
+- Tests: compiler include test; header-defined macro expands after inclusion.
+- Remaining: `#elif`, system headers, variadic definitions, struct parameters/
+  returns, `long`, full libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

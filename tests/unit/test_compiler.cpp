@@ -121,6 +121,24 @@ TEST_CASE("compile loops and arithmetic") {
     CHECK(assembled.ok);
 }
 
+TEST_CASE("compiler includes local headers") {
+    const auto dir = std::filesystem::current_path();
+    const auto header = dir / "kr16_header_test.h";
+    {
+        std::ofstream output(header);
+        output << "#define HEADER_VALUE 7\n";
+    }
+    kr16::CompileOptions options;
+    options.source_name = (dir / "kr16_header_main.c").string();
+    const auto compiled = kr16::compile_c(
+        "#include \"kr16_header_test.h\"\n"
+        "int main(void) { return HEADER_VALUE; }\n",
+        options);
+    std::filesystem::remove(header);
+    REQUIRE(compiled.ok);
+    CHECK(compiled.assembly.find("MOV R0, #7") != std::string::npos);
+}
+
 TEST_CASE("compiled C runs end-to-end") {
     CHECK(run_c("int main(void) { return 42; }\n") == 42);
     CHECK(run_c("int main(void) { int i; int s = 0; "

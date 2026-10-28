@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -269,11 +271,12 @@ std::string expand_macros(const std::string& line,
     return out;
 }
 
-std::string preprocess_source(const std::string& source) {
+std::string preprocess_source_impl(
+    const std::string& source, const std::string& base_dir,
+    std::map<std::string, Macro>& macros, int depth) {
     std::istringstream input(source);
     std::string line;
     std::string out;
-    std::map<std::string, Macro> macros;
     struct Conditional {
         bool parent = true;
         bool condition = true;
@@ -297,6 +300,30 @@ std::string preprocess_source(const std::string& source) {
                 space == std::string::npos ? rest : rest.substr(0, space);
             const std::string argument =
                 space == std::string::npos ? "" : trim_copy(rest.substr(space));
+            if (directive == "include" && active() && depth < 10) {
+                std::string file;
+                if (argument.size() >= 2 && argument.front() == '"' &&
+                    argument.back() == '"') {
+                    file = argument.substr(1, argument.size() - 2);
+                }
+                if (!file.empty()) {
+                    std::filesystem::path path(file);
+                    if (path.is_relative()) {
+                        path = std::filesystem::path(base_dir) / path;
+                    }
+                    std::ifstream include(path, std::ios::binary);
+                    if (include.good()) {
+                        std::string included{
+                            std::istreambuf_iterator<char>(include),
+                            std::istreambuf_iterator<char>()};
+                        out += preprocess_source_impl(
+                            included, path.parent_path().string(), macros,
+                            depth + 1);
+                    }
+                }
+                out += '\n';
+                continue;
+            }
             if (directive == "define") {
                 if (active()) {
                     std::size_t name_end = 0;
@@ -369,6 +396,12 @@ std::string preprocess_source(const std::string& source) {
         out += '\n';
     }
     return out;
+}
+
+std::string preprocess_source(const std::string& source,
+                              const std::string& base_dir) {
+    std::map<std::string, Macro> macros;
+    return preprocess_source_impl(source, base_dir, macros, 0);
 }
 
 class Lexer {
@@ -2340,7 +2373,12 @@ private:
 CompileResult compile_c(const std::string& source, const CompileOptions& options) {
     CompileResult result;
     try {
-        const std::string preprocessed = preprocess_source(source);
+        const std::filesystem::path source_path(options.source_name);
+        const std::string base_dir =
+            source_path.has_parent_path() ? source_path.parent_path().string()
+                                          : "";
+        const std::string preprocessed =
+            preprocess_source(source, base_dir);
         Lexer lexer(preprocessed);
         auto tokens = lexer.run();
         Parser parser(std::move(tokens), options.source_name);
