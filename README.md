@@ -9,7 +9,7 @@ KR16 is a 16-bit teaching computer with a single-binary toolchain:
 - `kr16 size` — memory budget report
 - `kr16 debug` — decoded debug-information dump
 - `kr16 vm` — virtual machine
-- `kr16 dap` — Debug Adapter Protocol host (planned)
+- `kr16 dap` — minimal Debug Adapter Protocol TCP server
 
 The design specification is [kr16-plan.md](kr16-plan.md). The implementation
 plan, milestones, test gates, and work log are in
@@ -31,8 +31,8 @@ arrays, functions, local/global variables, `if`/`else`, `while`, `for`,
 typedefs, `long`, variadics, the full preprocessor, the full `printf` family,
 and `malloc` are not implemented yet.
 
-The DAP server, VS Code extension, release packaging, and the remaining
-curriculum docs are still pending.
+The DAP TCP server core is implemented; the VS Code extension, release
+packaging, and the remaining curriculum docs are still pending.
 
 ## Build
 

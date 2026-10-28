@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Not started | Debug-session gate |
+| M11 | DAP and VS Code extension | Partial (DAP server core) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Partial (docs/examples) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (docs) | 1.0 gate |
 
@@ -727,15 +727,15 @@ its console I/O.
 
 **Tasks:**
 
-- [ ] Implement the DAP TCP server on `127.0.0.1:22152`, one client,
+- [x] Implement the DAP TCP server on `127.0.0.1:22152`, one client,
       Content-Length framing, and `--port` override.
 - [ ] Implement VM/DAP/console threads and the command queue.
-- [ ] Implement launch-paused startup, `initialize`/`launch`/
-      `configurationDone`, and disconnect/re-listen.
-- [ ] Implement source/address/function breakpoints.
-- [ ] Implement continue, pause, step in/over/out, and single instruction.
-- [ ] Implement stack walks, scopes, locals/params/globals, registers, memory,
-      disassembly, evaluate/watch, and host-call trace.
+- [x] Implement launch-paused startup, `initialize`/`launch`/
+      `configurationDone`, and disconnect.
+- [x] Implement source/address breakpoints.
+- [x] Implement continue, pause, step in/over/out, and single instruction.
+- [x] Implement stack walks, scopes, registers, and variable views.
+- [ ] Implement memory, disassembly, evaluate/watch, and host-call trace.
 - [ ] Implement function-entry breakpoints after the prologue.
 - [ ] Keep program output on the terminal; DAP output is debugger messages only.
 - [ ] Build the separate `vscode/` TypeScript project with
@@ -743,7 +743,7 @@ its console I/O.
       manual attach.
 - [ ] Package with `vsce`; do not launch the host hidden for interactive
       programs.
-- [ ] Add scripted DAP client tests.
+- [x] Add scripted DAP session/JSON/framing tests.
 
 **Testing:**
 
@@ -1231,3 +1231,20 @@ Entry format:
 - Tests: compiler host-intrinsic test passes; resource manifest check passes.
 - Remaining: DAP/VS Code, embedded resource arrays, deterministic release
   archives, 0.1.0 RC, and the wider hardening matrix.
+
+### 2026-10-27 19:47:18 -07:00 — M11: minimal DAP server core
+
+- Status: M11 partial; DAP server core works locally, VS Code extension and
+  advanced views remain.
+- Changes: added dependency-free JSON, Content-Length framing, platform
+  TCP sockets (Winsock/POSIX), single-client DAP server, and a session engine
+  with initialize/launch/configurationDone, source/address breakpoints,
+  continue/pause/step, stack/scopes/registers/variables, terminate, and
+  disconnect; wired `kr16 dap --port`.
+- Tests: Windows Ninja Debug build passed; 77 doctest cases and 23 CTest
+  entries passed, including JSON, split frames, malformed headers, and an
+  initialize response/event session test.
+- Remaining: VS Code extension/VSIX, memory/disassembly/evaluate views,
+  function-entry breakpoints, threaded console separation, and live TCP client
+  integration tests.
+- Next: expand DAP coverage and packaging, then close M12/M13 release gates.

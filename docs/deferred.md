@@ -13,7 +13,9 @@ release.
 - BIOS RAM loading, embedded release BIOS selection, and linker scripts.
 - `--gc-all`, relocatable `-r` links, weak/common symbols, and arm64 hosts.
 - Real-time pacing accuracy and the full interactive monitor.
-- The DAP server and VS Code extension.
+- DAP memory/disassembly/evaluate views, function-entry breakpoints, threaded
+  console/DAP coordination, and the VS Code extension/VSIX packaging. The
+  minimal DAP TCP server and basic launch/breakpoint/step/register views exist.
 
 ## C language and runtime
 

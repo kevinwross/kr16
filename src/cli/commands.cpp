@@ -15,6 +15,7 @@
 #include "kr16/assembler.hpp"
 #include "kr16/compiler.hpp"
 #include "kr16/container.hpp"
+#include "kr16/dap.hpp"
 #include "kr16/debug_info.hpp"
 #include "kr16/diagnostic.hpp"
 #include "kr16/disassembler.hpp"
@@ -591,6 +592,81 @@ int run_cc_command(int argc, char** argv) {
     }
 }
 
+int run_dap_command(int argc, char** argv) {
+    std::string program;
+    std::uint16_t port = 22152;
+    dap::DapOptions options;
+
+    for (int i = 0; i < argc; ++i) {
+        const std::string argument = argv[i];
+        if (argument == "--port") {
+            if (++i >= argc) {
+                std::cerr << "kr16 dap: --port needs a number\n";
+                return 2;
+            }
+            try {
+                const auto value = std::stoul(argv[i], nullptr, 0);
+                if (value > 0xFFFF) {
+                    throw std::out_of_range("port");
+                }
+                port = static_cast<std::uint16_t>(value);
+            } catch (const std::exception&) {
+                std::cerr << "kr16 dap: bad --port value\n";
+                return 2;
+            }
+        } else if (argument == "--raw") {
+            options.raw = true;
+        } else if (argument == "--base") {
+            if (++i >= argc) {
+                std::cerr << "kr16 dap: --base needs an address\n";
+                return 2;
+            }
+            try {
+                options.base = parse_u16(argv[i]);
+            } catch (const std::exception& error) {
+                std::cerr << "kr16 dap: " << error.what() << '\n';
+                return 2;
+            }
+        } else if (argument == "--bios") {
+            if (++i >= argc) {
+                std::cerr << "kr16 dap: --bios needs a path\n";
+                return 2;
+            }
+            options.bios_path = argv[i];
+        } else if (argument == "--no-bios") {
+            options.no_bios = true;
+        } else if (argument == "--stop-on-entry") {
+            options.stop_on_entry = true;
+        } else if (argument == "--no-stop-on-entry") {
+            options.stop_on_entry = false;
+        } else if (argument == "--help" || argument == "-h") {
+            std::cout << "usage: kr16 dap [--port 22152] program.kex\n"
+                         "  --raw --base addr      load a raw image\n"
+                         "  --bios path            load a 3.75 KiB BIOS ROM\n"
+                         "  --no-bios              start directly at the entry point\n"
+                         "  --stop-on-entry        report a stopped/entry event\n"
+                         "  --no-stop-on-entry     run silently until a breakpoint\n";
+            return 0;
+        } else if (!argument.empty() && argument.front() == '-') {
+            std::cerr << "kr16 dap: unknown option " << argument << '\n';
+            return 2;
+        } else if (program.empty()) {
+            program = argument;
+        } else {
+            std::cerr << "kr16 dap: multiple program files\n";
+            return 2;
+        }
+    }
+
+    if (program.empty()) {
+        std::cerr << "kr16 dap: missing program\n";
+        return 2;
+    }
+    options.program = program;
+    dap::DapServer server(options);
+    return server.run(port);
+}
+
 }  // namespace
 
 std::string usage_text() {
@@ -655,6 +731,9 @@ int run(int argc, char** argv) {
     }
     if (command == "cc") {
         return run_cc_command(argc - 2, argv + 2);
+    }
+    if (command == "dap") {
+        return run_dap_command(argc - 2, argv + 2);
     }
     if (!is_known_command(command)) {
         std::cerr << "kr16: unknown command '" << command << "'\n\n";

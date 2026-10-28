@@ -38,9 +38,17 @@ add_library(kr16_core STATIC
   src/link/linker.cpp
   src/debug/debug_info.cpp
   src/cc/compiler.cpp
+  src/platform/socket.cpp
+  src/dap/dap_json.cpp
+  src/dap/dap_session.cpp
+  src/dap/dap_server.cpp
 )
 target_include_directories(kr16_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(kr16_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(kr16_core PUBLIC KR16_VERSION="${PROJECT_VERSION}")
+if(WIN32)
+  target_link_libraries(kr16_core PRIVATE ws2_32)
+endif()
 
 add_executable(kr16
   src/cli/main.cpp
