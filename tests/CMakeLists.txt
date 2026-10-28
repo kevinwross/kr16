@@ -160,3 +160,15 @@ add_test(NAME kr16.vm.hello
 )
 set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
+
+find_program(KR16_NODE_EXECUTABLE node)
+if(KR16_NODE_EXECUTABLE)
+  add_test(NAME kr16.dap.smoke
+    COMMAND "${KR16_NODE_EXECUTABLE}"
+      "${CMAKE_SOURCE_DIR}/scripts/dap-smoke.js"
+      "$<TARGET_FILE:kr16>"
+      "${CMAKE_CURRENT_BINARY_DIR}/hello.kex"
+  )
+  set_tests_properties(kr16.dap.smoke PROPERTIES LABELS "integration"
+    DEPENDS kr16.ld.hello)
+endif()

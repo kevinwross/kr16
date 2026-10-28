@@ -839,8 +839,8 @@ ship `1.0.0`.
       size (initial VM benchmark script).
 - [x] Add examples and curriculum notes for assembly, C, and interrupts.
 - [ ] Polish diagnostics and error messages.
-- [ ] Run the full regression suite on Windows/Linux, Debug/Release,
-      sanitizers.
+- [x] Run the Windows Debug and Release regression matrix.
+- [ ] Run the full regression suite on Linux and sanitizers.
 - [ ] Perform a classroom smoke test: install, compile, run, debug.
 - [ ] Verify deterministic release artifacts and SHA256SUMS.
 - [x] Document deferred features: host file I/O, BIOS RAM, linker scripts,
@@ -1276,3 +1276,16 @@ Entry format:
 - Remaining: deterministic archives with `SOURCE_DATE_EPOCH`, 0.1.0 RC, and
   final release gates.
 - Next: finish release artifacts and close M12/M13.
+
+### 2026-10-27 19:55:17 -07:00 — DAP TCP smoke and Release matrix
+
+- Status: M11 gains a live TCP smoke test; M13 Windows Debug/Release matrix
+  passes. Linux/sanitizer and final release gates remain.
+- Changes: added `scripts/dap-smoke.js` and CTest `kr16.dap.smoke`, which starts
+  `kr16 dap`, performs initialize/launch/configurationDone/threads/disconnect
+  over a real socket, and verifies the responses.
+- Tests: Windows Ninja Debug and Release both pass; Debug = 79 doctest cases,
+  Release = 24 CTest entries including the live DAP smoke test.
+- Remaining: advanced DAP views, deterministic archives, RC, Linux/sanitizer
+  matrix, and the 1.0 gate.
+- Next: continue M12/M13 release closure and advanced debug coverage.
