@@ -1441,6 +1441,17 @@ Entry format:
 - Remaining: M11 live VS Code/threading, M13 1.0, full C99.
 - Next: M11/M13 closure.
 
+### 2026-10-27 20:27:56 -07:00 — release asset refresh and VS Code test note
+
+- Status: 0.1.0 release assets refreshed from latest main.
+- Assets: Windows ZIP `0b193fcc…` (1,034,085 bytes), Linux tar `3eeebdd3…`
+  (368,562 bytes), VSIX `21bbbd9f…`, combined SHA256SUMS (278 bytes).
+- VS Code: extension installs as `kr16.kr16-debug`; an experimental
+  `@vscode/test-electron` harness was removed after the test host hung, so a
+  live debug-session assertion remains unverified.
+- Tests: all local/CI suites remain green; 80 doctest cases.
+- Next: live VS Code session verification and M13 1.0 gate.
+
 ### 2026-10-27 20:13:47 -07:00 — M12: 0.1.0 release candidate notes
 
 - Status: M12 local release-candidate gate complete.
