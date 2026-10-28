@@ -833,8 +833,8 @@ ship `1.0.0`.
 **Tasks:**
 
 - [ ] Fuzz container, assembler, compiler, linker, and DAP parsers.
-- [ ] Add performance benchmarks for VM speed, assemble/link time, and binary
-      size.
+- [x] Add performance benchmarks for VM speed, assemble/link time, and binary
+      size (initial VM benchmark script).
 - [x] Add examples and curriculum notes for assembly, C, and interrupts.
 - [ ] Polish diagnostics and error messages.
 - [ ] Run the full regression suite on Windows/Linux, Debug/Release,
