@@ -1823,3 +1823,14 @@ Entry format:
 - Tests: compiler suite 11/11; local enum constant resolution.
 - Remaining: threaded DAP, struct parameters/returns, `long`, and M13 1.0.
 - Next: M11 threading and M13 closure.
+
+### 2026-10-27 21:50:15 -07:00 — M8: nested local aggregate initializers
+
+- Status: nested `{...}` initializers for struct members and arrays are stored
+  recursively in local declarations.
+- Changes: recursive aggregate store handles member/element offsets and nested
+  array/struct types.
+- Tests: compiler suite 11/11; `struct S s = {{1,2},3}` covered.
+- Remaining: global/static nested initializers, threaded DAP, struct
+  parameters/returns, `long`, and M13 1.0.
+- Next: M11 threading and M13 closure.

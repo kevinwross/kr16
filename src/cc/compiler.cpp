@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -2122,33 +2123,62 @@ private:
                             (decl.type->kind == TypeKind::Struct ||
                              decl.type->kind == TypeKind::Union ||
                              decl.type->kind == TypeKind::Array)) {
-                            for (std::size_t i = 0; i < decl.init->children.size();
-                                 ++i) {
-                                int offset = 0;
-                                std::shared_ptr<Type> element_type = decl.type;
-                                if (decl.type->kind == TypeKind::Struct ||
-                                    decl.type->kind == TypeKind::Union) {
-                                    if (i >= decl.type->members.size()) {
-                                        break;
+                            std::function<void(std::shared_ptr<Type>,
+                                               const Expr*, int)>
+                                store_aggregate;
+                            store_aggregate =
+                                [&](std::shared_ptr<Type> type,
+                                    const Expr* list, int base_offset) {
+                                    for (std::size_t i = 0;
+                                         i < list->children.size(); ++i) {
+                                        int offset = 0;
+                                        std::shared_ptr<Type> element_type =
+                                            type;
+                                        if (type->kind == TypeKind::Struct ||
+                                            type->kind == TypeKind::Union) {
+                                            if (i >= type->members.size()) {
+                                                break;
+                                            }
+                                            offset =
+                                                type->members[i].offset;
+                                            element_type =
+                                                type->members[i].type;
+                                        } else {
+                                            offset = static_cast<int>(i) *
+                                                     (type->base
+                                                          ? type->base->size()
+                                                          : 2);
+                                            element_type = type->base;
+                                        }
+                                        const auto* element =
+                                            list->children[i].get();
+                                        if (element->kind ==
+                                                Expr::Kind::InitList &&
+                                            element_type &&
+                                            (element_type->kind ==
+                                                 TypeKind::Array ||
+                                             element_type->kind ==
+                                                 TypeKind::Struct ||
+                                             element_type->kind ==
+                                                 TypeKind::Union)) {
+                                            store_aggregate(
+                                                element_type, element,
+                                                base_offset + offset);
+                                            continue;
+                                        }
+                                        gen_expr(element, out);
+                                        const int address_offset =
+                                            it->second.offset - base_offset -
+                                            offset;
+                                        out << "  LEA R1, [R4-"
+                                            << address_offset << "]\n";
+                                        out << (element_type &&
+                                                        element_type->is_char()
+                                                    ? "  STB [R1], R0\n"
+                                                    : "  ST [R1], R0\n");
                                     }
-                                    offset = decl.type->members[i].offset;
-                                    element_type = decl.type->members[i].type;
-                                } else {
-                                    offset = static_cast<int>(i) *
-                                             (decl.type->base
-                                                  ? decl.type->base->size()
-                                                  : 2);
-                                    element_type = decl.type->base;
-                                }
-                                gen_expr(decl.init->children[i].get(), out);
-                                const int address_offset =
-                                    it->second.offset - offset;
-                                out << "  LEA R1, [R4-"
-                                    << address_offset << "]\n";
-                                out << (element_type && element_type->is_char()
-                                            ? "  STB [R1], R0\n"
-                                            : "  ST [R1], R0\n");
-                            }
+                                };
+                            store_aggregate(decl.type, decl.init.get(), 0);
                             continue;
                         }
                         gen_expr(decl.init.get(), out);
