@@ -45,7 +45,7 @@ Rules:
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Complete (DAP/VS Code, locals/globals, live session) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Complete (0.1.0 published, CI green) | Release-candidate gate |
-| M13 | Hardening, curriculum, `1.0.0` | Partial (0.1.0 published; 1.0 pending) | 1.0 gate |
+| M13 | Hardening, curriculum, `1.0.0` | Complete (1.0.0 published) | 1.0 gate |
 
 Dependency order:
 
@@ -847,7 +847,7 @@ ship `1.0.0`.
 - [x] Add performance benchmarks for VM speed, assemble/link time, and binary
       size (initial VM benchmark script).
 - [x] Add examples and curriculum notes for assembly, C, and interrupts.
-- [ ] Polish diagnostics and error messages.
+- [x] Polish diagnostics and error messages.
 - [x] Run the Windows Debug and Release regression matrix.
 - [x] Run the full regression suite on Windows Debug/Release, Linux GCC/Clang
       Debug, and Linux ASan/UBSan; GitHub Actions run `40625771119` is green on
@@ -857,8 +857,8 @@ ship `1.0.0`.
 - [x] Verify deterministic Windows release artifact and SHA256SUMS.
 - [x] Document deferred features: host file I/O, BIOS RAM, linker scripts,
       `--gc-all`, `-r`, weak/common, arm64, installers, marketplace, signing.
-- [ ] Tag and publish `1.0.0`.
-- [ ] Append the final log entry.
+- [x] Tag and publish `1.0.0`.
+- [x] Append the final log entry.
 
 **Testing:**
 
@@ -1986,3 +1986,17 @@ Entry format:
 - 1.0 is a teaching-subset release, not a strict C99 conformance claim.
 - Remaining: M13 1.0 tag/release and final validation.
 - Next: M13 release gate.
+
+### 2026-10-27 22:23:37 -07:00 — M13: 1.0.0 published
+
+- Status: M13 complete. Version bumped to 1.0.0 across the toolchain, VSIX, and
+  packaging scripts.
+- Release: `https://github.com/kevinwross/kr16/releases/tag/v1.0.0`
+- Assets: Windows ZIP (1,554,135 bytes), Linux tar (869,051 bytes), VSIX
+  (5,720 bytes), SHA256SUMS.
+- Tests: Windows 24/24 CTest; doctest 82/82 (2936 assertions); Linux 23/23;
+  release archive smoke passes.
+- Scope: teaching-toolchain 1.0; `long` is documented as 16-bit (ADR 0001).
+- Remaining: post-1.0 C99 features (`.debug` polish, full printf/libc,
+  function pointers, 32-bit long).
+- Next: post-1.0 hardening.
