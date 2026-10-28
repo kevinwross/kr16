@@ -313,6 +313,7 @@ TEST_CASE("compiled control flow works") {
                 "int s = 0; for (int i = 0; i < n; i++) "
                 "s += va_arg(ap, int); va_end(ap); return s; }\n"
                 "int main(void) { return sum(3, 4, 5, 6); }\n") == 15);
+    CHECK(run_c("int main(void) { enum { A = 3, B }; return B; }\n") == 4);
 }
 
 TEST_CASE("compiled C calls libc") {

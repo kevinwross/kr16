@@ -1814,3 +1814,12 @@ Entry format:
 - Tests: compiler suite 11/11; `sum(3,4,5,6)` returns 15.
 - Remaining: threaded DAP, struct parameters/returns, `long`, and M13 1.0.
 - Next: M11 threading and M13 closure.
+
+### 2026-10-27 21:48:38 -07:00 — M8: local enum declarations
+
+- Status: standalone local `enum { ... };` declarations are accepted.
+- Changes: a declaration consisting only of an enum body is treated as an
+  empty statement after registering its constants.
+- Tests: compiler suite 11/11; local enum constant resolution.
+- Remaining: threaded DAP, struct parameters/returns, `long`, and M13 1.0.
+- Next: M11 threading and M13 closure.

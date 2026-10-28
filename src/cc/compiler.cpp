@@ -1156,6 +1156,10 @@ private:
             auto type = parse_type();
             const bool is_static = pending_static_;
             pending_static_ = false;
+            if (accept(";")) {
+                stmt->kind = Stmt::Kind::Empty;
+                return stmt;
+            }
             for (;;) {
                 Decl decl;
                 decl.name = parse_name();
