@@ -1,0 +1,103 @@
+{
+  "name": "kr16-debug",
+  "displayName": "KR16 Debug",
+  "description": "Debug KR16 programs with the KR16 DAP server",
+  "version": "0.1.0",
+  "publisher": "kr16",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kevinwross/kr16.git"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "activationEvents": [
+    "onDebug",
+    "onDebugResolve:kr16",
+    "onCommand:kr16.debug"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "kr16.debug",
+        "title": "KR16: Debug Program"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "kr16",
+        "label": "KR16",
+        "languages": [
+          "c",
+          "asm"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Absolute path to the .kex or raw image"
+              },
+              "port": {
+                "type": "number",
+                "default": 22152,
+                "description": "TCP port for the KR16 DAP server"
+              },
+              "kr16Path": {
+                "type": "string",
+                "default": "kr16",
+                "description": "Path to the kr16 executable"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": true
+              },
+              "launchAdapter": {
+                "type": "boolean",
+                "default": true,
+                "description": "Launch kr16 dap in an integrated terminal"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "kr16",
+            "request": "launch",
+            "name": "Debug KR16 program",
+            "program": "${workspaceFolder}/build/program.kex",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "KR16: Debug program",
+            "description": "Launch a KR16 program under the DAP server",
+            "body": {
+              "type": "kr16",
+              "request": "launch",
+              "name": "Debug KR16 program",
+              "program": "${workspaceFolder}/build/program.kex",
+              "stopOnEntry": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

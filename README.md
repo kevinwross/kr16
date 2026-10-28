@@ -31,8 +31,9 @@ arrays, functions, local/global variables, `if`/`else`, `while`, `for`,
 typedefs, `long`, variadics, the full preprocessor, the full `printf` family,
 and `malloc` are not implemented yet.
 
-The DAP TCP server core is implemented; the VS Code extension, release
-packaging, and the remaining curriculum docs are still pending.
+The DAP TCP server and a minimal VS Code extension are implemented. Advanced
+debug views (memory, disassembly, evaluate), threaded console separation, and
+the full release packaging/curriculum pass are still pending.
 
 ## Build
 

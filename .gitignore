@@ -13,3 +13,5 @@ CMakeUserPresets.json
 # Local tooling
 compile_commands.json
 .cache/
+node_modules/
+*.vsix

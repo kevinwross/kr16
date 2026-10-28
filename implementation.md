@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Partial (DAP server core) | Debug-session gate |
+| M11 | DAP and VS Code extension | Partial (DAP + VS Code core) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Partial (docs/examples) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (docs) | 1.0 gate |
 
@@ -738,11 +738,11 @@ its console I/O.
 - [ ] Implement memory, disassembly, evaluate/watch, and host-call trace.
 - [ ] Implement function-entry breakpoints after the prologue.
 - [ ] Keep program output on the terminal; DAP output is debugger messages only.
-- [ ] Build the separate `vscode/` TypeScript project with
+- [x] Build the separate `vscode/` extension with
       `DebugAdapterServer(22152)`, terminal launch, launch configuration, and
       manual attach.
-- [ ] Package with `vsce`; do not launch the host hidden for interactive
-      programs.
+- [x] Package the extension with `vsce`; the adapter keeps the program console
+      visible in the integrated terminal.
 - [x] Add scripted DAP session/JSON/framing tests.
 
 **Testing:**
@@ -1248,3 +1248,15 @@ Entry format:
   function-entry breakpoints, threaded console separation, and live TCP client
   integration tests.
 - Next: expand DAP coverage and packaging, then close M12/M13 release gates.
+
+### 2026-10-27 19:49:25 -07:00 — M11: VS Code extension and VSIX packaging
+
+- Status: M11 partial; DAP server and VS Code extension core work locally.
+- Changes: added `vscode/package.json`, `extension.js`, launch configuration,
+  command palette entry, terminal-launched adapter discovery, manual attach,
+  and `.vscodeignore`; packaged `kr16-debug-0.1.0.vsix` with `@vscode/vsce`.
+- Tests: `node --check` and package JSON validation pass; VSIX packaged with
+  extension.js, package.json, README, and LICENSE.
+- Remaining: live debug-session smoke test in VS Code, advanced views, threaded
+  console separation, and deterministic VSIX release packaging.
+- Next: M12 embedded resources and release-candidate packaging.
