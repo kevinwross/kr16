@@ -142,7 +142,7 @@ churn.
 - [x] Add `LICENSE` (MIT) and third-party notices for doctest.
 - [x] Add CMake 3.25+ project with presets for `windows-vs2026`,
       `windows-ninja`, `linux-gcc`, and `linux-clang`.
-- [ ] Add Debug, Release, and Linux sanitizer presets.
+- [x] Add Debug, Release, and Linux sanitizer presets.
 - [ ] Vendor doctest; register CTest and test labels.
 - [ ] Add warnings-as-errors and the `platform/` boundary rule.
 - [ ] Implement the `kr16` CLI dispatcher skeleton with `help`, `version`, and
@@ -958,3 +958,12 @@ Entry format:
   `kr16` printed the expected version line.
 - Regressions: none.
 - Next: Debug/Release/sanitizer preset verification.
+
+### 2026-10-27 18:42:31 -07:00 — M0: Debug/Release/sanitizer presets
+
+- Status: M0 in progress.
+- Changes: verified the Debug and Release configure/build/test presets; the
+  Linux GCC/Clang and sanitizer presets are defined for CI and Linux hosts.
+- Tests: Windows Release build and `ctest` passed.
+- Regressions: none.
+- Next: vendor doctest and add CTest labels.
