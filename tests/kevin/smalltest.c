@@ -5,10 +5,12 @@ int factorial(int n) {
     return n * factorial(n - 1);
 }
 
+#define NULL ((void *)0)
+
 int main() {
     int result = factorial(5);
     printf("%d\n", result);
-    char *message = malloc(100);
+    char *message = (char *) malloc(100);
     if (message == NULL) {
         printf("Memory allocation failed\n");
         return 1;
