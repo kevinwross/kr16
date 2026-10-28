@@ -1600,6 +1600,17 @@ Entry format:
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
 
+### 2026-10-27 21:11:16 -07:00 — M8: compound assignments
+
+- Status: added `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`.
+- Changes: parser desugars compound assignment into an assignment of a cloned
+  lvalue expression plus the corresponding binary operation.
+- Tests: compiler suite 9/9; scalar, array-element, and struct-member compound
+  assignments covered.
+- Remaining: struct parameters/returns, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.
+
 ### 2026-10-27 21:04:38 -07:00 — Linux -Werror follow-up
 
 - Fixed GCC `-Wswitch` on the new `InitList` expression kind; Linux Debug and

@@ -854,8 +854,44 @@ private:
         return expr;
     }
 
+    std::unique_ptr<Expr> clone_expr(const Expr* expr) {
+        if (expr == nullptr) {
+            return nullptr;
+        }
+        auto copy = std::make_unique<Expr>();
+        copy->kind = expr->kind;
+        copy->value = expr->value;
+        copy->text = expr->text;
+        copy->op = expr->op;
+        copy->line = expr->line;
+        for (const auto& child : expr->children) {
+            copy->children.push_back(clone_expr(child.get()));
+        }
+        return copy;
+    }
+
     std::unique_ptr<Expr> parse_assignment() {
         auto left = parse_conditional();
+        static const char* compounds[] = {"+=", "-=", "*=", "/=", "%=",
+                                          "&=", "|=", "^=", "<<=", ">>="};
+        for (const char* compound : compounds) {
+            if (!check(compound)) {
+                continue;
+            }
+            const int line = peek().line;
+            ++position_;
+            auto right = parse_assignment();
+            auto binary = make_binary(std::string(compound).substr(
+                                          0, std::string(compound).size() - 1),
+                                      clone_expr(left.get()), std::move(right),
+                                      line);
+            auto expr = std::make_unique<Expr>();
+            expr->kind = Expr::Kind::Assign;
+            expr->line = line;
+            expr->children.push_back(std::move(left));
+            expr->children.push_back(std::move(binary));
+            return expr;
+        }
         if (check("=")) {
             const int line = peek().line;
             ++position_;
