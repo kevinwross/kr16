@@ -25,6 +25,9 @@ endif()
 add_library(kr16_core STATIC
   src/core/version.cpp
   src/cli/commands.cpp
+  src/container/container.cpp
+  src/container/crc32.cpp
+  src/container/debug_objects.cpp
 )
 target_include_directories(kr16_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_definitions(kr16_core PUBLIC KR16_VERSION="${PROJECT_VERSION}")

@@ -32,8 +32,8 @@ Rules:
 
 | Milestone | Scope | Status | Gate |
 |---|---|---|---|
-| M0 | Repository, build skeleton, ISA freeze | In verification | Build and spec gate |
-| M1 | Container, CRC, diagnostics | Not started | Container round-trip gate |
+| M0 | Repository, build skeleton, ISA freeze | Complete | Build and spec gate |
+| M1 | Container, CRC, diagnostics | Complete | Container round-trip gate |
 | M2 | ISA core and CPU | Not started | ISA conformance gate |
 | M3 | Assembler and disassembler | Not started | Raw-program gate |
 | M4 | Memory, devices, interrupts, boot | Not started | Device/boot gate |
@@ -189,23 +189,23 @@ the shared byte-level diagnostics used everywhere.
 
 **Tasks:**
 
-- [ ] Add byte reader/writer utilities with explicit little-endian handling and
+- [x] Add byte reader/writer utilities with explicit little-endian handling and
       bounds checks.
-- [ ] Add the common diagnostic/result type used by assembler, linker, VM, and
+- [x] Add the common diagnostic/result type used by assembler, linker, VM, and
       DAP.
-- [ ] Implement the fixed 64-byte header with all offsets from Section 6.7.
-- [ ] Implement 32-byte section headers, 20-byte symbols, and 16-byte
+- [x] Implement the fixed 64-byte header with all offsets from Section 6.7.
+- [x] Implement 32-byte section headers, 20-byte symbols, and 16-byte
       relocations.
-- [ ] Implement `.debug_objects` header (16), object records (48), and source
+- [x] Implement `.debug_objects` header (16), object records (48), and source
       records (12).
-- [ ] Implement `.debug_str` as the single shared, first-use-deduplicated string
+- [x] Implement `.debug_str` as the single shared, first-use-deduplicated string
       table; wire symbol and section names to it.
-- [ ] Implement CRC32 over the entire file with the checksum field zeroed.
-- [ ] Implement version/reserved handling: same/newer minor accepted, unknown
+- [x] Implement CRC32 over the entire file with the checksum field zeroed.
+- [x] Implement version/reserved handling: same/newer minor accepted, unknown
       major rejected, optional flags ignored, reserved fields zero.
-- [ ] Implement REL/EXEC validation and table bounds checking.
-- [ ] Add container dump/diagnostic output used by tests.
-- [ ] Add golden `.o` and `.kex` fixtures for valid and malformed files.
+- [x] Implement REL/EXEC validation and table bounds checking.
+- [x] Add container dump/diagnostic output used by tests.
+- [x] Add golden `.o` and `.kex` fixtures for valid and malformed files.
 
 **Testing:**
 
@@ -1056,3 +1056,25 @@ Entry format:
   SHA256 hash.
 - Regressions: none.
 - Next: push M0, confirm CI, then start M1 — container, CRC, and diagnostics.
+
+### 2026-10-27 18:54:43 -07:00 — M0: CI success
+
+- Status: M0 complete.
+- Changes: none; hosted GitHub Actions workflow completed successfully for
+  commit `5d67a27`.
+- Tests: Windows and Linux CI jobs passed.
+- Regressions: none.
+- Next: M1 — container, CRC, and diagnostics.
+
+### 2026-10-27 18:54:59 -07:00 — M1: container foundation complete
+
+- Status: M1 complete locally.
+- Changes: added byte reader/writer, `ParseError`, fixed container
+  serialization/parsing, CRC32, shared string table, `.debug_objects` records,
+  container dump, golden fixtures, and reader fuzz coverage.
+- Tests: Windows Ninja Debug build passed; all CTest tests passed, including
+  golden fixtures, CRC, dedup, bad-version, truncated-table, and random-input
+  tests.
+- Regressions: container round-trip, CRC, string dedup, bad version, and
+  truncated table are covered.
+- Next: commit/push M1, then M2 — ISA core and CPU.
