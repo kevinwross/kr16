@@ -140,7 +140,7 @@ churn.
       `third_party/doctest/`, `resources/prebuilt/`, `vscode/`, `docs/`,
       `examples/`.
 - [x] Add `LICENSE` (MIT) and third-party notices for doctest.
-- [ ] Add CMake 3.25+ project with presets for `windows-vs2026`,
+- [x] Add CMake 3.25+ project with presets for `windows-vs2026`,
       `windows-ninja`, `linux-gcc`, and `linux-clang`.
 - [ ] Add Debug, Release, and Linux sanitizer presets.
 - [ ] Vendor doctest; register CTest and test labels.
@@ -947,3 +947,14 @@ Entry format:
 - Tests: none; documentation-only step.
 - Regressions: none.
 - Next: CMake project and presets.
+
+### 2026-10-27 18:42:10 -07:00 — M0: CMake project and presets
+
+- Status: M0 in progress.
+- Changes: added CMake 3.25+ project, version library, minimal `kr16`
+  executable, test registration, and Windows/Linux configure/build/test
+  presets.
+- Tests: configured and built `windows-vs2026`; `ctest` smoke test passed;
+  `kr16` printed the expected version line.
+- Regressions: none.
+- Next: Debug/Release/sanitizer preset verification.
