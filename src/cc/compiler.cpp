@@ -338,6 +338,13 @@ std::string builtin_header(std::string_view name) {
     if (name == "stdbool.h") {
         return "#define bool int\n#define true 1\n#define false 0\n";
     }
+    if (name == "stdarg.h") {
+        return "typedef int *va_list;\n"
+               "#define va_start(ap, last) __builtin_va_start(&(ap))\n"
+               "#define va_arg(ap, type) "
+               "__builtin_va_arg(&(ap), sizeof(type))\n"
+               "#define va_end(ap)\n";
+    }
     if (name == "limits.h") {
         return "#define INT_MAX 32767\n#define INT_MIN (-32768)\n";
     }
@@ -781,6 +788,7 @@ struct Function {
     std::shared_ptr<Type> return_type;
     std::vector<Decl> parameters;
     std::unique_ptr<Stmt> body;
+    bool variadic = false;
     int line = 0;
 };
 
@@ -1046,6 +1054,7 @@ private:
                 } else {
                     for (;;) {
                         if (peek().text == "...") {
+                            function.variadic = true;
                             ++position_;
                             break;
                         }
@@ -1871,6 +1880,7 @@ private:
     void compile_function(Function& function, std::ostringstream& out) {
         locals_.clear();
         frame_size_ = 0;
+        current_named_params_ = static_cast<int>(function.parameters.size());
         return_label_ = new_label("return");
 
         int frame = 0;
@@ -1987,6 +1997,12 @@ private:
             const auto& parameter = function.parameters[i];
             const auto it = locals_.find(parameter.name);
             if (it == locals_.end()) {
+                continue;
+            }
+            if (function.variadic) {
+                out << "  LD R0, [R4+" << (4 + i * 2) << "]\n";
+                out << (parameter.type->is_char() ? "  STB " : "  ST ")
+                    << "[R4-" << it->second.offset << "], R0\n";
                 continue;
             }
             if (i < 3) {
@@ -2570,12 +2586,56 @@ private:
     }
 
     void gen_call(const Expr* expr, std::ostringstream& out) {
+        if (expr->text == "__builtin_va_start" &&
+            expr->children.size() == 1) {
+            gen_expr(expr->children[0].get(), out);
+            out << "  MOV R1, R0\n";
+            out << "  LEA R0, [R4+"
+                << (4 + current_named_params_ * 2) << "]\n";
+            out << "  ST [R1], R0\n";
+            out << "  MOV R0, #0\n";
+            return;
+        }
+        if (expr->text == "__builtin_va_arg" &&
+            expr->children.size() == 2) {
+            int size = 2;
+            const auto* size_expr = expr->children[1].get();
+            if (size_expr->kind == Expr::Kind::Number) {
+                size = static_cast<int>(size_expr->value);
+            } else if (size_expr->kind == Expr::Kind::Sizeof &&
+                       size_expr->children.empty()) {
+                size = static_cast<int>(size_expr->value);
+            }
+            gen_expr(expr->children[0].get(), out);
+            out << "  MOV R1, R0\n";
+            out << "  LD R2, [R1]\n";
+            out << (size == 1 ? "  LDB R0, [R2]\n" : "  LD R0, [R2]\n");
+            out << "  PUSH R0\n";
+            out << "  ADD R2, #" << size << "\n";
+            out << "  ST [R1], R2\n";
+            out << "  POP R0\n";
+            return;
+        }
         if (expr->text == "__host_call" && expr->children.size() == 2 &&
             expr->children[0]->kind == Expr::Kind::Number &&
             expr->children[0]->value >= 0 && expr->children[0]->value <= 255) {
             gen_expr(expr->children[1].get(), out);
             out << "  SYSCALL #" << expr->children[0]->value << "\n";
             out << "  LD R0, [R0]\n";
+            return;
+        }
+        const auto local_function = function_map_.find(expr->text);
+        if (local_function != function_map_.end() &&
+            local_function->second->variadic) {
+            for (auto it = expr->children.rbegin(); it != expr->children.rend();
+                 ++it) {
+                gen_expr(it->get(), out);
+                out << "  PUSH R0\n";
+            }
+            out << "  CALL " << expr->text << "\n";
+            if (!expr->children.empty()) {
+                out << "  ADD SP, #" << expr->children.size() * 2 << "\n";
+            }
             return;
         }
         external_calls_.insert(expr->text);
@@ -2607,6 +2667,7 @@ private:
     std::vector<DebugVar> debug_vars_;
     std::string return_label_;
     int frame_size_ = 0;
+    int current_named_params_ = 0;
     int label_counter_ = 0;
     std::string function_label_;
 };

@@ -1803,3 +1803,14 @@ Entry format:
 - Remaining: threaded DAP, variadic definitions, struct parameters/returns,
   and M13 1.0.
 - Next: M11 threading and M13 closure.
+
+### 2026-10-27 21:47:00 -07:00 — M8: variadic function definitions
+
+- Status: `stdarg.h` with `va_list`, `va_start`, `va_arg`, `va_end`; variadic
+  functions use a stack-only convention for local calls.
+- Changes: compiler intrinsics set the vararg pointer after named parameters;
+  `va_arg` reads/increments the pointer; local variadic calls push all args and
+  clean up the full frame.
+- Tests: compiler suite 11/11; `sum(3,4,5,6)` returns 15.
+- Remaining: threaded DAP, struct parameters/returns, `long`, and M13 1.0.
+- Next: M11 threading and M13 closure.
