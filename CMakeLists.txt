@@ -25,6 +25,7 @@ endif()
 add_library(kr16_core STATIC
   src/core/version.cpp
   src/cli/commands.cpp
+  src/cli/shell.cpp
   src/container/container.cpp
   src/container/crc32.cpp
   src/container/debug_objects.cpp
@@ -40,6 +41,7 @@ add_library(kr16_core STATIC
   src/cc/compiler.cpp
   src/resources/embedded.cpp
   src/platform/socket.cpp
+  src/platform/terminal.cpp
   src/dap/dap_json.cpp
   src/dap/dap_session.cpp
   src/dap/dap_server.cpp
@@ -68,4 +70,7 @@ if(KR16_BUILD_TESTS)
     set_tests_properties(kr16.platform-boundary PROPERTIES LABELS "unit;policy")
   endif()
 endif()
+
+
+
 

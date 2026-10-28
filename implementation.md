@@ -2011,3 +2011,16 @@ Entry format:
   v1.0.0 release with Windows/Linux/VSIX assets.
 - Remaining work is post-1.0 (full C99, function pointers, full libc).
 - Next: post-1.0 hardening.
+
+### 2026-10-27 22:53:10 -07:00 — Interactive shell
+
+- Status: `kr16` with no arguments now starts an interactive command loop;
+  piped stdin runs the same loop without prompts.
+- Features: quoted argument parsing, 100-entry persisted history, cursor/history
+  line editing, `cd`/`pwd`/`clear`/`history`/`run`/`help`/`quit`/`exit`, and
+  current-directory prompt.
+- DAP: interactive `dap` refuses to block unless `--force`/`-f` is supplied;
+  top-level `kr16 dap` remains unchanged for VS Code.
+- Tests: shell tokenizer/history/loop unit tests; Windows 24/24 CTest, doctest
+  86/86 (2953 assertions); Linux 23/23.
+- Next: manual interactive-editor smoke if desired.

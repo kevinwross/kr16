@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstdio>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -20,6 +21,8 @@
 #include "kr16/diagnostic.hpp"
 #include "kr16/disassembler.hpp"
 #include "kr16/linker.hpp"
+#include "kr16/shell.hpp"
+#include "platform/terminal.hpp"
 #include "kr16/version.hpp"
 #include "kr16/vm.hpp"
 
@@ -685,6 +688,8 @@ int run_dap_command(int argc, char** argv) {
             options.stop_on_entry = true;
         } else if (argument == "--no-stop-on-entry") {
             options.stop_on_entry = false;
+        } else if (argument == "--force" || argument == "-f") {
+            // Accepted for interactive-shell use; no effect on the adapter.
         } else if (argument == "--help" || argument == "-h") {
             std::cout << "usage: kr16 dap [--port 22152] program.kex\n"
                          "  --raw --base addr      load a raw image\n"
@@ -692,7 +697,8 @@ int run_dap_command(int argc, char** argv) {
                          "  --no-bios              start directly at the entry point\n"
                          "  --ready-file path      write a marker after binding\n"
                          "  --stop-on-entry        report a stopped/entry event\n"
-                         "  --no-stop-on-entry     run silently until a breakpoint\n";
+                         "  --no-stop-on-entry     run silently until a breakpoint\n"
+                         "  --force, -f            allow blocking in the shell\n";
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 dap: unknown option " << argument << '\n';
@@ -730,6 +736,7 @@ std::string usage_text() {
         "  vm       Run a .kex (or raw binary) on the virtual machine\n"
         "  dap      Run the VM with the debug adapter listening on TCP\n"
         "  version  Print tool, ISA, container, host-service ABI, and debug versions\n"
+        "  (none)   Start the interactive shell\n"
         "  help     Print help (also: kr16 <command> --help)\n";
     return text;
 }
@@ -745,8 +752,9 @@ bool is_known_command(std::string_view command) {
 
 int run(int argc, char** argv) {
     if (argc < 2) {
-        std::cout << usage_text();
-        return 0;
+        const bool interactive = platform::stdin_is_terminal();
+        return run_shell(std::cin, std::cout, std::cerr, interactive,
+                         interactive ? default_history_path() : std::string{});
     }
 
     const std::string_view command = argv[1];
@@ -794,3 +802,6 @@ int run(int argc, char** argv) {
 }
 
 }  // namespace kr16::cli
+
+
+

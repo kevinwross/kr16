@@ -108,6 +108,28 @@ Debug information:
 kr16 debug hello.kex --lines
 ```
 
+## Interactive shell
+
+Run `kr16` with no arguments to enter the command loop:
+
+```text
+kr16 C:\work> help
+kr16 C:\work> as hello.s -o hello.o
+kr16 C:\work> ld hello.o -o hello.kex
+kr16 C:\work> run hello.kex
+```
+
+Shell commands include `cd`, `pwd`, `clear`, `history`, `run`, `help`, and
+`quit`/`exit`. History is limited to 100 entries and stored in
+`~/.kr16_history` (or `%USERPROFILE%\.kr16_history`). Piped input runs without
+prompts, so scripted shell sessions work too.
+
+`dap` refuses to block the shell unless forced:
+
+```text
+kr16 C:\work> dap --force hello.kex
+```
+
 ## Tests
 
 Tests use vendored doctest and CTest. Test labels include `unit`, `golden`,

@@ -17,6 +17,7 @@ add_executable(kr16_tests
   unit/test_host.cpp
   unit/test_dap.cpp
   unit/test_resources.cpp
+  unit/test_shell.cpp
 )
 target_include_directories(kr16_tests PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../third_party"
@@ -172,3 +173,5 @@ if(KR16_NODE_EXECUTABLE)
   set_tests_properties(kr16.dap.smoke PROPERTIES LABELS "integration"
     DEPENDS kr16.ld.hello)
 endif()
+
+
