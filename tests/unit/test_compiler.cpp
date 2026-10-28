@@ -409,6 +409,16 @@ TEST_CASE("compiled C calls libc") {
               "int main(void) { char *p = malloc(2); p[0] = 'A'; "
               "p = realloc(p, 4); p[1] = 'B'; "
               "int v = p[0] + p[1]; free(p); return v; }\n") == 131);
+    CHECK(run_c_libc_exit(
+              "#include <stdlib.h>\n"
+              "int main(void) { return abs(-5); }\n") == 5);
+    CHECK(run_c_libc_exit(
+              "#include <stdlib.h>\n"
+              "int main(void) { return atoi(\"123\"); }\n") == 123);
+    CHECK(run_c_libc_exit(
+              "#include <string.h>\n"
+              "int main(void) { char b[8]; strcpy(b, \"hi\"); "
+              "strcat(b, \"Z\"); return b[2]; }\n") == 90);
 }
 
 TEST_CASE("compiled char locals and globals") {
@@ -474,3 +484,4 @@ TEST_CASE("compiler emits source line information with -g") {
     REQUIRE(linked_line != nullptr);
     CHECK(!kr16::parse_debug_line(linked_line->data).empty());
 }
+

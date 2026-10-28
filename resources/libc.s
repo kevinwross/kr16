@@ -170,6 +170,55 @@ printf:
   STB [R3], R0
   RET
 
+.global abs
+abs:
+  MOV R0, R1
+  CMP R0, #0
+  BGE .Labs_done
+  NEG R0
+.Labs_done:
+  RET
+
+.global atoi
+atoi:
+  PUSH R4
+  MOV R4, #10
+  MOV R0, #0
+.Latoi_loop:
+  LDB R3, [R1]
+  CMP R3, #'0'
+  BLT .Latoi_done
+  CMP R3, #'9'
+  BGT .Latoi_done
+  SUB R3, #'0'
+  MUL R0, R4
+  ADD R0, R3
+  INC R1
+  BRA .Latoi_loop
+.Latoi_done:
+  POP R4
+  RET
+
+.global strcat
+strcat:
+  MOV R0, R1
+.Lstrcat_find:
+  LDB R3, [R1]
+  CMP R3, #0
+  BEQ .Lstrcat_copy
+  INC R1
+  BRA .Lstrcat_find
+.Lstrcat_copy:
+  LDB R3, [R2]
+  STB [R1], R3
+  CMP R3, #0
+  BEQ .Lstrcat_done
+  INC R1
+  INC R2
+  BRA .Lstrcat_copy
+.Lstrcat_done:
+  RET
+
 .global strlen
 strlen:
   MOV R0, #0

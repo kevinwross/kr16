@@ -328,6 +328,8 @@ std::string builtin_header(std::string_view name) {
     if (name == "stdlib.h") {
         return "typedef int size_t;\n"
                "void exit(int code);\n"
+               "int atoi(char *s);\n"
+               "int abs(int value);\n"
                "void *malloc(size_t size);\n"
                "void *calloc(size_t count, size_t size);\n"
                "void *realloc(void *ptr, size_t size);\n"
@@ -346,6 +348,7 @@ std::string builtin_header(std::string_view name) {
         return "typedef int size_t;\n"
                "size_t strlen(char *s);\n"
                "char *strcpy(char *d, char *s);\n"
+               "char *strcat(char *d, char *s);\n"
                "int strcmp(char *a, char *b);\n"
                "void *memset(void *d, int v, size_t n);\n"
                "void *memcpy(void *d, void *s, size_t n);\n";
@@ -2922,5 +2925,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
