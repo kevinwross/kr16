@@ -9,6 +9,7 @@
 #include <iterator>
 #include <map>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -31,6 +32,7 @@ namespace {
 constexpr std::int64_t kThreadId = 1;
 constexpr std::int64_t kRegistersReference = 1;
 constexpr std::int64_t kGlobalsReference = 2;
+constexpr std::int64_t kLocalsReference = 3;
 
 std::vector<std::uint8_t> read_file(const std::string& path) {
     std::ifstream input(path, std::ios::binary);
@@ -46,6 +48,55 @@ std::string base_name(const std::string& path) {
     return std::filesystem::path(path).filename().string();
 }
 
+struct DapDebugVar {
+    std::string function;
+    std::string name;
+    int offset = 0;
+    int size = 2;
+};
+
+std::vector<DapDebugVar> parse_debug_vars(const Container& container) {
+    std::vector<DapDebugVar> result;
+    const auto* section = container.find_section(".debug_vars");
+    if (section == nullptr) {
+        return result;
+    }
+    std::size_t begin = 0;
+    while (begin < section->data.size()) {
+        std::size_t end = begin;
+        while (end < section->data.size() && section->data[end] != 0) {
+            ++end;
+        }
+        const std::string entry(
+            reinterpret_cast<const char*>(section->data.data() + begin),
+            end - begin);
+        begin = end + 1;
+        const auto first = entry.find('|');
+        const auto second =
+            first == std::string::npos ? std::string::npos
+                                       : entry.find('|', first + 1);
+        const auto third = second == std::string::npos
+                               ? std::string::npos
+                               : entry.find('|', second + 1);
+        if (first == std::string::npos || second == std::string::npos ||
+            third == std::string::npos) {
+            continue;
+        }
+        DapDebugVar variable;
+        variable.function = entry.substr(0, first);
+        variable.name = entry.substr(first + 1, second - first - 1);
+        try {
+            variable.offset = std::stoi(entry.substr(second + 1,
+                                                     third - second - 1));
+            variable.size = std::stoi(entry.substr(third + 1));
+        } catch (const std::exception&) {
+            continue;
+        }
+        result.push_back(std::move(variable));
+    }
+    return result;
+}
+
 std::string format_hex(std::uint16_t value) {
     static constexpr char kHex[] = "0123456789abcdef";
     std::string result = "0x0000";
@@ -54,6 +105,27 @@ std::string format_hex(std::uint16_t value) {
             kHex[(static_cast<unsigned>(value) >> (4 * i)) & 0xFu];
     }
     return result;
+}
+
+std::string debug_function_at(const Container& container,
+                              std::uint16_t pc) {
+    std::set<std::string> functions;
+    for (const auto& variable : parse_debug_vars(container)) {
+        functions.insert(variable.function);
+    }
+    std::string best;
+    std::uint32_t best_address = 0;
+    for (const auto& symbol : container.symbols) {
+        if (functions.count(symbol.name) == 0) {
+            continue;
+        }
+        const auto address = static_cast<std::uint32_t>(symbol.value);
+        if (address <= pc && (best.empty() || address >= best_address)) {
+            best = symbol.name;
+            best_address = address;
+        }
+    }
+    return best;
 }
 
 std::string base64_encode(const std::vector<std::uint8_t>& bytes) {
@@ -960,6 +1032,13 @@ std::vector<std::string> DapSession::Impl::handle_scopes(
         globals.set("variablesReference", JsonValue::integer(kGlobalsReference));
         globals.set("expensive", JsonValue::boolean(true));
         scopes.push(std::move(globals));
+        if (!debug_function_at(container, cpu.pc()).empty()) {
+            JsonValue locals = JsonValue::object();
+            locals.set("name", JsonValue::string("Locals"));
+            locals.set("variablesReference", JsonValue::integer(kLocalsReference));
+            locals.set("expensive", JsonValue::boolean(false));
+            scopes.push(std::move(locals));
+        }
     }
     JsonValue body = JsonValue::object();
     body.set("scopes", std::move(scopes));
@@ -1018,6 +1097,29 @@ std::vector<std::string> DapSession::Impl::handle_variables(
                 JsonValue::string(format_hex(machine.read16(
                     static_cast<std::uint16_t>(address)))));
             variable.set("type", JsonValue::string("uint16"));
+            variable.set("variablesReference", JsonValue::integer(0));
+            variables.push(std::move(variable));
+        }
+    } else if (reference == kLocalsReference && has_container) {
+        const std::string function =
+            debug_function_at(container, cpu.pc());
+        const auto frame = cpu.reg(4);
+        for (const auto& local : parse_debug_vars(container)) {
+            if (local.function != function) {
+                continue;
+            }
+            const auto address = static_cast<std::uint16_t>(
+                frame - static_cast<std::uint16_t>(local.offset));
+            JsonValue variable = JsonValue::object();
+            variable.set("name", JsonValue::string(local.name));
+            variable.set(
+                "value",
+                JsonValue::string(format_hex(
+                    local.size == 1 ? machine.read8(address)
+                                    : machine.read16(address))));
+            variable.set("type",
+                         JsonValue::string(local.size == 1 ? "uint8"
+                                                           : "uint16"));
             variable.set("variablesReference", JsonValue::integer(0));
             variables.push(std::move(variable));
         }

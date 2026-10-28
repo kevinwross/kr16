@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Partial (DAP/VS Code verified; locals/threading pending) | Debug-session gate |
+| M11 | DAP and VS Code extension | Partial (DAP/VS Code verified; threading pending) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Complete (0.1.0 published, CI green) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (0.1.0 published; 1.0 pending) | 1.0 gate |
 
@@ -1768,3 +1768,16 @@ Entry format:
 - Remaining: `#line`, pragmas, variadic definitions, struct parameters/
   returns, locals views, and M13 1.0.
 - Next: continue preprocessor/M11 work.
+
+### 2026-10-27 21:40:40 -07:00 — M11: local-variable debug records
+
+- Status: `cc -g` emits `.debug_vars` entries; the linker preserves them and
+  DAP exposes a `Locals` scope for the current function.
+- Changes: compiler records function/local name, frame offset, and size;
+  linker merges `.debug_vars`; DAP parses entries, locates the current
+  function by PC, and reads locals/parameters through `R4`.
+- Tests: compiler/linker debug-vars test; 82 doctest cases; DAP smoke with a
+  `-g` hello program passes.
+- Remaining: threaded console/DAP coordination, `#line`/pragmas, variadic
+  definitions, struct parameters/returns, and M13 1.0.
+- Next: M11 threading and M13 closure.

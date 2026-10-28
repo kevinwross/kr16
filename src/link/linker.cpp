@@ -77,6 +77,26 @@ LinkResult link_objects(const std::vector<Container>& objects,
             for (std::size_t section_index = 0;
                  section_index < object.sections.size(); ++section_index) {
                 const auto& input = object.sections[section_index];
+                if (!options.strip_debug && input.name == ".debug_vars") {
+                    Section* target = nullptr;
+                    for (auto& output : outputs) {
+                        if (output.name == ".debug_vars") {
+                            target = &output;
+                            break;
+                        }
+                    }
+                    if (target == nullptr) {
+                        Section output;
+                        output.name = input.name;
+                        output.flags = input.flags;
+                        output.alignment = input.alignment;
+                        outputs.push_back(std::move(output));
+                        target = &outputs.back();
+                    }
+                    target->data.insert(target->data.end(), input.data.begin(),
+                                        input.data.end());
+                    continue;
+                }
                 if (!options.strip_debug && input.name == ".debug_line") {
                     Section output;
                     output.name = input.name;

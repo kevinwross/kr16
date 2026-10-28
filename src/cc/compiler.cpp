@@ -1695,6 +1695,15 @@ public:
         }
         emit_globals(out);
         emit_strings(out);
+        if (debug_ && !debug_vars_.empty()) {
+            out << ".section .debug_vars\n";
+            for (const auto& variable : debug_vars_) {
+                out << ".asciz \"" << variable.function << "|"
+                    << variable.name << "|" << variable.offset << "|"
+                    << variable.size << "\"\n";
+            }
+            out << ".text\n";
+        }
         return out.str();
     }
 
@@ -1704,6 +1713,12 @@ private:
         int offset = 0;
         bool global = false;
         std::string name;
+    };
+    struct DebugVar {
+        std::string function;
+        std::string name;
+        int offset = 0;
+        int size = 2;
     };
 
     void collect_globals() {
@@ -1872,6 +1887,15 @@ private:
         }
         frame_size_ = align(frame, 2);
         function_label_ = function.name;
+        if (debug_) {
+            for (const auto& [name, variable] : locals_) {
+                if (!variable.global) {
+                    debug_vars_.push_back(DebugVar{
+                        function.name, name, variable.offset,
+                        variable.type ? variable.type->size() : 2});
+                }
+            }
+        }
 
         out << ".global " << function.name << "\n";
         out << function.name << ":\n";
@@ -2484,6 +2508,7 @@ private:
     std::set<std::string> external_calls_;
     std::vector<std::string> break_labels_;
     std::vector<std::string> continue_labels_;
+    std::vector<DebugVar> debug_vars_;
     std::string return_label_;
     int frame_size_ = 0;
     int label_counter_ = 0;

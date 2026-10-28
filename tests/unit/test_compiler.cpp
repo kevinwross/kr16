@@ -333,6 +333,26 @@ TEST_CASE("compiled main receives argc and argv") {
                 {"A"}) == 65);
 }
 
+TEST_CASE("compiler emits local variable debug records") {
+    kr16::CompileOptions options;
+    options.debug = true;
+    options.source_name = "debug.c";
+    const auto compiled = kr16::compile_c(
+        "int main(void) { int counter = 5; return counter; }\n", options);
+    REQUIRE(compiled.ok);
+    CHECK(compiled.assembly.find(".debug_vars") != std::string::npos);
+    CHECK(compiled.assembly.find("main|counter|") != std::string::npos);
+    const auto assembled =
+        kr16::assemble_text(compiled.assembly, kr16::AsmOptions{});
+    REQUIRE(assembled.ok);
+    const auto linked = kr16::link_objects({assembled.object});
+    REQUIRE(linked.ok);
+    const auto* vars = linked.image.find_section(".debug_vars");
+    REQUIRE(vars != nullptr);
+    const std::string data(vars->data.begin(), vars->data.end());
+    CHECK(data.find("main|counter|") != std::string::npos);
+}
+
 TEST_CASE("compiler emits source line information with -g") {
     kr16::CompileOptions options;
     options.debug = true;
