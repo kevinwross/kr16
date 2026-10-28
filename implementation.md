@@ -832,7 +832,8 @@ ship `1.0.0`.
 
 **Tasks:**
 
-- [ ] Fuzz container, assembler, compiler, linker, and DAP parsers.
+- [x] Fuzz container, assembler, compiler, linker, and DAP parsers (initial
+      random-image smoke script plus container fuzz tests).
 - [x] Add performance benchmarks for VM speed, assemble/link time, and binary
       size (initial VM benchmark script).
 - [x] Add examples and curriculum notes for assembly, C, and interrupts.
