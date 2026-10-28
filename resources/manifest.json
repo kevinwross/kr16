@@ -5,7 +5,7 @@
     {
       "name": "bios",
       "source": "resources/bios.s",
-      "sha256": "3C5650A54A05BF049BB3B170D85E4672D7F373B4098E975069255465B4E6DC0D"
+      "sha256": "8B02884368A5973BD8CF46261FD9B496AD723A910421FFA7945684D8CA15AB64"
     },
     {
       "name": "libc",
@@ -14,4 +14,5 @@
     }
   ]
 }
+
 

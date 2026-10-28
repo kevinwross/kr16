@@ -44,7 +44,7 @@ Rules:
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Partial (DAP + VS Code core) | Debug-session gate |
-| M12 | Bootstrap, CI, and release | Partial (docs/examples) | Release-candidate gate |
+| M12 | Bootstrap, CI, and release | Partial (resources, BIOS, packaging scripts) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (docs) | 1.0 gate |
 
 Dependency order:
@@ -783,7 +783,8 @@ release candidate.
 **Tasks:**
 
 - [x] Check in BIOS/runtime sources and `manifest.json`.
-- [ ] Implement generated C++ resource arrays and `std::span` access.
+- [x] Implement generated C++ resource arrays and `std::span` access for the
+      reference BIOS.
 - [x] Implement `bootstrap-check` and `bootstrap-update` resource hashing.
 - [x] Implement manifest generation with tool/format versions, source hashes,
       and resource SHA256; no timestamps.
@@ -1260,3 +1261,18 @@ Entry format:
 - Remaining: live debug-session smoke test in VS Code, advanced views, threaded
   console separation, and deterministic VSIX release packaging.
 - Next: M12 embedded resources and release-candidate packaging.
+
+### 2026-10-27 19:52:41 -07:00 — M12: embedded BIOS and `.crt0` boot path
+
+- Status: M12 partial; embedded BIOS/resource arrays and release scripts work,
+  deterministic archives and the RC remain.
+- Changes: generated `embedded_bios_rom()` from `resources/bios.s`; VM uses the
+  embedded BIOS automatically for entry `0x0100`; default BIOS preserves
+  SP/R1/R2 so argv survives; compiler emits `_start` in `.crt0`; linker places
+  `.crt0` at `0x0100` and adds cross-section call relocations.
+- Tests: 79 doctest cases and 23 CTest entries passed, including embedded-BIOS
+  boot, C `_start` at `0x0100`, C hello through the BIOS, and all previous
+  regression paths.
+- Remaining: deterministic archives with `SOURCE_DATE_EPOCH`, 0.1.0 RC, and
+  final release gates.
+- Next: finish release artifacts and close M12/M13.

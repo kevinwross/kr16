@@ -38,6 +38,7 @@ add_library(kr16_core STATIC
   src/link/linker.cpp
   src/debug/debug_info.cpp
   src/cc/compiler.cpp
+  src/resources/embedded.cpp
   src/platform/socket.cpp
   src/dap/dap_json.cpp
   src/dap/dap_session.cpp

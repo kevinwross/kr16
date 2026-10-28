@@ -15,6 +15,7 @@
 #include "kr16/cpu.hpp"
 #include "kr16/host.hpp"
 #include "kr16/machine.hpp"
+#include "kr16/resources.hpp"
 
 namespace kr16 {
 namespace {
@@ -138,6 +139,13 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
             const auto reset = machine.read16(0xFFFE);
             if (reset == 0) {
                 throw std::runtime_error("BIOS reset vector is zero");
+            }
+            cpu.set_pc(reset);
+        } else if (!options.no_bios && entry == 0x0100) {
+            machine.load_rom(embedded_bios_rom());
+            const auto reset = machine.read16(0xFFFE);
+            if (reset == 0) {
+                throw std::runtime_error("embedded BIOS reset vector is zero");
             }
             cpu.set_pc(reset);
         } else {

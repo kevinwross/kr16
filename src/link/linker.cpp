@@ -162,6 +162,15 @@ LinkResult link_objects(const std::vector<Container>& objects,
             jump->address = 0x0040;
             cursor = std::max<std::uint32_t>(cursor, 0x0040 + jump->byte_size());
         }
+        if (auto* crt0 = section_by_name(".crt0")) {
+            const auto crt_address =
+                std::max<std::uint32_t>(options.text_address, cursor);
+            if (crt_address > 0xFFFF) {
+                throw std::runtime_error(".crt0 does not fit in memory");
+            }
+            crt0->address = static_cast<std::uint16_t>(crt_address);
+            cursor = crt_address + crt0->byte_size();
+        }
         if (auto* text = section_by_name(".text")) {
             const auto text_address =
                 std::max<std::uint32_t>(options.text_address, cursor);

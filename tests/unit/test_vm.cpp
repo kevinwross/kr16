@@ -42,7 +42,7 @@ TEST_CASE("VM runs a raw program and returns HLT value") {
     INFO(result.error);
     REQUIRE(result.ok);
     CHECK(result.exit_code == 7);
-    CHECK(result.instructions == 2);
+    CHECK(result.instructions == 3);  // embedded BIOS JMP, MOV, HLT
     CHECK(result.cycles > 0);
 }
 

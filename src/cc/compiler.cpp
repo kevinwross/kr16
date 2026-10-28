@@ -899,10 +899,12 @@ public:
         }
         if (function_map_.count("main") != 0 &&
             function_map_.count("_start") == 0) {
+            out << ".crt0\n";
             out << ".global _start\n";
             out << "_start:\n";
             out << "  CALL main\n";
             out << "  HLT\n";
+            out << ".text\n";
         }
         for (const auto& name : external_calls_) {
             if (function_map_.count(name) == 0 && global_map_.count(name) == 0) {

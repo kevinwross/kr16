@@ -1099,6 +1099,8 @@ void Assembler::ensure_object_section(const std::string& name) {
     section.name = name;
     if (name == ".text") {
         section.flags = SectionAlloc | SectionExec;
+    } else if (name == ".crt0") {
+        section.flags = SectionAlloc | SectionExec;
     } else if (name == ".rodata") {
         section.flags = SectionAlloc;
     } else if (name == ".data") {
@@ -1351,6 +1353,8 @@ void Assembler::handle_directive(const std::string& mnemonic,
     }
     if (mnemonic == ".text") {
         ensure_object_section(".text");
+    } else if (mnemonic == ".crt0") {
+        ensure_object_section(".crt0");
     } else if (mnemonic == ".data") {
         ensure_object_section(".data");
     } else if (mnemonic == ".rodata") {
@@ -1694,7 +1698,15 @@ void Assembler::emit_load_store(Op op, int rd, bool absolute, int base,
 }
 
 void Assembler::emit_jump(bool call, const ExprValue& target, int line) {
-    if (target.symbolic && !target.resolved) {
+    bool needs_relocation = target.symbolic && !target.resolved;
+    if (target.symbolic && target.resolved && !options_.raw) {
+        const auto it = symbol_index_.find(target.symbol);
+        if (it != symbol_index_.end() &&
+            symbols_[it->second].section != static_cast<int>(current_section_)) {
+            needs_relocation = true;
+        }
+    }
+    if (needs_relocation) {
         Instruction instruction;
         instruction.op = call ? Op::CallRel : Op::JmpRel;
         instruction.imm = 0;
@@ -1705,7 +1717,7 @@ void Assembler::emit_jump(bool call, const ExprValue& target, int line) {
             emit_u16(word, line);
         }
         add_reloc(start + 2, RelocationType::Pcrel16w, target.symbol,
-                  static_cast<std::int32_t>(target.value));
+                  static_cast<std::int32_t>(target.addend));
         return;
     }
     const auto next = static_cast<std::int64_t>(current_address()) + 4;
