@@ -44,7 +44,7 @@ Rules:
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Partial (DAP/VS Code; live session and threading pending) | Debug-session gate |
-| M12 | Bootstrap, CI, and release | Partial (Windows 0.1.0 RC; Linux CI pending) | Release-candidate gate |
+| M12 | Bootstrap, CI, and release | Complete (local 0.1.0 RC) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC, Linux/sanitizer matrix verified; 1.0 pending) | 1.0 gate |
 
 Dependency order:
@@ -1406,3 +1406,13 @@ Entry format:
 - Remaining: live VS Code session, threaded console/DAP coordination, and 1.0
   release.
 - Next: release closure.
+
+### 2026-10-27 20:13:47 -07:00 — M12: 0.1.0 release candidate notes
+
+- Status: M12 local release-candidate gate complete.
+- Changes: added `RELEASE_NOTES-0.1.0.md`; Windows/Linux package scripts include
+  it; M12 status marked complete for the local 0.1.0 RC.
+- Tests: Windows Debug/Release and Linux Debug/ASan/UBSan matrices pass;
+  deterministic archive and extracted-archive smoke were verified earlier.
+- Remaining: M11 live VS Code/threading, M13 1.0 tag and full C99.
+- Next: tag/publish the 0.1.0 candidate and continue M13 hardening.

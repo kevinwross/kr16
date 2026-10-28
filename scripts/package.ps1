@@ -27,7 +27,7 @@ try {
   if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
   New-Item -ItemType Directory -Force -Path (Join-Path $stage "bin") | Out-Null
   Copy-Item "build/windows-ninja/kr16.exe" (Join-Path $stage "bin/kr16.exe")
-  Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md $stage
+  Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md, RELEASE_NOTES-0.1.0.md $stage
   Copy-Item docs, examples, resources, vscode $stage -Recurse
   $vsix = Join-Path $root "vscode/kr16-debug-$Version.vsix"
   if (Test-Path $vsix) {

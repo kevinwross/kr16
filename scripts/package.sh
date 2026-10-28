@@ -14,7 +14,7 @@ STAGE="$DIST/kr16-$VERSION-linux-x64"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/bin"
 cp "build/linux-gcc-release/kr16" "$STAGE/bin/kr16"
-cp README.md LICENSE THIRD_PARTY_NOTICES.md "$STAGE/"
+cp README.md LICENSE THIRD_PARTY_NOTICES.md RELEASE_NOTES-0.1.0.md "$STAGE/"
 cp -R docs examples resources vscode "$STAGE/"
 VSIX="$ROOT/vscode/kr16-debug-$VERSION.vsix"
 if [ -f "$VSIX" ]; then
