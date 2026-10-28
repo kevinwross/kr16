@@ -2204,3 +2204,16 @@ Entry format:
   cases still passing; stress run 173,821 instructions, `heap ok peak=16002`.
 - Next: fix `__heap_start` in the linker, then size the pool from the linker
   instead of a constant.
+
+### 2026-10-28 — linker-provided heap symbols and casts
+
+- Fixed `symbol_value()` in `src/link/linker.cpp` to consult `__heap_start`,
+  `__stack_top` and `__stack_limit` while applying relocations, instead of
+  defining them only after relocation. `.extern` references now resolve.
+- Added a linker relocation test that checks the emitted `.data` words against
+  the image's provided symbols.
+- `kr16 cc` now parses C casts: integer/char/pointer casts, including the
+  `int *p = (int *)malloc(...)` form, with pointer/index/dereference typing.
+- CTest: 38/38 (`kr16.*.heap*` included); doctest: 114 cases / 3165 assertions.
+- The allocator still uses its fixed 16 KiB `.bss` pool; switching to
+  `[__heap_start, __stack_limit)` is the remaining heap change.

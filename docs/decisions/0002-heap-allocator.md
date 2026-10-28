@@ -5,6 +5,12 @@
 - Supersedes: the bump allocator described in `implementation.md` (M7,
   "malloc/free")
 
+> **Follow-up (2026-10-28).** The linker now resolves `__heap_start`,
+> `__stack_top` and `__stack_limit` during relocation, and `kr16 cc` has casts.
+> The fixed 16 KiB `.bss` pool is therefore a temporary implementation choice,
+> not a permanent constraint. Switching the initializers to
+> `[__heap_start, __stack_limit)` is the next allocator change.
+
 ## Context
 
 The first `libc.s` allocator was a bump pointer: `malloc` appended a 2-byte
