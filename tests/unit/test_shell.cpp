@@ -24,6 +24,14 @@ TEST_CASE("shell tokenizer reports an unterminated quote") {
     CHECK(result.tokens.empty());
 }
 
+TEST_CASE("shell tokenizer preserves quoted Windows paths") {
+    const auto result =
+        kr16::cli::tokenize_shell_line("load \"C:\\work\\hello.c\"");
+    REQUIRE(result.error.empty());
+    REQUIRE(result.tokens.size() == 2);
+    CHECK(result.tokens[1] == "C:\\work\\hello.c");
+}
+
 TEST_CASE("shell history is capped and persists") {
     const auto path = std::filesystem::current_path() / "kr16_shell_history";
     std::filesystem::remove(path);
@@ -57,4 +65,26 @@ TEST_CASE("shell loop continues after failures") {
     CHECK(output.str().find("kr16 1.0.0") != std::string::npos);
     CHECK(error.str().find("unknown command") != std::string::npos);
     CHECK(error.str().find("refusing to block") != std::string::npos);
+}
+
+TEST_CASE("shell load builds and links C source") {
+    const auto directory =
+        std::filesystem::current_path() / "kr16_shell_load";
+    std::filesystem::remove_all(directory);
+    std::filesystem::create_directories(directory);
+    const auto source = directory / "hello.c";
+    {
+        std::ofstream output(source);
+        output << "int main(void) { return 7; }\n";
+    }
+    const std::string script =
+        "load \"" + source.string() + "\"\nquit\n";
+    std::istringstream input(script);
+    std::ostringstream output;
+    std::ostringstream error;
+    const int status =
+        kr16::cli::run_shell(input, output, error, false);
+    CHECK(status == 0);
+    CHECK(std::filesystem::exists(directory / "hello.kex"));
+    std::filesystem::remove_all(directory);
 }

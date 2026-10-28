@@ -2031,3 +2031,16 @@ Entry format:
   through a PTY: prompt, typed commands, Up-arrow history recall, and `quit`.
 - Windows Debug/CTest and Linux CTest remain green.
 - Next: optional manual Windows-console smoke.
+
+### 2026-10-27 23:35:36 -07:00 — Shell load command
+
+- Added `load <file>` to build and run a program from source:
+  - `.c`: `cc -g -c`, assemble `resources/libc.s`, link, then run
+  - `.asm`/`.s`: assemble, link, then run
+  - `.o`: link and run; `.kex`: run directly
+- Outputs a sibling `.kex`; resolves libc from the workspace, executable tree,
+  installed package, or `KR16_RESOURCE_DIR`.
+- Quoted Windows paths now preserve backslashes unless escaping `"` or `\`.
+- Tests: shell load/history/tokenizer; Windows 88/88 doctest (2958 assertions),
+  24/24 CTest; Linux 23/23; `load examples/hello.c` verified on both.
+- Next: optional `--no-run` load mode if needed.

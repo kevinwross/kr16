@@ -5,6 +5,7 @@
 #include "platform/terminal.hpp"
 
 #include <cstdio>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -44,6 +45,24 @@ void enable_virtual_terminal() {
 }
 
 }  // namespace
+
+std::string executable_path() {
+#if defined(_WIN32)
+    wchar_t buffer[32768] = {};
+    const DWORD length = GetModuleFileNameW(nullptr, buffer, 32768);
+    if (length == 0) {
+        return {};
+    }
+    return std::filesystem::path(std::wstring(buffer, length)).string();
+#else
+    char buffer[4096] = {};
+    const ssize_t length = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if (length <= 0) {
+        return {};
+    }
+    return std::string(buffer, static_cast<std::size_t>(length));
+#endif
+}
 
 bool stdin_is_terminal() {
 #if defined(_WIN32)
@@ -302,3 +321,4 @@ std::optional<std::string> read_line(
 }
 
 }  // namespace kr16::platform
+
