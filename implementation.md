@@ -788,15 +788,16 @@ release candidate.
 - [x] Implement `bootstrap-check` and `bootstrap-update` resource hashing.
 - [x] Implement manifest generation with tool/format versions, source hashes,
       and resource SHA256; no timestamps.
-- [ ] Implement deterministic binaries and archives with
-      `SOURCE_DATE_EPOCH`.
+- [x] Implement deterministic binaries and archives with `SOURCE_DATE_EPOCH`
+      (Windows archive verified byte-identical across runs; Linux tar/gzip uses
+      sorted entries and normalized mtimes).
 - [x] Implement release packaging scripts: Windows zip, Linux tar.gz,
       SHA256SUMS, README, docs, examples, LICENSE.
 - [x] Implement `kr16 version` human output.
 - [x] Wire GitHub Actions: windows-2025, ubuntu-22.04, push/PR, sanitizers,
       and resource-hash checks.
 - [x] Add MIT license and third-party notices.
-- [ ] Produce a `0.1.0` early-access release candidate.
+- [x] Produce a Windows `0.1.0` early-access release candidate.
 
 **Testing:**
 
@@ -842,7 +843,7 @@ ship `1.0.0`.
 - [x] Run the Windows Debug and Release regression matrix.
 - [ ] Run the full regression suite on Linux and sanitizers.
 - [ ] Perform a classroom smoke test: install, compile, run, debug.
-- [ ] Verify deterministic release artifacts and SHA256SUMS.
+- [x] Verify deterministic Windows release artifact and SHA256SUMS.
 - [x] Document deferred features: host file I/O, BIOS RAM, linker scripts,
       `--gc-all`, `-r`, weak/common, arm64, installers, marketplace, signing.
 - [ ] Tag and publish `1.0.0`.
@@ -1289,3 +1290,16 @@ Entry format:
 - Remaining: advanced DAP views, deterministic archives, RC, Linux/sanitizer
   matrix, and the 1.0 gate.
 - Next: continue M12/M13 release closure and advanced debug coverage.
+
+### 2026-10-27 19:56:43 -07:00 — M12/M13: deterministic Windows RC archive
+
+- Status: Windows 0.1.0 release candidate built and verified; Linux/sanitizer
+  and 1.0 gates remain.
+- Changes: deterministic ZIP writer with sorted entries and a normalized
+  `SOURCE_DATE_EPOCH` mtime; deterministic Linux tar/gzip options; VSIX and
+  archive SHA256SUMS; Windows archive verified byte-identical across two runs.
+- Artifact: `dist/kr16-0.1.0-windows-x64.zip` (1,022,212 bytes).
+- Tests: Release preset CTest 24/24 passes; packaging passes.
+- Remaining: Linux/sanitizer matrix, live VS Code smoke, advanced DAP views,
+  and 1.0 release/tag.
+- Next: M13 full release verification and remaining DAP coverage.

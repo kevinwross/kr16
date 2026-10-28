@@ -23,7 +23,9 @@ fi
 
 ARCHIVE="$DIST/kr16-$VERSION-linux-x64.tar.gz"
 rm -f "$ARCHIVE"
-tar -C "$DIST" -czf "$ARCHIVE" "kr16-$VERSION-linux-x64"
+EPOCH="${SOURCE_DATE_EPOCH:-315532800}"
+tar --sort=name --mtime="@$EPOCH" --owner=0 --group=0 --numeric-owner \
+  -C "$DIST" -cf - "kr16-$VERSION-linux-x64" | gzip -n > "$ARCHIVE"
 ( cd "$DIST" && sha256sum "$(basename "$ARCHIVE")" > SHA256SUMS )
 if [ -f "$VSIX" ]; then
   ( cd "$DIST" && sha256sum "$(basename "$VSIX")" >> SHA256SUMS )

@@ -2,6 +2,7 @@
 /build/
 /out/
 /install/
+/dist/
 
 # IDE state
 .vs/
