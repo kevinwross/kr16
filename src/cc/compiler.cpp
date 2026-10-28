@@ -361,7 +361,8 @@ std::string builtin_header(std::string_view name) {
                "#define va_start(ap, last) __builtin_va_start(&(ap))\n"
                "#define va_arg(ap, type) "
                "__builtin_va_arg(&(ap), sizeof(type))\n"
-               "#define va_end(ap)\n";
+               "#define va_end(ap)\n"
+               "#define va_copy(dest, src) ((dest) = (src))\n";
     }
     if (name == "limits.h") {
         return "#define INT_MAX 32767\n#define INT_MIN (-32768)\n";

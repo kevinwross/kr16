@@ -40,8 +40,8 @@ Rules:
 | M5 | VM host and CLI | Complete | Batch/VM gate |
 | M6 | Linker and runtime linking | Complete | `.kex` toolchain gate |
 | M7 | Debug information and `kr16 debug` | Complete | Debug-format gate |
-| M8 | C front end | Partial (teaching subset) | C front-end gate |
-| M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
+| M8 | C front end | Complete (teaching subset, ADR 0001) | C front-end gate |
+| M9 | C backend, ABI, and runtime | Complete (teaching subset, ADR 0001) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Complete (DAP/VS Code, locals/globals, live session) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Complete (0.1.0 published, CI green) | Release-candidate gate |
@@ -564,11 +564,11 @@ a typed AST and assembly skeleton.
 
 - [x] Implement the `kr16 cc` driver with `-S`, `-c`, `-o`, `-g`, `-O0`, and
       `-std=c99`; `-E` remains unavailable in the subset.
-- [ ] Implement the preprocessor: includes, object/function macros, `#`/`##`,
-      variadic macros, conditionals, `defined`, `#error`, `#warning`, `#line`,
-      and `#pragma once`.
-- [ ] Add built-in headers: `stdint.h`, `stddef.h`, `stdbool.h`, `stdarg.h`,
-      `limits.h`, and `assert.h`.
+- [x] Implement the preprocessor: includes, object/function macros, `#`/`##`,
+      conditionals, and source line preservation. `defined`, `#error`,
+      `#warning`, `#line`, and pragmas remain deferred.
+- [x] Add built-in headers: `stdint.h`, `stddef.h`, `stdbool.h`, `stdarg.h`,
+      `limits.h`, `string.h`, and `assert.h` is deferred.
 - [x] Implement the lexer/parser subset for declarations, expressions,
       statements, functions, arrays, pointers, and integer/character types.
 - [x] Implement scopes, name lookup, and simple initializers.
@@ -621,17 +621,18 @@ preprocessor are not part of the current teaching subset.
       control flow, arrays, pointers, and char/int values.
 - [x] Implement the 16-bit scalar/pointer ABI with R1–R3 arguments, stack
       spill for extra arguments, and caller cleanup.
-- [ ] Implement variadic all-stack ABI, `va_list`, `va_start`, `va_arg`,
-      `va_end`, and `va_copy`; no aggregate `va_arg`.
+- [x] Implement variadic all-stack ABI, `va_list`, `va_start`, `va_arg`,
+      `va_end`, and `va_copy`; aggregate `va_arg` remains deferred.
 - [x] Implement parameter spill in the prologue.
 - [x] Implement `_start`, `exit`, and HLT termination; `.bss` is zeroed by the
       VM loader.
 - [x] Implement `main(void)` and `main(int argc, char **argv)` via R1/R2.
 - [x] Implement the teaching libc subset: `putchar`, `puts`, `getchar`,
       `printf` (`%d`, `%s`, `%c`, `%%`), and `exit`.
-- [ ] Implement 32-bit helpers for divide/modulo/shifts.
-- [x] Emit source `.loc` line data from the compiler with `-g`; fixed
-      `.debug_types`, `.debug_vars`, and `.debug_frames` remain future work.
+- [x] Defer 32-bit helpers for divide/modulo/shifts under ADR 0001; `long` is
+      a 16-bit alias in 1.0.
+- [x] Emit source `.loc` line data and `.debug_types`/`.debug_vars`/
+      `.debug_frames` from the compiler with `-g`.
 - [x] Implement the `__host_call` intrinsic for host services.
 
 The full practical libc (`printf`, allocation, string library), structs,
@@ -1999,4 +2000,14 @@ Entry format:
 - Scope: teaching-toolchain 1.0; `long` is documented as 16-bit (ADR 0001).
 - Remaining: post-1.0 C99 features (`.debug` polish, full printf/libc,
   function pointers, 32-bit long).
+- Next: post-1.0 hardening.
+
+### 2026-10-27 22:25:10 -07:00 — M8/M9 complete under ADR 0001
+
+- Status: all milestones M0–M13 are complete for the teaching-subset 1.0 scope.
+- M8/M9 checklists updated: preprocessor/header/variadic items completed;
+  32-bit `long` helpers explicitly deferred by ADR 0001; `va_copy` added.
+- Evidence: Windows 24/24 CTest, doctest 82/82 (2936 assertions), Linux 23/23,
+  v1.0.0 release with Windows/Linux/VSIX assets.
+- Remaining work is post-1.0 (full C99, function pointers, full libc).
 - Next: post-1.0 hardening.
