@@ -44,8 +44,8 @@ Rules:
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Partial (DAP/VS Code; live session and threading pending) | Debug-session gate |
-| M12 | Bootstrap, CI, and release | Complete (local 0.1.0 RC) | Release-candidate gate |
-| M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC, Linux/sanitizer matrix verified; 1.0 pending) | 1.0 gate |
+| M12 | Bootstrap, CI, and release | Complete (0.1.0 RC, GitHub CI green) | Release-candidate gate |
+| M13 | Hardening, curriculum, `1.0.0` | Partial (CI green; 1.0 pending) | 1.0 gate |
 
 Dependency order:
 
@@ -846,8 +846,9 @@ ship `1.0.0`.
 - [x] Add examples and curriculum notes for assembly, C, and interrupts.
 - [ ] Polish diagnostics and error messages.
 - [x] Run the Windows Debug and Release regression matrix.
-- [x] Run the full regression suite on Windows Debug/Release, Linux Debug,
-      and Linux GCC ASan/UBSan.
+- [x] Run the full regression suite on Windows Debug/Release, Linux GCC/Clang
+      Debug, and Linux ASan/UBSan; GitHub Actions run `40625771119` is green on
+      all five jobs.
 - [x] Perform a Windows classroom smoke test: extract the release archive,
       compile, assemble, link, and run the hello example.
 - [x] Verify deterministic Windows release artifact and SHA256SUMS.
@@ -1406,6 +1407,19 @@ Entry format:
 - Remaining: live VS Code session, threaded console/DAP coordination, and 1.0
   release.
 - Next: release closure.
+
+### 2026-10-27 20:19:25 -07:00 — M12: GitHub CI green on all jobs
+
+- Status: M12 complete; CI run `40625771119` on `a2d88a5` is green for Windows
+  Debug, Windows Release, Linux GCC Debug, Linux Clang Debug, and Linux
+  ASan/UBSan.
+- Fix: resource hashes normalize CRLF to LF before SHA256, so Windows checkout
+  line endings no longer cause bootstrap drift.
+- Evidence: GitHub Actions run URL
+  `https://github.com/kevinwross/kr16/actions/runs/40625771119`.
+- Remaining: M11 live VS Code/threading and M13 1.0 release; C compiler remains
+  a teaching subset.
+- Next: final 1.0 gate work.
 
 ### 2026-10-27 20:13:47 -07:00 — M12: 0.1.0 release candidate notes
 
