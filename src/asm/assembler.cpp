@@ -152,6 +152,16 @@ std::vector<std::string> split_operands(std::string_view text) {
     return operands;
 }
 
+std::vector<std::string> split_words(std::string_view text) {
+    std::vector<std::string> words;
+    std::istringstream input{std::string(text)};
+    std::string word;
+    while (input >> word) {
+        words.push_back(std::move(word));
+    }
+    return words;
+}
+
 int parse_register(std::string_view text) {
     const std::string name = lower(trim(text));
     if (name.size() == 2 && name[0] == 'r' && name[1] >= '0' && name[1] <= '4') {
@@ -533,6 +543,19 @@ private:
         bool active() const { return parent_active && condition; }
     };
 
+    struct LineRow {
+        std::uint16_t address = 0;
+        std::uint16_t file = 0;
+        std::uint16_t line = 0;
+        std::uint8_t column = 0;
+        std::uint8_t flags = 0;
+    };
+
+    struct DebugFile {
+        std::string path;
+        std::string build_directory;
+    };
+
     bool active() const {
         return conditionals_.empty() || conditionals_.back().active();
     }
@@ -541,6 +564,8 @@ private:
     void append_listing(const SourceLine& line, std::uint32_t start_address,
                         std::uint32_t start_offset,
                         std::size_t start_section);
+    void append_line_row(std::uint32_t address, int line);
+    void emit_debug_line();
     void reset_for_pass(bool first);
     void process_line(const SourceLine& line);
     LineParts split_line(const SourceLine& line) const;
@@ -592,6 +617,11 @@ private:
     std::unordered_map<std::string, Macro> macros_;
     std::vector<Conditional> conditionals_;
     std::vector<RelocRecord> relocations_;
+    std::vector<LineRow> line_rows_;
+    std::vector<DebugFile> debug_files_;
+    std::uint16_t current_debug_file_ = 0;
+    std::uint16_t current_debug_line_ = 0;
+    std::uint8_t current_debug_column_ = 0;
     std::vector<std::uint8_t> raw_;
     bool first_pass_ = true;
     std::vector<std::string> listing_;
@@ -792,6 +822,10 @@ void Assembler::reset_for_pass(bool first) {
     relocations_.clear();
     conditionals_.clear();
     listing_.clear();
+    line_rows_.clear();
+    current_debug_file_ = 0;
+    current_debug_line_ = 0;
+    current_debug_column_ = 0;
     current_section_ = 0;
     current_file_.clear();
     current_line_ = 0;
@@ -810,6 +844,7 @@ void Assembler::reset_for_pass(bool first) {
         symbol_index_.clear();
         constants_.clear();
         globals_.clear();
+        debug_files_.clear();
     }
 }
 
@@ -829,6 +864,7 @@ AsmResult Assembler::run() {
         for (const auto& line : lines_) {
             process_line(line);
         }
+        emit_debug_line();
 
         for (auto& symbol : symbols_) {
             if (globals_.count(symbol.name) != 0) {
@@ -1143,6 +1179,63 @@ LineParts Assembler::split_line(const SourceLine& line) const {
     return parts;
 }
 
+void Assembler::append_line_row(std::uint32_t address, int line) {
+    (void)line;
+    if (first_pass_) {
+        return;
+    }
+    if (current_debug_line_ == 0) {
+        return;
+    }
+    LineRow row;
+    row.address = static_cast<std::uint16_t>(address & 0xFFFF);
+    row.file = current_debug_file_;
+    row.line = current_debug_line_;
+    row.column = current_debug_column_;
+    row.flags = 0;
+    if (!line_rows_.empty() && line_rows_.back().address == row.address &&
+        line_rows_.back().file == row.file &&
+        line_rows_.back().line == row.line &&
+        line_rows_.back().column == row.column) {
+        return;
+    }
+    line_rows_.push_back(row);
+}
+
+void Assembler::emit_debug_line() {
+    if (first_pass_ || options_.raw || line_rows_.empty()) {
+        return;
+    }
+    std::vector<std::uint8_t> data;
+    auto append8 = [&data](std::uint8_t value) { data.push_back(value); };
+    auto append16 = [&append8](std::uint16_t value) {
+        append8(static_cast<std::uint8_t>(value & 0xFF));
+        append8(static_cast<std::uint8_t>((value >> 8) & 0xFF));
+    };
+    auto append32 = [&append8](std::uint32_t value) {
+        append8(static_cast<std::uint8_t>(value & 0xFF));
+        append8(static_cast<std::uint8_t>((value >> 8) & 0xFF));
+        append8(static_cast<std::uint8_t>((value >> 16) & 0xFF));
+        append8(static_cast<std::uint8_t>((value >> 24) & 0xFF));
+    };
+    append32(static_cast<std::uint32_t>(line_rows_.size()));
+    append16(1);
+    append16(0);
+    for (const auto& row : line_rows_) {
+        append16(row.address);
+        append16(row.file);
+        append16(row.line);
+        append8(row.column);
+        append8(row.flags);
+    }
+    SectionState section;
+    section.name = ".debug_line";
+    section.flags = SectionDebug;
+    section.alignment = 2;
+    section.data = std::move(data);
+    sections_.push_back(std::move(section));
+}
+
 void Assembler::append_listing(const SourceLine& line,
                                std::uint32_t start_address,
                                std::uint32_t start_offset,
@@ -1201,6 +1294,7 @@ void Assembler::process_line(const SourceLine& line) {
         handle_directive(parts.mnemonic, parts.operands, line.line);
     } else {
         handle_instruction(parts.mnemonic, parts.operands, line.line);
+        append_line_row(start_address, line.line);
     }
     append_listing(line, start_address, start_offset, start_section);
 }
@@ -1326,8 +1420,63 @@ void Assembler::handle_directive(const std::string& mnemonic,
                 }
             }
         }
-    } else if (mnemonic == ".file" || mnemonic == ".loc") {
-        // Debug line information is emitted in M7.
+    } else if (mnemonic == ".file") {
+        if (operands.empty()) {
+            throw AsmError(line, 1, ".file needs a path");
+        }
+        std::size_t index = debug_files_.size();
+        std::string path;
+        const std::string text = trim(operands[0]);
+        const auto quote = text.find('"');
+        if (quote != std::string::npos) {
+            const std::string prefix = trim(text.substr(0, quote));
+            if (!prefix.empty()) {
+                const auto value = eval(prefix, line);
+                if (value.symbolic || value.value < 0) {
+                    throw AsmError(line, 1, ".file index must be a constant");
+                }
+                index = static_cast<std::size_t>(value.value);
+            }
+            path = unquote(text.substr(quote));
+        } else if (operands.size() >= 2) {
+            const auto value = eval(operands[0], line);
+            if (value.symbolic || value.value < 0) {
+                throw AsmError(line, 1, ".file index must be a constant");
+            }
+            index = static_cast<std::size_t>(value.value);
+            path = unquote(operands[1]);
+        } else {
+            throw AsmError(line, 1, ".file needs a quoted path");
+        }
+        if (debug_files_.size() <= index) {
+            debug_files_.resize(index + 1);
+        }
+        debug_files_[index].path = path;
+        debug_files_[index].build_directory = ".";
+    } else if (mnemonic == ".loc") {
+        std::vector<std::string> words = operands;
+        if (words.size() == 1) {
+            words = split_words(words[0]);
+        }
+        if (words.size() < 2) {
+            throw AsmError(line, 1, ".loc needs file and line");
+        }
+        const auto file = eval(words[0], line);
+        const auto line_number = eval(words[1], line);
+        if (file.symbolic || line_number.symbolic || file.value < 0 ||
+            file.value > 0xFFFF || line_number.value < 0 ||
+            line_number.value > 0xFFFF) {
+            throw AsmError(line, 1, ".loc values are out of range");
+        }
+        current_debug_file_ = static_cast<std::uint16_t>(file.value);
+        current_debug_line_ = static_cast<std::uint16_t>(line_number.value);
+        current_debug_column_ = 0;
+        if (words.size() >= 3) {
+            const auto column = eval(words[2], line);
+            if (!column.symbolic && column.value >= 0 && column.value <= 255) {
+                current_debug_column_ = static_cast<std::uint8_t>(column.value);
+            }
+        }
     } else if (mnemonic == ".include") {
         throw AsmError(line, 1, "nested include was not expanded");
     } else {

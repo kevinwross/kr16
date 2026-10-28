@@ -128,3 +128,33 @@ TEST_CASE("macros and conditionals expand") {
     CHECK(text->data[1] == 0x11);
 }
 
+TEST_CASE("assembler emits debug line rows") {
+    const std::string source =
+        ".file 0 \"hello.c\"\n"
+        ".text\n"
+        ".loc 0 10 2\n"
+        "  MOV R0, #1\n"
+        ".loc 0 11 3\n"
+        "  HLT\n";
+    const auto result = kr16::assemble_text(source, kr16::AsmOptions{});
+    if (!result.ok && !result.diagnostics.empty()) {
+        INFO(result.diagnostics[0].message);
+    }
+    REQUIRE(result.ok);
+    const auto* line = result.object.find_section(".debug_line");
+    REQUIRE(line != nullptr);
+    REQUIRE(line->data.size() == 24);
+    CHECK(line->data[0] == 2);
+    CHECK(line->data[4] == 1);
+    CHECK(line->data[8] == 0);   // first row address low
+    CHECK(line->data[9] == 0);
+    CHECK(line->data[10] == 0);  // file
+    CHECK(line->data[11] == 0);
+    CHECK(line->data[12] == 10);  // line
+    CHECK(line->data[13] == 0);
+    CHECK(line->data[14] == 2);   // column
+    CHECK(line->data[16] == 2);   // second row address low
+    CHECK(line->data[20] == 11);  // second line
+    CHECK(line->data[22] == 3);   // second column
+}
+

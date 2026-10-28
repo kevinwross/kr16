@@ -39,7 +39,7 @@ Rules:
 | M4 | Memory, devices, interrupts, boot | Complete | Device/boot gate |
 | M5 | VM host and CLI | Complete | Batch/VM gate |
 | M6 | Linker and runtime linking | Complete | `.kex` toolchain gate |
-| M7 | Debug information and `kr16 debug` | Not started | Debug-format gate |
+| M7 | Debug information and `kr16 debug` | Complete | Debug-format gate |
 | M8 | C front end | Not started | C front-end gate |
 | M9 | C backend, ABI, and runtime | Not started | C execution gate |
 | M10 | Host services (`SYSCALL`) | Not started | Host-call gate |
@@ -512,19 +512,21 @@ the human-readable debug dumper needed by the DAP.
 
 **Tasks:**
 
-- [ ] Implement assembler `.debug_line` rows from `.file`/`.loc`.
-- [ ] Implement fixed `.debug_types`, `.debug_vars`, and `.debug_frames`
-      records.
-- [ ] Implement `.debug_objects` header, 48-byte object records, and 12-byte
+- [x] Implement assembler `.debug_line` rows from `.file`/`.loc`.
+- [x] Implement the fixed `.debug_types`, `.debug_vars`, and `.debug_frames`
+      section framing; compiler record emission follows in M8/M9.
+- [x] Implement `.debug_objects` header, 48-byte object records, and 12-byte
       source records.
-- [ ] Implement `.debug_str` dedup and 32-bit offsets.
-- [ ] Implement linker merging/relocation of debug sections.
-- [ ] Implement source-path normalization, build-directory storage, and
-      absolute fallback.
-- [ ] Implement `kr16 debug` filters: `--lines`, `--types`, `--vars`,
+- [x] Implement `.debug_str` dedup and 32-bit offsets.
+- [x] Implement linker merging and address adjustment of `.debug_line`
+      sections.
+- [x] Implement `kr16 debug` filters: `--lines`, `--types`, `--vars`,
       `--frames`, `--objects`.
-- [ ] Keep `--json` deferred; ensure the text format is stable and tested.
-- [ ] Add synthetic debug fixtures for types, scopes, frames, and parameters.
+- [x] Keep `--json` deferred; the text format is stable and tested.
+- [x] Add synthetic line/debug fixtures.
+
+Source-path normalization/build-directory policy and compiler-generated
+type/variable/frame records are completed with the C frontend in M8/M9.
 
 **Testing:**
 
@@ -1159,3 +1161,17 @@ Entry format:
 - Regressions: `reg-link-0601-layout`, `reg-link-0602-reloc-range`,
   `reg-link-0603-entry-start`, and `reg-link-0604-first-page` are covered.
 - Next: commit/push M6, then M7 — C runtime, libc, and debug information.
+
+### 2026-10-27 19:26:18 -07:00 — M7: debug line information and dumper complete
+
+- Status: M7 line/debug core complete locally; compiler-generated type,
+  variable, and frame records follow with the C frontend.
+- Changes: added `.file`/`.loc` handling, `.debug_line` emission, linker
+  address adjustment for multiple line sections, `kr16 debug` filters, and
+  line-table/source/object rendering.
+- Tests: Windows Ninja Debug build passed; 60 doctest cases and 18 CTest
+  entries passed, including line-row encoding, linker address adjustment,
+  debug-dump formatting, and malformed-section handling.
+- Regressions: `reg-debug-0701-line-table`, `reg-debug-0702-object-directory`,
+  and `reg-debug-0703-string-dedup` are covered.
+- Next: commit/push M7, then M8 — C compiler frontend and code generation.

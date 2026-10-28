@@ -37,6 +37,12 @@ struct Placement {
     std::uint16_t address = 0;
 };
 
+std::uint16_t read_u16(const std::vector<std::uint8_t>& data,
+                       std::uint32_t offset) {
+    return static_cast<std::uint16_t>(
+        data[offset] | (static_cast<std::uint16_t>(data[offset + 1]) << 8));
+}
+
 void write_u8(Section& section, std::uint32_t offset, std::uint8_t value) {
     if (section.type == SectionType::Nobits ||
         offset >= section.data.size()) {
@@ -63,6 +69,7 @@ LinkResult link_objects(const std::vector<Container>& objects,
         std::vector<Section> outputs;
         std::unordered_map<std::string, std::size_t> output_index;
         std::vector<Placement> placements;
+        std::vector<std::pair<std::size_t, std::size_t>> debug_line_sections;
 
         for (std::size_t object_index = 0; object_index < objects.size();
              ++object_index) {
@@ -70,6 +77,17 @@ LinkResult link_objects(const std::vector<Container>& objects,
             for (std::size_t section_index = 0;
                  section_index < object.sections.size(); ++section_index) {
                 const auto& input = object.sections[section_index];
+                if (input.name == ".debug_line") {
+                    Section output;
+                    output.name = input.name;
+                    output.flags = input.flags;
+                    output.alignment = input.alignment;
+                    output.data = input.data;
+                    outputs.push_back(std::move(output));
+                    debug_line_sections.emplace_back(object_index,
+                                                     outputs.size() - 1);
+                    continue;
+                }
                 if ((input.flags & SectionAlloc) == 0 ||
                     input.name.rfind(".debug", 0) == 0) {
                     continue;
@@ -169,6 +187,9 @@ LinkResult link_objects(const std::vector<Container>& objects,
         }
 
         for (auto& section : outputs) {
+            if (section.name.rfind(".debug", 0) == 0) {
+                continue;
+            }
             if (section.address != 0 || section.name == ".vectors") {
                 continue;
             }
@@ -195,6 +216,37 @@ LinkResult link_objects(const std::vector<Container>& objects,
         for (auto& placement : placements) {
             placement.address = static_cast<std::uint16_t>(
                 outputs[placement.output].address + placement.output_offset);
+        }
+
+        for (const auto& [object_index, output_index_value] :
+             debug_line_sections) {
+            std::uint16_t text_address = 0;
+            for (const auto& placement : placements) {
+                if (placement.object == object_index &&
+                    outputs[placement.output].name == ".text") {
+                    text_address = outputs[placement.output].address;
+                    break;
+                }
+            }
+            auto& data = outputs[output_index_value].data;
+            if (data.size() < 8) {
+                continue;
+            }
+            const auto count = static_cast<std::uint32_t>(
+                data[0] | (static_cast<std::uint32_t>(data[1]) << 8) |
+                (static_cast<std::uint32_t>(data[2]) << 16) |
+                (static_cast<std::uint32_t>(data[3]) << 24));
+            if (8 + static_cast<std::uint64_t>(count) * 8 > data.size()) {
+                throw std::runtime_error("malformed .debug_line section");
+            }
+            for (std::uint32_t i = 0; i < count; ++i) {
+                const auto offset = 8 + i * 8;
+                const auto address = read_u16(data, offset);
+                const auto adjusted =
+                    static_cast<std::uint16_t>(address + text_address);
+                data[offset] = static_cast<std::uint8_t>(adjusted & 0xFF);
+                data[offset + 1] = static_cast<std::uint8_t>(adjusted >> 8);
+            }
         }
 
         std::unordered_map<std::string, std::uint16_t> globals;

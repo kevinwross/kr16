@@ -14,6 +14,7 @@
 
 #include "kr16/assembler.hpp"
 #include "kr16/container.hpp"
+#include "kr16/debug_info.hpp"
 #include "kr16/diagnostic.hpp"
 #include "kr16/disassembler.hpp"
 #include "kr16/linker.hpp"
@@ -418,6 +419,62 @@ int run_size_command(int argc, char** argv) {    std::string input;
     }
 }
 
+int run_debug_command(int argc, char** argv) {
+    std::string input;
+    DebugOptions options;
+    bool any_filter = false;
+    for (int i = 0; i < argc; ++i) {
+        const std::string argument = argv[i];
+        if (argument == "--lines") {
+            options.lines = true;
+            any_filter = true;
+        } else if (argument == "--types") {
+            options.types = true;
+            any_filter = true;
+        } else if (argument == "--vars") {
+            options.vars = true;
+            any_filter = true;
+        } else if (argument == "--frames") {
+            options.frames = true;
+            any_filter = true;
+        } else if (argument == "--objects") {
+            options.objects = true;
+            any_filter = true;
+        } else if (argument == "--json") {
+            std::cerr << "kr16 debug: --json is not available in v1\n";
+            return 2;
+        } else if (argument == "--help" || argument == "-h") {
+            std::cout << "usage: kr16 debug file.o|file.kex "
+                         "[--lines|--types|--vars|--frames|--objects]\n";
+            return 0;
+        } else if (!argument.empty() && argument.front() == '-') {
+            std::cerr << "kr16 debug: unknown option " << argument << '\n';
+            return 2;
+        } else if (input.empty()) {
+            input = argument;
+        } else {
+            std::cerr << "kr16 debug: multiple input files\n";
+            return 2;
+        }
+    }
+    if (input.empty()) {
+        std::cerr << "kr16 debug: missing input file\n";
+        return 2;
+    }
+    if (!any_filter) {
+        options = DebugOptions{true, true, true, true, true};
+    }
+
+    try {
+        const auto container = Container::read(read_bytes(input));
+        std::cout << dump_debug_info(container, options);
+        return 0;
+    } catch (const std::exception& error) {
+        std::cerr << "kr16 debug: " << error.what() << '\n';
+        return 1;
+    }
+}
+
 }  // namespace
 
 std::string usage_text() {
@@ -476,6 +533,9 @@ int run(int argc, char** argv) {
     }
     if (command == "ld") {
         return run_ld_command(argc - 2, argv + 2);
+    }
+    if (command == "debug") {
+        return run_debug_command(argc - 2, argv + 2);
     }
     if (!is_known_command(command)) {
         std::cerr << "kr16: unknown command '" << command << "'\n\n";
