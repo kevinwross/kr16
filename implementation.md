@@ -1565,3 +1565,9 @@ Entry format:
 - Remaining: global aggregate initializers, struct parameters/returns, unions,
   `long`, variadics, full preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:04:38 -07:00 — Linux -Werror follow-up
+
+- Fixed GCC `-Wswitch` on the new `InitList` expression kind; Linux Debug and
+  ASan builds compile cleanly again.
+- Windows suite 24/24, doctest 80/80 (2652 assertions); Linux 23/23.
