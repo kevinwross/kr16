@@ -77,7 +77,7 @@ LinkResult link_objects(const std::vector<Container>& objects,
             for (std::size_t section_index = 0;
                  section_index < object.sections.size(); ++section_index) {
                 const auto& input = object.sections[section_index];
-                if (input.name == ".debug_line") {
+                if (!options.strip_debug && input.name == ".debug_line") {
                     Section output;
                     output.name = input.name;
                     output.flags = input.flags;
@@ -423,6 +423,17 @@ LinkResult link_objects(const std::vector<Container>& objects,
         }
         if (image.entry == 0) {
             image.entry = options.text_address;
+        }
+        if (options.strip_symbols) {
+            image.symbols.erase(
+                std::remove_if(
+                    image.symbols.begin(), image.symbols.end(),
+                    [](const Symbol& symbol) {
+                        return symbol.name != "__heap_start" &&
+                               symbol.name != "__stack_top" &&
+                               symbol.name != "__stack_limit";
+                    }),
+                image.symbols.end());
         }
         result.image = std::move(image);
         result.ok = true;

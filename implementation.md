@@ -466,13 +466,12 @@ auto-linking, map/size reporting, ROM images, and strict layout rules.
 - [x] Implement first-page `.vectors`/`.bios_jump` strict sections.
 - [x] Implement heap/stack symbols: `__heap_start`, `__stack_top`, and
       `__stack_limit`.
-- [x] Implement `kr16 size`; `--map`, `--strip`, and `--strip-debug` are
-      release-hardening items in M12.
+- [x] Implement `kr16 size`, `ld --map`, `--strip`, and `--strip-debug`.
 - [x] Implement deterministic output and reproducible layouts.
 - [x] Add link-error diagnostics with object/section context.
 
-Auto-linking `crt0`/libc, `--nostdlib`, `--map`/strip, and `--rom` output are
-completed after the C runtime and reference BIOS exist in M7/M12.
+Auto-linking `crt0`/libc, `--nostdlib`, and `--rom` output are completed after
+the C runtime and reference BIOS exist in M7/M12.
 
 **Testing:**
 
@@ -1383,3 +1382,14 @@ Entry format:
 - Remaining: live VS Code session, prologue-boundary function breakpoints,
   threaded console/DAP coordination, and 1.0 release.
 - Next: final release/debugger closure.
+
+### 2026-10-27 20:10:51 -07:00 — M6/M12: linker map and strip options
+
+- Status: linker `--map`, `--strip`, and `--strip-debug` implemented and tested.
+- Changes: `LinkOptions` strip flags; debug sections removed when requested;
+  symbols stripped except layout symbols; `ld --map` writes section/symbol map;
+  CLI help updated.
+- Tests: linker strip test; `--map`/`--strip` smoke against real objects;
+  full Windows suite remains green.
+- Remaining: auto-crt0/libc, `--rom`, live VS Code, and 1.0 release.
+- Next: final release gates and remaining debugger/runtime work.

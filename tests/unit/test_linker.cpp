@@ -63,3 +63,23 @@ TEST_CASE("linker rejects duplicate globals") {
     REQUIRE(linked.diagnostics.size() == 1);
     CHECK(linked.diagnostics[0].find("duplicate global") != std::string::npos);
 }
+
+TEST_CASE("linker strip options remove debug and symbols") {
+    const auto object = assemble(
+        ".file 0 \"x.c\"\n"
+        ".text\n"
+        ".loc 0 1 1\n"
+        "  NOP\n");
+    kr16::LinkOptions options;
+    options.strip_debug = true;
+    const auto debug_stripped = kr16::link_objects({object}, options);
+    REQUIRE(debug_stripped.ok);
+    CHECK(debug_stripped.image.find_section(".debug_line") == nullptr);
+
+    options.strip_symbols = true;
+    const auto fully_stripped = kr16::link_objects({object}, options);
+    REQUIRE(fully_stripped.ok);
+    for (const auto& symbol : fully_stripped.image.symbols) {
+        CHECK(symbol.name.rfind("__", 0) == 0);
+    }
+}

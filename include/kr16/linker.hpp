@@ -11,6 +11,8 @@ namespace kr16 {
 struct LinkOptions {
     std::uint16_t text_address = 0x0100;
     std::uint16_t stack_reserve = 0x1000;
+    bool strip_debug = false;
+    bool strip_symbols = false;
 };
 
 struct LinkResult {

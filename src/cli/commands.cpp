@@ -343,6 +343,8 @@ int run_vm_command(int argc, char** argv) {
 int run_ld_command(int argc, char** argv) {
     std::vector<std::string> inputs;
     std::string output = "a.kex";
+    std::string map_path;
+    LinkOptions options;
     for (int i = 0; i < argc; ++i) {
         const std::string argument = argv[i];
         if (argument == "-o") {
@@ -351,8 +353,20 @@ int run_ld_command(int argc, char** argv) {
                 return 2;
             }
             output = argv[i];
+        } else if (argument == "--map") {
+            if (++i >= argc) {
+                std::cerr << "kr16 ld: --map needs a path\n";
+                return 2;
+            }
+            map_path = argv[i];
+        } else if (argument == "--strip-debug") {
+            options.strip_debug = true;
+        } else if (argument == "--strip") {
+            options.strip_debug = true;
+            options.strip_symbols = true;
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 ld [objects...] -o image.kex\n";
+            std::cout << "usage: kr16 ld [objects...] -o image.kex "
+                         "[--map file] [--strip-debug] [--strip]\n";
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 ld: unknown option " << argument << '\n';
@@ -366,7 +380,7 @@ int run_ld_command(int argc, char** argv) {
         return 2;
     }
 
-    const auto linked = link_files(inputs);
+    const auto linked = link_files(inputs, options);
     if (!linked.ok) {
         for (const auto& diagnostic : linked.diagnostics) {
             std::cerr << "kr16 ld: " << diagnostic << '\n';
@@ -375,6 +389,23 @@ int run_ld_command(int argc, char** argv) {
     }
     try {
         write_bytes(output, linked.image.write());
+        if (!map_path.empty()) {
+            std::ofstream map(map_path);
+            if (!map.good()) {
+                throw std::runtime_error("cannot create " + map_path);
+            }
+            map << "KR16 map\nentry=0x" << std::hex << linked.image.entry
+                << std::dec << "\n";
+            for (const auto& section : linked.image.sections) {
+                map << "section " << section.name << " addr=0x" << std::hex
+                    << section.address << std::dec
+                    << " size=" << section.byte_size() << "\n";
+            }
+            for (const auto& symbol : linked.image.symbols) {
+                map << "symbol " << symbol.name << " value=0x" << std::hex
+                    << symbol.value << std::dec << "\n";
+            }
+        }
     } catch (const std::exception& error) {
         std::cerr << "kr16 ld: " << error.what() << '\n';
         return 1;
