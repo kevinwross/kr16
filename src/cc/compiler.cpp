@@ -775,12 +775,13 @@ private:
 struct Expr {
     enum class Kind {
         Number, String, Identifier, Call, Binary, Unary, Assign, Index,
-        Conditional, Sizeof, Member, InitList
+        Conditional, Sizeof, Member, InitList, Cast
     };
     Kind kind = Kind::Number;
     std::int64_t value = 0;
     std::string text;
     std::string op;
+    std::shared_ptr<Type> type;
     std::vector<std::unique_ptr<Expr>> children;
     int line = 0;
 };
@@ -1595,6 +1596,19 @@ private:
     }
 
     std::unique_ptr<Expr> parse_unary() {
+        if (check("(") && position_ + 1 < tokens_.size() &&
+            is_type(tokens_[position_ + 1].text)) {
+            const int line = peek().line;
+            ++position_;
+            auto type = parse_type();
+            expect(")");
+            auto expr = std::make_unique<Expr>();
+            expr->kind = Expr::Kind::Cast;
+            expr->type = std::move(type);
+            expr->line = line;
+            expr->children.push_back(parse_unary());
+            return expr;
+        }
         if (check("+") || check("-") || check("!") || check("~") ||
             check("*") || check("&") || check("++") || check("--") ||
             check_word("sizeof")) {
@@ -2188,6 +2202,9 @@ private:
         if (expr->kind == Expr::Kind::String) {
             return make_type(TypeKind::Pointer, make_type(TypeKind::Char));
         }
+        if (expr->kind == Expr::Kind::Cast && expr->type) {
+            return expr->type;
+        }
         return make_type(TypeKind::Int);
     }
 
@@ -2566,6 +2583,12 @@ private:
                         << "\n";
                 } else {
                     out << "  MOV R0, #" << expr->value << "\n";
+                }
+                return;
+            case Expr::Kind::Cast:
+                gen_expr(expr->children[0].get(), out);
+                if (expr->type && expr->type->kind == TypeKind::Char) {
+                    out << "  AND R0, #0xFF\n";
                 }
                 return;
         }

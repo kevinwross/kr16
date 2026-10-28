@@ -196,6 +196,21 @@ TEST_CASE("compiled arrays and pointers work") {
           7);
 }
 
+TEST_CASE("compiled casts work") {
+    CHECK(run_c("int main(void) { return (int)3; }\n") == 3);
+    CHECK(run_c("int main(void) { int x = 0x123; return (char)x; }\n") ==
+          0x23);
+    CHECK(run_c("int main(void) { int x = 7; int *p = &x; "
+                "return *(int *)(void *)p; }\n") == 7);
+    CHECK(run_c("int main(void) { return sizeof((char *)0); }\n") == 2);
+    CHECK(run_c("int main(void) { int a[3]; a[1] = 9; "
+                "return ((int *)a)[1]; }\n") == 9);
+    CHECK(run_c_libc_exit(
+              "#include <stdlib.h>\n"
+              "int main(void) { int *p = (int *)malloc(4); p[0] = 42; "
+              "int v = p[0]; free(p); return v; }\n") == 42);
+}
+
 TEST_CASE("compiled control flow works") {
     CHECK(run_c("int main(void) { int x = 0; if (1) x = 3; else x = 9; "
                 "return x; }\n") == 3);
