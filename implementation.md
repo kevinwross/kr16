@@ -631,9 +631,9 @@ preprocessor are not part of the current teaching subset.
 - [x] Implement the teaching libc subset: `putchar`, `puts`, `getchar`,
       `printf` (`%d`, `%s`, `%c`, `%%`), and `exit`.
 - [ ] Implement 32-bit helpers for divide/modulo/shifts.
-- [ ] Emit fixed `.debug_types`, `.debug_vars`, `.debug_frames`, and `.loc`
-      data.
-- [ ] Implement `__host_call` intrinsic for later host services.
+- [x] Emit source `.loc` line data from the compiler with `-g`; fixed
+      `.debug_types`, `.debug_vars`, and `.debug_frames` remain future work.
+- [x] Implement the `__host_call` intrinsic for host services.
 
 The full practical libc (`printf`, allocation, string library), structs,
 unions, `long`, variadics, and compiler debug records remain future work.
@@ -1342,3 +1342,15 @@ Entry format:
 - Remaining: actual GitHub-hosted matrix run, 1.0 tag/release, and the full C99
   subset work.
 - Next: final release gate preparation.
+
+### 2026-10-27 20:04:19 -07:00 — M9: compiler source locations
+
+- Status: C compiler `-g` now emits `.file` and `.loc` source locations.
+- Changes: `Codegen` carries the source name and debug flag; statements emit
+  line directives; `.debug_line` is generated and relocated through the
+  assembler/linker; M9 `__host_call` checklist item marked complete.
+- Tests: added compiler debug-line test; Windows Debug 25 CTest entries pass;
+  Linux Debug 23 CTest entries pass after rebuild.
+- Remaining: `.debug_types`/`.debug_vars`/`.debug_frames`, full C99, and 1.0
+  release gates.
+- Next: final release verification and remaining debugger views.

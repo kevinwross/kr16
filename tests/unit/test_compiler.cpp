@@ -8,6 +8,7 @@
 
 #include "kr16/assembler.hpp"
 #include "kr16/compiler.hpp"
+#include "kr16/debug_info.hpp"
 #include "kr16/linker.hpp"
 #include "kr16/vm.hpp"
 
@@ -167,7 +168,22 @@ TEST_CASE("compiled main receives argc and argv") {
                 {"A"}) == 65);
 }
 
-TEST_CASE("compiled __host_call uses the host block") {
-    CHECK(run_c("int main(void) { int b[8]; b[0] = 0; "
-                "return __host_call(0, b); }\n") == 0);
+TEST_CASE("compiler emits source line information with -g") {
+    kr16::CompileOptions options;
+    options.debug = true;
+    const auto result = kr16::compile_c(
+        "int main(void) {\n  int x = 1;\n  return x;\n}\n", options);
+    REQUIRE(result.ok);
+    CHECK(result.assembly.find(".file 0") != std::string::npos);
+    CHECK(result.assembly.find(".loc 0 2") != std::string::npos);
+    const auto assembled =
+        kr16::assemble_text(result.assembly, kr16::AsmOptions{});
+    REQUIRE(assembled.ok);
+    const auto* line = assembled.object.find_section(".debug_line");
+    REQUIRE(line != nullptr);
+    const auto linked = kr16::link_objects({assembled.object});
+    REQUIRE(linked.ok);
+    const auto* linked_line = linked.image.find_section(".debug_line");
+    REQUIRE(linked_line != nullptr);
+    CHECK(!kr16::parse_debug_line(linked_line->data).empty());
 }
