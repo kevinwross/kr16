@@ -1,6 +1,6 @@
 
 
-void main() {
+void main(void) {
 
     int i;
     int j;
@@ -11,7 +11,10 @@ void main() {
         for (j = 25 ; j < 27; j++) 
         {
             k = j * i;
-            puts("Yay! \n");
+            printf("Yay it's %d ", k);
         }
+        printf("\n That was with i = %d\n", i);
+
     }
+    printf("Done with all iterations\n");
 }

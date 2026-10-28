@@ -6,6 +6,7 @@
 
 #include "kr16/assembler.hpp"
 #include "kr16/disassembler.hpp"
+#include "kr16/linker.hpp"
 
 TEST_CASE("disassemble a small raw program") {
     const std::string source =
@@ -46,4 +47,28 @@ TEST_CASE("disassemble a container with labels") {
     CHECK(text.find("_start:") != std::string::npos);
     CHECK(text.find("loop:") != std::string::npos);
     CHECK(text.find("BRA") != std::string::npos);
+}
+
+TEST_CASE("disassemble a linked image places labels at absolute addresses") {
+    const std::string source =
+        ".text\n"
+        ".global _start\n"
+        "_start:\n"
+        "  MOV R0, #1\n"
+        "loop:\n"
+        "  BRA loop\n";
+    const auto assembled = kr16::assemble_text(source, kr16::AsmOptions{});
+    REQUIRE(assembled.ok);
+    const auto linked = kr16::link_objects({assembled.object});
+    REQUIRE(linked.ok);
+    REQUIRE(linked.image.kind == kr16::ContainerKind::Exec);
+
+    // Object symbols are section-relative, so the linker has already added the
+    // section address. Adding it again would shift every label by 0x0100 and
+    // drop it off the instruction it belongs to.
+    const std::string text = kr16::disassemble_container(linked.image);
+    INFO(text);
+    CHECK(text.find("_start:\n  0x0100") != std::string::npos);
+    CHECK(text.find("loop:\n  0x0102") != std::string::npos);
+    CHECK(text.find("BRA loop") != std::string::npos);
 }

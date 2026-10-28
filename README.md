@@ -5,6 +5,7 @@ KR16 is a 16-bit teaching computer with a single-binary toolchain:
 - `kr16 as` — assembler
 - `kr16 dis` — disassembler
 - `kr16 cc` — teaching-subset C compiler
+- `kr16 build` — one-step compile, assemble, and link of a single file
 - `kr16 ld` — linker
 - `kr16 size` — memory budget report
 - `kr16 debug` — decoded debug-information dump
@@ -34,7 +35,7 @@ local/global/static variables, qualifiers, `if`/`else`, `while`, `do`/`while`,
 `for`, `switch`, `enum`, `typedef`, `struct`/`union` (including by-value
 parameters/returns and aggregate initializers), compound assignments, and
 `goto` labels. A small `libc.s` provides `putchar`, `puts`, `getchar`,
-`printf` (`%d`, `%s`, `%c`, `%%`), string functions, `atoi`, `abs`, heap
+`printf` (`%d`, `%x`, `%s`, `%c`, `%%`), string functions, `atoi`, `abs`, heap
 allocation, and `exit`.
 
 `long` is a **16-bit alias** for `int`; see
@@ -44,7 +45,9 @@ Strict C99 conformance, the full preprocessor (`#line`, pragmas), and the full
 
 The DAP TCP server, live VS Code debug session, locals/globals scopes,
 multi-frame stack walking, memory/disassembly/evaluate views, and terminal
-console separation are implemented.
+console separation are implemented. See
+[debug-with-vscode.md](debug-with-vscode.md) for installing the extension and
+configuring a debug session.
 
 ## Build
 
@@ -92,7 +95,18 @@ kr16 ld hello.o -o hello.kex
 kr16 vm hello.kex
 ```
 
-C:
+C, one step (compiles, assembles, links `resources/libc.s`, records debug info):
+
+```text
+kr16 build hello.c
+kr16 vm hello.kex
+```
+
+`build` writes `hello.s`, `hello.o`, and `hello.libc.o` next to the source.
+Add `-l` for a listing, `--run` to run the result, `-o path` to name the image,
+and `-I dir` for include paths. It also accepts `.s`, `.asm`, and `.o` input.
+
+The same steps by hand:
 
 ```text
 kr16 cc hello.c -S -o hello.s
@@ -108,19 +122,59 @@ Debug information:
 kr16 debug hello.kex --lines
 ```
 
-## Interactive shell
+## Windowed debugger and shell
 
-Run `kr16` with no arguments to enter the command loop:
+On Windows, `kr16` with no arguments opens the windowed debugger. Passing an
+existing `.kex`, `.c`, `.s`, `.asm`, or `.o` file also opens it with that file
+loaded. The UI has source and disassembly panes, linked stepping, registers and
+flags, variables, a memory strip, a call stack and the console; see
+[`docs/research/ui-integration-plan.md`](docs/research/ui-integration-plan.md).
+
+On Linux, the UI builds with static SDL3 fetched by CMake. Install the X11 /
+Wayland development headers first, for example:
+
+```text
+sudo apt install libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+  libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev libwayland-dev \
+  libegl1-mesa-dev libgles2-mesa-dev libdrm-dev libgbm-dev
+```
+
+Both the Windows and Linux windows embed subsetted JetBrains Mono and Inter
+glyphs, so no font package is needed at runtime. Set `-DKR16_BUILD_UI=OFF` for
+a headless build or CI job that only needs the CLI.
+
+## Packaging
+
+Build the Linux AppImage (x64 or ARM64, depending on the host):
+
+```text
+bash packaging/linux/package-appimage.sh
+```
+
+It writes `dist/KR16-<arch>.AppImage`. The AppImage contains the GUI, the CLI,
+the embedded fonts and `resources/libc.s`, so it needs no separate resource
+directory. The Windows `kr16.exe` is also self-contained: it embeds the fonts
+and falls back to an embedded `libc.s` when no `resources/` directory is
+present. The tag workflow in `.github/workflows/release.yml` publishes the
+Windows exe and both AppImages.
+
+The interactive shell remains available explicitly:
+
+```text
+kr16 shell
+```
 
 ```text
 kr16 C:\work> help
 kr16 C:\work> as hello.s -o hello.o
 kr16 C:\work> ld hello.o -o hello.kex
+kr16 C:\work> build hello.c
 kr16 C:\work> load hello.c
 ```
 
 `load` accepts `.c`, `.asm`, `.s`, `.o`, or `.kex`. It compiles, assembles,
-and links as needed, writes a sibling `.kex`, and runs it.
+and links as needed, writes a sibling `.kex`, and runs it. `build` runs the
+same pipeline without executing the program.
 
 Shell commands include `cd`, `pwd`, `clear`, `history`, `run`, `help`, and
 `quit`/`exit`. History is limited to 100 entries and stored in

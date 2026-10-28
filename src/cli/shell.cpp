@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "kr16/build.hpp"
 #include "kr16/cli.hpp"
 #include "kr16/version.hpp"
 #include "platform/terminal.hpp"
@@ -72,6 +73,7 @@ std::string shell_help() {
            "  pwd           Print the current directory\n"
            "  clear         Clear the terminal\n"
            "  history       Show command history\n"
+           "  build file... Build .c, .asm, .s, or .o into a .kex (no run)\n"
            "  load file...  Build and run .c, .asm, .s, .o, or .kex\n"
            "  run file...   Run a program (alias for vm)\n"
            "  quit, exit    Leave the shell\n"
@@ -122,50 +124,10 @@ int run_interactive_command(const std::vector<std::string>& tokens,
     return dispatch(tokens);
 }
 
-std::optional<std::filesystem::path> find_libc_source() {
-    std::vector<std::filesystem::path> roots;
-    if (const char* resource_dir = std::getenv("KR16_RESOURCE_DIR")) {
-        roots.emplace_back(resource_dir);
-    }
-    std::error_code ec;
-    roots.push_back(std::filesystem::current_path(ec));
-    const std::string executable = platform::executable_path();
-    if (!executable.empty()) {
-        auto directory = std::filesystem::path(executable).parent_path();
-        for (int level = 0; level < 4; ++level) {
-            roots.push_back(directory);
-            directory = directory.parent_path();
-        }
-    }
-    for (const auto& root : roots) {
-        if (root.empty()) {
-            continue;
-        }
-        for (const auto& candidate :
-             {root / "resources" / "libc.s", root / "libc.s"}) {
-            if (std::filesystem::exists(candidate, ec)) {
-                return candidate;
-            }
-        }
-    }
-    return std::nullopt;
-}
-
-bool run_build_step(const std::vector<std::string>& args,
-                    std::ostream& error) {
-    const int status = dispatch(args);
-    if (status != 0) {
-        error << "load: " << args.front() << " failed with status " << status
-              << '\n';
-        return false;
-    }
-    return true;
-}
-
 int load_program(const std::vector<std::string>& tokens,
                  std::ostream& output, std::ostream& error) {
     if (tokens.size() != 2) {
-        error << "load: usage: load <file.c|file.asm|file.s|file.kex>\n";
+        error << "load: usage: load <file.c|file.asm|file.s|file.o|file.kex>\n";
         return 2;
     }
     const std::filesystem::path source = tokens[1];
@@ -183,53 +145,21 @@ int load_program(const std::vector<std::string>& tokens,
     if (extension == ".kex") {
         return dispatch({"vm", source.string()});
     }
-
-    std::filesystem::path object = source;
-    object.replace_extension(".o");
-    std::filesystem::path executable = source;
-    executable.replace_extension(".kex");
-
-    if (extension == ".c") {
-        const auto libc = find_libc_source();
-        if (!libc.has_value()) {
-            error << "load: cannot find resources/libc.s; set "
-                     "KR16_RESOURCE_DIR\n";
-            return 1;
-        }
-        std::filesystem::path libc_object = object;
-        libc_object.replace_filename(object.stem().string() + ".libc.o");
-        if (!run_build_step(
-                {"cc", source.string(), "-g", "-c", "-o", object.string()},
-                error) ||
-            !run_build_step(
-                {"as", libc->string(), "-o", libc_object.string()}, error) ||
-            !run_build_step({"ld", libc_object.string(), object.string(),
-                             "-o", executable.string()},
-                            error)) {
-            std::filesystem::remove(libc_object, ec);
-            return 1;
-        }
-        std::filesystem::remove(libc_object, ec);
-    } else if (extension == ".asm" || extension == ".s") {
-        if (!run_build_step({"as", source.string(), "-o", object.string()},
-                            error) ||
-            !run_build_step({"ld", object.string(), "-o",
-                             executable.string()},
-                            error)) {
-            return 1;
-        }
-    } else if (extension == ".o") {
-        if (!run_build_step(
-                {"ld", source.string(), "-o", executable.string()}, error)) {
-            return 1;
-        }
-    } else {
+    if (extension != ".c" && extension != ".asm" && extension != ".s" &&
+        extension != ".o") {
         error << "load: unsupported file type '" << extension << "'\n";
         return 2;
     }
 
-    output << "load: built " << executable.string() << '\n';
-    return dispatch({"vm", executable.string()});
+    BuildOptions options;
+    options.input = source;
+    options.command = "load";
+    const auto result = build_program(options, error);
+    if (!result.ok) {
+        return 1;
+    }
+    output << "load: built " << result.executable.string() << '\n';
+    return dispatch({"vm", result.executable.string()});
 }
 
 int run_shell_command(const std::vector<std::string>& tokens,

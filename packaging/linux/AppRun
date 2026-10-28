@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+APPDIR="$(dirname "$(readlink -f "$0")")"
+export KR16_RESOURCE_DIR="$APPDIR/usr/share/kr16"
+exec "$APPDIR/usr/bin/kr16" "$@"

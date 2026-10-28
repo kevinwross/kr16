@@ -21,12 +21,26 @@ _start:
 Build and run:
 
 ```text
-kr16 as program.s -o program.o
+kr16 as program.s -o program.o -l program.lst
 kr16 ld program.o -o program.kex
 kr16 vm program.kex
 ```
 
 The VM exits with `R0 & 0xFF` after `HLT`.
+
+`-l` writes a listing with the address, the encoded bytes, and the source line
+for every statement, which makes the assembly-to-memory mapping visible:
+
+```text
+0x0000   .text
+0x0000   .global _start
+0x0000   _start:
+0x0000  87 11    MOV R0, #7
+0x0002  00 88    HLT
+```
+
+Addresses are section-relative for a `.o`. With `--raw --base 0x100` the same
+program is listed from `0x0100`.
 
 ## 3. Calling convention
 
@@ -60,7 +74,16 @@ int main(void) {
 }
 ```
 
-Compile:
+Compile and run, one step:
+
+```text
+kr16 build examples/sum.c
+kr16 vm examples/sum.kex
+```
+
+`build` leaves `sum.s`, `sum.o`, and `sum.libc.o` beside the source, records
+debug information, and links the runtime automatically. Add `-l` for a
+listing of the generated assembly. The same steps by hand:
 
 ```text
 kr16 cc examples/sum.c -S -o build/sum.s

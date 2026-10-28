@@ -22,3 +22,12 @@ vscode/.vscode-test/
 tests/kevin/*.o
 tests/kevin/*.kex
 
+# Assembler listings produced by `as -l` / `build -l`
+*.lst
+
+# Generated example and resource artifacts
+/examples/*.s
+/examples/*.o
+/examples/*.kex
+/resources/*.o
+

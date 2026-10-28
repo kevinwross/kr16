@@ -2,6 +2,7 @@ add_executable(kr16_tests
   test_main.cpp
   unit/test_version.cpp
   unit/test_cli.cpp
+  unit/test_build.cpp
   unit/test_container.cpp
   unit/test_debug_objects.cpp
   unit/test_container_fixtures.cpp
@@ -13,6 +14,8 @@ add_executable(kr16_tests
   unit/test_vm.cpp
   unit/test_linker.cpp
   unit/test_debug_info.cpp
+  unit/test_debug_session.cpp
+  unit/test_ui.cpp
   unit/test_compiler.cpp
   unit/test_host.cpp
   unit/test_dap.cpp
@@ -70,6 +73,13 @@ add_test(NAME kr16.dis.object
 )
 set_tests_properties(kr16.dis.object PROPERTIES LABELS "integration"
   DEPENDS kr16.as.object)
+
+add_test(NAME kr16.as.listing
+  COMMAND kr16 as "${CMAKE_CURRENT_SOURCE_DIR}/integration/asm_min.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/asm_min_listed.o"
+    -l "${CMAKE_CURRENT_BINARY_DIR}/asm_min.lst"
+)
+set_tests_properties(kr16.as.listing PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.as.vm
   COMMAND kr16 as "${CMAKE_CURRENT_SOURCE_DIR}/integration/vm_hello.s"
@@ -161,6 +171,47 @@ add_test(NAME kr16.vm.hello
 )
 set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
+
+# `build` writes intermediates beside its input, so build a copy in the
+# binary tree instead of polluting tests/integration.
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/integration/hello.c"
+               "${CMAKE_CURRENT_BINARY_DIR}/build_hello.c" COPYONLY)
+
+add_test(NAME kr16.build.hello
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/build_hello.c"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kex"
+    --listing=${CMAKE_CURRENT_BINARY_DIR}/built_hello.lst
+)
+set_tests_properties(kr16.build.hello PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.vm.built_hello
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kex"
+)
+set_tests_properties(kr16.vm.built_hello PROPERTIES LABELS "integration"
+  DEPENDS kr16.build.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
+
+add_test(NAME kr16.build.run
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/build_hello.c"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/run_hello.kex" --run
+)
+set_tests_properties(kr16.build.run PROPERTIES LABELS "integration"
+  PASS_REGULAR_EXPRESSION "Hello, KR16!")
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/integration/printf_hex.c"
+               "${CMAKE_CURRENT_BINARY_DIR}/build_printf_hex.c" COPYONLY)
+
+add_test(NAME kr16.build.printf_hex
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/build_printf_hex.c"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/printf_hex.kex"
+)
+set_tests_properties(kr16.build.printf_hex PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.vm.printf_hex
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/printf_hex.kex"
+)
+set_tests_properties(kr16.vm.printf_hex PROPERTIES LABELS "integration"
+  DEPENDS kr16.build.printf_hex
+  PASS_REGULAR_EXPRESSION "0 1 f 10 ff fff 1234 ffff -> 255=ff hex Z")
 
 find_program(KR16_NODE_EXECUTABLE node)
 if(KR16_NODE_EXECUTABLE)

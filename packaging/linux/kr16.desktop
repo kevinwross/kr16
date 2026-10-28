@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=KR16
+Comment=Learn and debug the KR16 virtual machine
+Exec=kr16
+Icon=kr16
+Categories=Development;Education;
+Terminal=false

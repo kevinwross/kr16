@@ -310,8 +310,13 @@ std::string disassemble_container(const Container& container,
             continue;
         }
         const auto& section = container.sections[symbol.section - 1];
-        labels.emplace(static_cast<std::uint16_t>(section.address + symbol.value),
-                       symbol.name);
+        // A linked image stores absolute symbol addresses; object symbols are
+        // relative to their section, whose placement address is usually zero.
+        const auto address =
+            container.kind == ContainerKind::Exec
+                ? symbol.value
+                : static_cast<std::uint16_t>(section.address + symbol.value);
+        labels.emplace(address, symbol.name);
     }
 
     std::ostringstream out;

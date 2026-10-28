@@ -2100,3 +2100,77 @@ Entry format:
 - Tests: 90/90 doctest (2976 assertions), Windows 24/24 CTest, Linux 23/23;
   source breakpoint smoke returned `reason: breakpoint`, `hitBreakpointIds:[1]`.
 - Rebuilt `build\windows-ninja\kr16.exe` and `tests\kevin\bigtest.kex`.
+
+### 2026-10-28 06:45:07 -07:00 — assembler `-l` listing file
+
+- Gap: the assembler already built `AsmResult::listing` on every pass, but no
+  CLI path wrote it, so the listing was dead code even though plan §6.10/§6.11
+  specifies `kr16 as ... -l listing`.
+- Wired `-l FILE` in `run_as`: same writer as the object, `-l` with no path is a
+  usage error (exit 2), and the flag composes with `--raw`/`--base`.
+- Format is `0xADDR  bytes  source` per line; object mode prints
+  section-relative addresses, `--raw` prints `--base`-relative ones.
+- Tests: `as -l` writes the file and its address/byte columns match the
+  disassembler; missing path is a usage error; new `kr16.as.listing` CTest case.
+  92/92 doctest (2985 assertions), Windows 25/25 CTest.
+- Next: `-D name=value` is the remaining documented `as` flag that is still
+  unimplemented.
+
+### 2026-10-28 06:59:17 -07:00 — one-step `kr16 build`
+
+- Added `kr16 build <file>`: `cc -S` → `as` → `ld` with `resources/libc.s`,
+  writing `<name>.kex` next to the input. `.s`, `.asm`, and `.o` inputs are
+  accepted too; `--libc` links the runtime for those (implicit for `.c`).
+- Artifacts stay beside the source (`name.s`, `name.o`, `name.libc.o`), so
+  there is no temp directory and nothing to clean up.
+- Flags: `-o`, `-l`/`-L` (listing beside the source), `--listing=FILE`, `-I`,
+  `-g` (on by default), `--no-debug`, `--libc`, `--run`. Option letters are
+  matched case-insensitively.
+- Moved the shell's `load` onto the same `build_program` pipeline, so it no
+  longer leaves a stray `<name>.o` behind; `build` also works in the shell.
+- Tests: `test_build.cpp` (C to runnable `.kex`, listing, debug sections,
+  `--run`, `-I`, assembly/object input, `--libc`, usage errors) plus three
+  CTest cases. 100/100 doctest (3018 assertions), Windows 28/28 CTest in both
+  Debug and Release.
+- Found while testing, not fixed here: an unresolvable `#include` is silently
+  dropped, so `ANSWER` folded to 0 instead of erroring. Logged in
+  `docs/deferred.md`.
+
+### 2026-10-28 07:05:50 -07:00 — `%x` in the libc printf
+
+- Added `%x` to `resources/libc.s`: unsigned hexadecimal, lowercase, no
+  leading zeros and no `0x` prefix, so `printf("%x", 15)` prints `f` and
+  `printf("%x", -1)` prints `ffff` (the value is 16-bit unsigned).
+- Implementation: `.Lpf_print_hex` shifts right four bits at a time and
+  recurses, so digits emit most-significant first; at most four frames deep.
+  It reuses `.Lpf_getarg`, so `%x` mixes with `%d`/`%s`/`%c` and stack
+  arguments behave the same way. Dispatch is one `CMP R0, #'x'` in the format
+  loop; existing branches stay well inside the disp8 range.
+- Refreshed the libc hash in `resources/manifest.json`; the CI bootstrap gate
+  (`scripts/bootstrap-check.ps1`) passes.
+- Tests: new `tests/integration/printf_hex.c` driven by `kr16.build.printf_hex`
+  and `kr16.vm.printf_hex`, asserting
+  `0 1 f 10 ff fff 1234 ffff -> 255=ff hex Z`. 100/100 doctest (3018
+  assertions), Windows 30/30 CTest in both Debug and Release.
+- Not added: `%X`, `%u`, `%o`, `%p`, and width/zero padding; those stay in
+  `docs/deferred.md` with the rest of the printf family.
+
+### 2026-10-28 07:13:15 -07:00 — `kr16 dis` label offset on linked images
+
+- Root cause: the linker stores **absolute** symbol addresses in a `.kex`
+  (`placement.address + symbol.value`), but `disassemble_container` added the
+  output section address again when building its label map. Every label was
+  therefore shifted by the section base (`+0x0106` for `.text`), so `main:` and
+  the libc entry points vanished from the listing and surviving labels landed
+  on unrelated instructions (`CALL .Lpd_positive` inside `atoi`).
+- Fix: use `symbol.value` as-is for `ContainerKind::Exec` images and keep the
+  section-relative path for objects. Objects are unaffected because their
+  section addresses are zero.
+- Tests: new doctest links a one-object image and asserts `_start:` and `loop:`
+  sit on `0x0100`/`0x0102` and that a branch prints `BRA loop`. It fails on the
+  old code (labels dropped, `BRA 0x0102`).
+- 101/101 doctest (3024 assertions), Windows 30/30 CTest in Debug and Release.
+
+
+
+

@@ -31,7 +31,7 @@ getchar:
   LDB R0, [0xF004]
   RET
 
-; Minimal printf: %d, %s, %c, and %%.
+; Minimal printf: %d, %x, %s, %c, and %%.
 .global printf
 printf:
   PUSH R4
@@ -63,6 +63,8 @@ printf:
   BEQ .Lpf_character
   CMP R0, #'%'
   BEQ .Lpf_percent
+  CMP R0, #'x'
+  BEQ .Lpf_hex
   INC R1
   BRA .Lpf_loop
 .Lpf_percent:
@@ -87,6 +89,16 @@ printf:
   PUSH R2
   CALL .Lpf_getarg
   CALL .Lpf_print_dec
+  POP R2
+  INC R2
+  POP R1
+  INC R1
+  BRA .Lpf_loop
+.Lpf_hex:
+  PUSH R1
+  PUSH R2
+  CALL .Lpf_getarg
+  CALL .Lpf_print_hex
   POP R2
   INC R2
   POP R1
@@ -166,6 +178,28 @@ printf:
   RET
 .Lpd_digit:
   ADD R0, #'0'
+  MOV R3, #0xF000
+  STB [R3], R0
+  RET
+
+; Print R0 as unsigned hexadecimal: lowercase, no leading zeros, no prefix.
+; At most four digits, so the recursion is at most four frames deep.
+.Lpf_print_hex:
+  MOV R1, R0
+  SHR R1, #4
+  CMP R1, #0
+  BEQ .Lph_last
+  PUSH R0
+  MOV R0, R1
+  CALL .Lpf_print_hex
+  POP R0
+  AND R0, #0x0F
+.Lph_last:
+  ADD R0, #'0'
+  CMP R0, #'9'
+  BLE .Lph_emit
+  ADD R0, #39
+.Lph_emit:
   MOV R3, #0xF000
   STB [R3], R0
   RET

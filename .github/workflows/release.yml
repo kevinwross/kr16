@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Configure
+        run: cmake --preset windows-ninja-release
+      - name: Build
+        run: cmake --build --preset windows-ninja-release
+      - name: Test
+        run: ctest --preset windows-ninja-release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KR16-windows-x64
+          path: build/windows-ninja-release/kr16.exe
+
+  linux-x64:
+    name: Linux x64 AppImage
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build and AppImage dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build curl file \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev \
+            libwayland-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libdrm-dev libgbm-dev
+      - name: Build AppImage
+        run: bash packaging/linux/package-appimage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KR16-linux-x64
+          path: dist/KR16-x86_64.AppImage
+
+  linux-arm64:
+    name: Linux ARM64 AppImage (Ubuntu 22.04)
+    runs-on: ubuntu-24.04-arm
+    container: arm64v8/ubuntu:22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build and AppImage dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential ninja-build curl ca-certificates git file \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev \
+            libwayland-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libdrm-dev libgbm-dev
+          curl -fL --retry 3 \
+            https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-linux-aarch64.tar.gz \
+            -o /tmp/cmake.tar.gz
+          tar -xzf /tmp/cmake.tar.gz -C /opt
+          ln -sf /opt/cmake-3.31.6-linux-aarch64/bin/cmake /usr/local/bin/cmake
+          cmake --version
+      - name: Build AppImage
+        run: bash packaging/linux/package-appimage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KR16-linux-arm64
+          path: dist/KR16-aarch64.AppImage
+
+  publish:
+    name: Publish release assets
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, linux-x64, linux-arm64]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/kr16.exe \
+            dist/KR16-x86_64.AppImage \
+            dist/KR16-aarch64.AppImage \
+            --generate-notes

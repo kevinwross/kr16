@@ -1,6 +1,8 @@
 #include "kr16/cli.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
@@ -14,6 +16,7 @@
 #include <vector>
 
 #include "kr16/assembler.hpp"
+#include "kr16/build.hpp"
 #include "kr16/compiler.hpp"
 #include "kr16/container.hpp"
 #include "kr16/dap.hpp"
@@ -29,9 +32,19 @@
 namespace kr16::cli {
 namespace {
 
-constexpr std::array<std::string_view, 10> kCommands = {
-    "as", "dis", "cc", "ld", "size", "debug", "vm", "dap", "version", "help",
+constexpr std::array<std::string_view, 12> kCommands = {
+    "as", "dis", "cc", "build", "ld", "size",
+    "debug", "vm", "dap", "version", "help", "shell",
 };
+
+std::string lowercase_copy(const std::string& text) {
+    std::string result = text;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char ch) {
+                       return static_cast<char>(std::tolower(ch));
+                   });
+    return result;
+}
 
 std::vector<std::uint8_t> read_bytes(const std::string& path) {
     std::ifstream input(path, std::ios::binary);
@@ -56,6 +69,12 @@ void write_bytes(const std::string& path,
     }
 }
 
+void write_text(const std::string& path, const std::string& text) {
+    write_bytes(path, std::span<const std::uint8_t>(
+                           reinterpret_cast<const std::uint8_t*>(text.data()),
+                           text.size()));
+}
+
 std::uint16_t parse_u16(const std::string& text) {
     const auto value = std::stoul(text, nullptr, 0);
     if (value > 0xFFFF) {
@@ -67,6 +86,7 @@ std::uint16_t parse_u16(const std::string& text) {
 int run_as(int argc, char** argv) {
     std::string input;
     std::string output;
+    std::string listing_path;
     AsmOptions options;
     bool raw = false;
 
@@ -78,6 +98,12 @@ int run_as(int argc, char** argv) {
                 return 2;
             }
             output = argv[i];
+        } else if (argument == "-l") {
+            if (++i >= argc) {
+                std::cerr << "kr16 as: -l needs a path\n";
+                return 2;
+            }
+            listing_path = argv[i];
         } else if (argument == "-I") {
             if (++i >= argc) {
                 std::cerr << "kr16 as: -I needs a path\n";
@@ -100,8 +126,8 @@ int run_as(int argc, char** argv) {
         } else if (argument == "-g") {
             options.debug = true;
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 as file.s -o file.o [--raw --base addr] "
-                         "[-I dir] [-g]\n";
+            std::cout << "usage: kr16 as file.s -o file.o [-l listing] "
+                         "[--raw --base addr] [-I dir] [-g]\n";
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 as: unknown option " << argument << '\n';
@@ -139,6 +165,9 @@ int run_as(int argc, char** argv) {
         } else {
             const auto bytes = result.object.write();
             write_bytes(output, bytes);
+        }
+        if (!listing_path.empty()) {
+            write_text(listing_path, result.listing);
         }
     } catch (const std::exception& error) {
         std::cerr << "kr16 as: " << error.what() << '\n';
@@ -720,6 +749,112 @@ int run_dap_command(int argc, char** argv) {
     return server.run(port);
 }
 
+int run_build_command(int argc, char** argv) {
+    BuildOptions options;
+    std::string input;
+    bool listing = false;
+    bool run_after = false;
+
+    for (int i = 0; i < argc; ++i) {
+        const std::string argument = argv[i];
+        const std::string flag = lowercase_copy(argument);
+        if (flag == "-o") {
+            if (++i >= argc) {
+                std::cerr << "kr16 build: -o needs a path\n";
+                return 2;
+            }
+            options.output = argv[i];
+        } else if (flag == "-i") {
+            if (++i >= argc) {
+                std::cerr << "kr16 build: -I needs a path\n";
+                return 2;
+            }
+            options.include_paths.emplace_back(argv[i]);
+        } else if (flag.rfind("-i", 0) == 0 && flag.size() > 2) {
+            options.include_paths.emplace_back(argument.substr(2));
+        } else if (flag.rfind("-l=", 0) == 0 ||
+                   flag.rfind("--listing=", 0) == 0) {
+            listing = true;
+            options.listing = argument.substr(argument.find('=') + 1);
+        } else if (flag == "-l") {
+            listing = true;
+        } else if (flag == "-g") {
+            options.debug = true;
+        } else if (flag == "--no-debug") {
+            options.debug = false;
+        } else if (flag == "--run") {
+            run_after = true;
+        } else if (flag == "--libc") {
+            options.link_libc = true;
+        } else if (flag == "--help" || flag == "-h") {
+            std::cout
+                << "usage: kr16 build file.c|file.s|file.asm|file.o "
+                   "[-o out.kex] [-l] [-I dir] [--no-debug] [--libc] [--run]\n"
+                   "  file.c          compile with cc, assemble, link libc\n"
+                   "  file.s, .asm    assemble, then link\n"
+                   "  file.o          link\n"
+                   "  -o path         image path (default: <input>.kex)\n"
+                   "  -l, -L          also write a listing beside the source\n"
+                   "  --listing=FILE  write the listing to FILE instead\n"
+                   "  -I dir          add an include path for cc/as\n"
+                   "  -g              record debug info (default)\n"
+                   "  --no-debug      omit debug sections\n"
+                   "  --libc          link resources/libc.s for .s/.asm/.o input\n"
+                   "  --run           run the image after a successful build\n";
+            return 0;
+        } else if (!argument.empty() && argument.front() == '-') {
+            std::cerr << "kr16 build: unknown option " << argument << '\n';
+            return 2;
+        } else if (input.empty()) {
+            input = argument;
+        } else {
+            std::cerr << "kr16 build: multiple input files\n";
+            return 2;
+        }
+    }
+
+    if (input.empty()) {
+        std::cerr << "kr16 build: missing input file\n";
+        if (!options.include_paths.empty()) {
+            std::cerr << "kr16 build: -I takes an include directory; "
+                         "-l/-L writes a listing\n";
+        }
+        return 2;
+    }
+
+    options.input = input;
+    if (!is_build_input(options.input)) {
+        std::cerr << "kr16 build: unsupported file type '"
+                  << options.input.extension().string()
+                  << "' (expected .c, .s, .asm, or .o)\n";
+        return 2;
+    }
+    if (options.output.empty()) {
+        options.output = input;
+        options.output.replace_extension(".kex");
+    }
+    if (listing && options.listing.empty()) {
+        options.listing = options.input;
+        options.listing.replace_extension(".lst");
+    }
+
+    const auto result = build_program(options, std::cerr);
+    if (!result.ok) {
+        return 1;
+    }
+    std::cout << "build: wrote " << result.executable.string();
+    if (!result.listing.empty()) {
+        std::cout << " and " << result.listing.string();
+    }
+    std::cout << '\n';
+    if (run_after) {
+        std::string path = result.executable.string();
+        char* vm_argv[] = {path.data()};
+        return run_vm_command(1, vm_argv);
+    }
+    return 0;
+}
+
 }  // namespace
 
 std::string usage_text() {
@@ -730,13 +865,15 @@ std::string usage_text() {
         "  as       Assemble a .s file into a relocatable .o\n"
         "  dis      Disassemble a .o or .kex\n"
         "  cc       Compile C to assembly, then assemble to .o\n"
+        "  build    Compile, assemble, and link one input into a .kex\n"
         "  ld       Link .o files into a .kex\n"
         "  size     Report code/data/bss and free heap/stack\n"
         "  debug    Dump decoded symbols, lines, types, variables, frames, objects\n"
         "  vm       Run a .kex (or raw binary) on the virtual machine\n"
         "  dap      Run the VM with the debug adapter listening on TCP\n"
         "  version  Print tool, ISA, container, host-service ABI, and debug versions\n"
-        "  (none)   Start the interactive shell\n"
+        "  shell    Start the interactive shell\n"
+        "  (none)   Start the windowed UI (when built)\n"
         "  help     Print help (also: kr16 <command> --help)\n";
     return text;
 }
@@ -766,8 +903,16 @@ int run(int argc, char** argv) {
         std::cout << format_version() << '\n';
         return 0;
     }
+    if (command == "shell") {
+        const bool interactive = platform::stdin_is_terminal();
+        return run_shell(std::cin, std::cout, std::cerr, interactive,
+                         interactive ? default_history_path() : std::string{});
+    }
     if (command == "as") {
         return run_as(argc - 2, argv + 2);
+    }
+    if (command == "build") {
+        return run_build_command(argc - 2, argv + 2);
     }
     if (command == "dis") {
         return run_dis(argc - 2, argv + 2);
