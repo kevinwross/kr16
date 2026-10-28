@@ -319,9 +319,10 @@ struct Decl {
 struct Stmt {
     enum class Kind {
         Empty, Expr, Return, Compound, If, While, DoWhile, For, Decl, Break,
-        Continue, Switch
+        Continue, Switch, Goto, Label
     };
     Kind kind = Kind::Empty;
+    std::string label;
     std::unique_ptr<Expr> expr;
     std::unique_ptr<Expr> expr2;
     std::unique_ptr<Expr> expr3;
@@ -644,6 +645,24 @@ private:
         if (accept(";")) {
             auto stmt = std::make_unique<Stmt>();
             stmt->kind = Stmt::Kind::Empty;
+            return stmt;
+        }
+        if (peek().kind == TokenKind::Identifier &&
+            position_ + 1 < tokens_.size() &&
+            tokens_[position_ + 1].text == ":") {
+            auto stmt = std::make_unique<Stmt>();
+            stmt->kind = Stmt::Kind::Label;
+            stmt->label = parse_name();
+            expect(":");
+            stmt->body = parse_statement();
+            return stmt;
+        }
+        if (accept("goto")) {
+            auto stmt = std::make_unique<Stmt>();
+            stmt->kind = Stmt::Kind::Goto;
+            stmt->line = peek().line;
+            stmt->label = parse_name();
+            expect(";");
             return stmt;
         }
         if (is_type(peek().text)) {
@@ -1380,6 +1399,7 @@ private:
             locals_[declaration->name] = variable;
         }
         frame_size_ = align(frame, 2);
+        function_label_ = function.name;
 
         out << ".global " << function.name << "\n";
         out << function.name << ":\n";
@@ -1652,6 +1672,15 @@ private:
                 if (!continue_labels_.empty()) {
                     out << "  BRA " << continue_labels_.back() << "\n";
                 }
+                return;
+            case Stmt::Kind::Goto:
+                out << "  BRA .Luser_" << function_label_ << "_" << stmt->label
+                    << "\n";
+                return;
+            case Stmt::Kind::Label:
+                out << ".Luser_" << function_label_ << "_" << stmt->label
+                    << ":\n";
+                gen_stmt(stmt->body.get(), out);
                 return;
         }
     }
@@ -1986,6 +2015,7 @@ private:
     std::string return_label_;
     int frame_size_ = 0;
     int label_counter_ = 0;
+    std::string function_label_;
 };
 
 }  // namespace

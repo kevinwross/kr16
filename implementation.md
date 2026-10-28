@@ -1616,3 +1616,13 @@ Entry format:
 - Fixed GCC `-Wswitch` on the new `InitList` expression kind; Linux Debug and
   ASan builds compile cleanly again.
 - Windows suite 24/24, doctest 80/80 (2652 assertions); Linux 23/23.
+
+### 2026-10-27 21:13:09 -07:00 — M8: goto and labels
+
+- Status: added `goto label;` and `label:` statements.
+- Changes: parser label lookahead, per-function user labels, branch emission;
+  docs/tests.
+- Tests: compiler suite 9/9; backward goto loop covered.
+- Remaining: struct parameters/returns, `long`, variadics, full
+  preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

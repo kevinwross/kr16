@@ -210,6 +210,8 @@ TEST_CASE("compiled control flow works") {
     CHECK(run_c("struct P { int x; }; "
                 "int main(void) { struct P p; p.x = 5; p.x += 7; "
                 "return p.x; }\n") == 12);
+    CHECK(run_c("int main(void) { int i = 0; "
+                "loop: i++; if (i < 3) goto loop; return i; }\n") == 3);
 }
 
 TEST_CASE("compiled C calls libc") {
