@@ -53,15 +53,15 @@ main:
   PUSH R4
   MOV R4, SP
   SUB SP, #4
-.loc 0 8 0
-.loc 0 9 0
+.loc 0 10 0
+.loc 0 11 0
   MOV R0, #5
   PUSH R0
   POP R1
   CALL factorial
   LEA R1, [R4-2]
   ST [R1], R0
-.loc 0 10 0
+.loc 0 12 0
   LD R0, [R4-2]
   PUSH R0
   MOV R0, #.Lstr0
@@ -69,14 +69,14 @@ main:
   POP R1
   POP R2
   CALL printf
-.loc 0 11 0
+.loc 0 13 0
   MOV R0, #100
   PUSH R0
   POP R1
   CALL malloc
   LEA R1, [R4-4]
   ST [R1], R0
-.loc 0 12 0
+.loc 0 14 0
   LD R0, [R4-4]
   PUSH R0
   MOV R0, #0
@@ -91,17 +91,17 @@ main:
 .Lcmpend9:
   CMP R0, #0
   BEQ .Lendif7
-.loc 0 12 0
-.loc 0 13 0
+.loc 0 14 0
+.loc 0 15 0
   MOV R0, #.Lstr1
   PUSH R0
   POP R1
   CALL printf
-.loc 0 14 0
+.loc 0 16 0
   MOV R0, #1
   BRA .Lreturn5
 .Lendif7:
-.loc 0 16 0
+.loc 0 18 0
   LD R0, [R4-4]
   PUSH R0
   MOV R0, #0
@@ -109,7 +109,7 @@ main:
   POP R0
   STB [R0], R1
   MOV R0, R1
-.loc 0 17 0
+.loc 0 19 0
   MOV R0, #.Lstr2
   PUSH R0
   LD R0, [R4-4]
@@ -117,12 +117,12 @@ main:
   POP R1
   POP R2
   CALL strcat
-.loc 0 18 0
+.loc 0 20 0
   LD R0, [R4-4]
   PUSH R0
   POP R1
   CALL puts
-.loc 0 20 0
+.loc 0 22 0
   LD R0, [R4-2]
   PUSH R0
   MOV R0, #.Lstr3
@@ -130,12 +130,12 @@ main:
   POP R1
   POP R2
   CALL printf
-.loc 0 22 0
+.loc 0 24 0
   LD R0, [R4-4]
   PUSH R0
   POP R1
   CALL free
-.loc 0 24 0
+.loc 0 26 0
   MOV R0, #0
   BRA .Lreturn5
   MOV R0, #0
