@@ -143,7 +143,7 @@ churn.
 - [x] Add CMake 3.25+ project with presets for `windows-vs2026`,
       `windows-ninja`, `linux-gcc`, and `linux-clang`.
 - [x] Add Debug, Release, and Linux sanitizer presets.
-- [ ] Vendor doctest; register CTest and test labels.
+- [x] Vendor doctest; register CTest and test labels.
 - [ ] Add warnings-as-errors and the `platform/` boundary rule.
 - [ ] Implement the `kr16` CLI dispatcher skeleton with `help`, `version`, and
       unknown-command handling.
@@ -967,3 +967,12 @@ Entry format:
 - Tests: Windows Release build and `ctest` passed.
 - Regressions: none.
 - Next: vendor doctest and add CTest labels.
+
+### 2026-10-27 18:43:16 -07:00 — M0: vendored doctest and CTest labels
+
+- Status: M0 in progress.
+- Changes: vendored doctest 2.4.11, added the doctest main and version tests,
+  and registered `kr16.unit`/`kr16.version` with `unit` and `smoke` labels.
+- Tests: Windows Debug build passed; both CTest tests passed.
+- Regressions: none.
+- Next: warnings-as-errors and platform boundary.
