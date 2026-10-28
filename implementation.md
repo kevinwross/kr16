@@ -1476,3 +1476,13 @@ Entry format:
   debug toolbar, and KR16 DAP terminal.
 - Remaining: locals/parameters/globals views, threaded console coordination,
   and M13 1.0.
+
+### 2026-10-27 20:49:44 -07:00 — release assets refreshed after VS Code fix
+
+- Release assets replaced with builds containing the fixed VS Code extension:
+  Windows ZIP `7cdae05a…` (1,477,634 bytes), Linux tar `9c881785…`
+  (818,229 bytes), VSIX `4922fe4e…` (5,692 bytes), SHA256SUMS `9afa7d16…`.
+- The extension now uses `&` for PowerShell and waits for a server-written
+  readiness marker; the live VS Code test passes.
+- Remaining: locals/parameters/globals views, threaded console coordination,
+  and M13 1.0.
