@@ -152,7 +152,7 @@ churn.
 - [x] Freeze instruction encodings, mnemonics, flags, cycle counts, memory map,
       I/O map, and BIOS jump-table numbering.
 - [x] Write `docs/isa.md` as the normative ISA reference.
-- [ ] Add GitHub Actions workflows for `windows-2025` and `ubuntu-22.04`,
+- [x] Add GitHub Actions workflows for `windows-2025` and `ubuntu-22.04`,
       including push, PR, and `v*` tag triggers.
 - [ ] Add `.gitignore` for build outputs; do not ignore checked-in resources.
 - [ ] Add this implementation plan and its initial log entry.
@@ -1018,3 +1018,12 @@ Entry format:
 - Tests: documentation review only; encoding examples were checked manually.
 - Regressions: none.
 - Next: GitHub Actions workflows.
+
+### 2026-10-27 18:46:48 -07:00 — M0: GitHub Actions workflows
+
+- Status: M0 in progress.
+- Changes: added `.github/workflows/ci.yml` with Windows Ninja+MSVC, Linux
+  GCC/Clang, and Linux ASan/UBSan jobs; triggers cover push, PR, and `v*` tags.
+- Tests: YAML reviewed; hosted CI will run on the next push.
+- Regressions: none.
+- Next: `.gitignore` and final M0 verification.
