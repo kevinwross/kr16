@@ -1,15 +1,15 @@
 # KR16
 
-KR16 is a 16-bit teaching computer with a complete, single-binary toolchain:
+KR16 is a 16-bit teaching computer with a single-binary toolchain:
 
 - `kr16 as` — assembler
 - `kr16 dis` — disassembler
-- `kr16 cc` — C compiler
+- `kr16 cc` — teaching-subset C compiler
 - `kr16 ld` — linker
 - `kr16 size` — memory budget report
 - `kr16 debug` — decoded debug-information dump
 - `kr16 vm` — virtual machine
-- `kr16 dap` — Debug Adapter Protocol host for VS Code
+- `kr16 dap` — Debug Adapter Protocol host (planned)
 
 The design specification is [kr16-plan.md](kr16-plan.md). The implementation
 plan, milestones, test gates, and work log are in
@@ -17,8 +17,21 @@ plan, milestones, test gates, and work log are in
 
 ## Status
 
-Planning is complete. Implementation is beginning at milestone M0; there is
-no runnable toolchain yet.
+Milestones M0–M10 are implemented locally and pushed. The working pipeline is:
+
+```text
+C or assembly → .o → .kex → VM
+```
+
+The C compiler currently implements a teaching subset: `int`/`char`, pointers,
+arrays, functions, local/global variables, `if`/`else`, `while`, `for`,
+`return`, arithmetic/comparisons/logical operators, strings, and
+`main(argc, argv)`. A small `libc.s` provides `putchar`, `puts`, `getchar`, and
+`exit`. Structs, unions, enums, typedefs, `long`, variadics, the full
+preprocessor, `printf`, and `malloc` are not implemented yet.
+
+The DAP server, VS Code extension, release packaging, and the remaining
+curriculum docs are still pending.
 
 ## Build
 
@@ -28,6 +41,16 @@ Requirements:
 - C++20 compiler
   - Windows: Visual Studio 2026 or Ninja + MSVC
   - Linux: GCC 13+ or Clang 16+
+
+Windows with Ninja + MSVC (from a developer command prompt):
+
+```text
+cmake --preset windows-ninja
+cmake --build --preset windows-ninja-debug
+ctest --preset windows-ninja-debug
+```
+
+Visual Studio generator:
 
 ```text
 cmake --preset windows-vs2026
@@ -46,10 +69,39 @@ ctest --preset linux-gcc-debug
 The Ninja presets require a developer environment with `cl`, `g++`, or
 `clang++` on `PATH`.
 
+## Quick start
+
+Assembly:
+
+```text
+kr16 as hello.s -o hello.o
+kr16 ld hello.o -o hello.kex
+kr16 vm hello.kex
+```
+
+C:
+
+```text
+kr16 cc hello.c -S -o hello.s
+kr16 as hello.s -o hello.o
+kr16 as resources/libc.s -o libc.o
+kr16 ld libc.o hello.o -o hello.kex
+kr16 vm hello.kex
+```
+
+Debug information:
+
+```text
+kr16 debug hello.kex --lines
+```
+
 ## Tests
 
 Tests use vendored doctest and CTest. Test labels include `unit`, `golden`,
-`integration`, `regression`, `fuzz`, and `slow`.
+`integration`, `regression`, `fuzz`, and `slow`. The current suite includes
+assembler/disassembler tests, CPU/device/interrupt tests, container fixtures,
+linker relocation tests, VM boot/argv/headless tests, debug-line tests,
+host-call tests, and compiled-C end-to-end execution tests.
 
 ## License
 
