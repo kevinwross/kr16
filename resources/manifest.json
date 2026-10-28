@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "tool": "0.1.0",
+  "resources": [
+    {
+      "name": "bios",
+      "source": "resources/bios.s",
+      "sha256": "3C5650A54A05BF049BB3B170D85E4672D7F373B4098E975069255465B4E6DC0D"
+    },
+    {
+      "name": "libc",
+      "source": "resources/libc.s",
+      "sha256": "788274D21CCF2DCE71243AC4AEEC21EDAC7E3801F5AAF10727BCA6F82246700A"
+    }
+  ]
+}

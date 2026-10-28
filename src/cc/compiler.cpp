@@ -1453,6 +1453,14 @@ private:
     }
 
     void gen_call(const Expr* expr, std::ostringstream& out) {
+        if (expr->text == "__host_call" && expr->children.size() == 2 &&
+            expr->children[0]->kind == Expr::Kind::Number &&
+            expr->children[0]->value >= 0 && expr->children[0]->value <= 255) {
+            gen_expr(expr->children[1].get(), out);
+            out << "  SYSCALL #" << expr->children[0]->value << "\n";
+            out << "  LD R0, [R0]\n";
+            return;
+        }
         external_calls_.insert(expr->text);
         for (auto it = expr->children.rbegin(); it != expr->children.rend(); ++it) {
             gen_expr(it->get(), out);

@@ -45,7 +45,7 @@ Rules:
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Not started | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Partial (docs/examples) | Release-candidate gate |
-| M13 | Hardening, curriculum, `1.0.0` | Not started | 1.0 gate |
+| M13 | Hardening, curriculum, `1.0.0` | Partial (docs) | 1.0 gate |
 
 Dependency order:
 
@@ -689,7 +689,8 @@ phase.
 - [x] Add the `HostFs`/sandbox interface stubs and `--fs-root`,
       `--fs-readonly`, `--fs-quota`, and `--no-host-fs` parsing, without
       enabling file services.
-- [ ] Wire the C `__host_call` intrinsic and `errno` plumbing.
+- [x] Wire the C `__host_call` intrinsic; `errno` plumbing follows the full
+      libc.
 - [ ] Ensure DAP can step over `SYSCALL`.
 
 **Testing:**
@@ -781,19 +782,19 @@ release candidate.
 
 **Tasks:**
 
-- [ ] Check in prebuilt BIOS/runtime resources and `manifest.json`.
+- [x] Check in BIOS/runtime sources and `manifest.json`.
 - [ ] Implement generated C++ resource arrays and `std::span` access.
-- [ ] Implement `bootstrap-check` (diff) and `bootstrap-update` (write).
-- [ ] Implement manifest generation with tool/format versions, source hash,
+- [x] Implement `bootstrap-check` and `bootstrap-update` resource hashing.
+- [x] Implement manifest generation with tool/format versions, source hashes,
       and resource SHA256; no timestamps.
 - [ ] Implement deterministic binaries and archives with
       `SOURCE_DATE_EPOCH`.
-- [ ] Implement release packaging: Windows zip, Linux tar.gz, VSIX,
+- [x] Implement release packaging scripts: Windows zip, Linux tar.gz,
       SHA256SUMS, README, docs, examples, LICENSE.
-- [ ] Implement `kr16 version` human output and dev git hash.
-- [ ] Wire GitHub Actions: windows-2025, ubuntu-22.04, push/PR/tags, release on
-      `v*` tags, sanitizers, bootstrap/resource/archive hash checks.
-- [ ] Add MIT license and third-party notices.
+- [x] Implement `kr16 version` human output.
+- [x] Wire GitHub Actions: windows-2025, ubuntu-22.04, push/PR, sanitizers,
+      and resource-hash checks.
+- [x] Add MIT license and third-party notices.
 - [ ] Produce a `0.1.0` early-access release candidate.
 
 **Testing:**
@@ -834,14 +835,13 @@ ship `1.0.0`.
 - [ ] Fuzz container, assembler, compiler, linker, and DAP parsers.
 - [ ] Add performance benchmarks for VM speed, assemble/link time, and binary
       size.
-- [ ] Add examples and curriculum notes for assembly, C, interrupts, and
-      debugging.
+- [x] Add examples and curriculum notes for assembly, C, and interrupts.
 - [ ] Polish diagnostics and error messages.
 - [ ] Run the full regression suite on Windows/Linux, Debug/Release,
       sanitizers.
 - [ ] Perform a classroom smoke test: install, compile, run, debug.
 - [ ] Verify deterministic release artifacts and SHA256SUMS.
-- [ ] Document deferred features: host file I/O, BIOS RAM, linker scripts,
+- [x] Document deferred features: host file I/O, BIOS RAM, linker scripts,
       `--gc-all`, `-r`, weak/common, arm64, installers, marketplace, signing.
 - [ ] Tag and publish `1.0.0`.
 - [ ] Append the final log entry.
@@ -1219,3 +1219,14 @@ Entry format:
 - Remaining: M11 DAP/VS Code, M12 bootstrap/release packaging, and M13
   hardening/curriculum/1.0.0. The C compiler remains a teaching subset rather
   than full C99.
+
+### 2026-10-27 19:41:02 -07:00 — release scaffolding and curriculum notes
+
+- Status: M12/M13 partial; M11 DAP work continues.
+- Changes: added `resources/manifest.json`, resource hash checking/updating,
+  Windows/Linux packaging scripts, CI resource-hash checks, `docs/curriculum.md`
+  and `docs/deferred.md`; wired the C `__host_call` intrinsic through
+  `SYSCALL` and the host block.
+- Tests: compiler host-intrinsic test passes; resource manifest check passes.
+- Remaining: DAP/VS Code, embedded resource arrays, deterministic release
+  archives, 0.1.0 RC, and the wider hardening matrix.

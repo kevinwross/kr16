@@ -163,3 +163,8 @@ TEST_CASE("compiled main receives argc and argv") {
                 "{ return argv[1][0]; }\n",
                 {"A"}) == 65);
 }
+
+TEST_CASE("compiled __host_call uses the host block") {
+    CHECK(run_c("int main(void) { int b[8]; b[0] = 0; "
+                "return __host_call(0, b); }\n") == 0);
+}

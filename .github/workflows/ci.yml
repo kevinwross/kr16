@@ -37,6 +37,10 @@ jobs:
         run: cmake --build --preset ${{ matrix.build_preset }}
       - name: Test
         run: ctest --preset ${{ matrix.test_preset }}
+      - name: Resource manifest check
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./scripts/bootstrap-check.ps1
 
   linux:
     name: Linux ${{ matrix.compiler }} Debug
