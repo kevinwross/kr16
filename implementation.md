@@ -1431,6 +1431,16 @@ Entry format:
 - Remaining: M11 live VS Code/threading, M13 1.0, full C99 subset.
 - Next: continue M11/M13 hardening toward 1.0.
 
+### 2026-10-27 20:23:02 -07:00 — M12: Linux release asset and combined checksums
+
+- Status: 0.1.0 GitHub release now carries Windows and Linux archives, VSIX, and
+  combined SHA256SUMS.
+- Evidence: Linux Release build/tests 23/23; deterministic tar hash
+  `3eeebdd3…`; release asset `kr16-0.1.0-linux-x64.tar.gz` uploaded; latest
+  Windows archive and combined SHA256SUMS replaced.
+- Remaining: M11 live VS Code/threading, M13 1.0, full C99.
+- Next: M11/M13 closure.
+
 ### 2026-10-27 20:13:47 -07:00 — M12: 0.1.0 release candidate notes
 
 - Status: M12 local release-candidate gate complete.
