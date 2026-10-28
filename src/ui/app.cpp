@@ -36,8 +36,8 @@ constexpr int kHeader = 30;
 constexpr int kBottom = 150;
 constexpr int kStatus = 24;
 constexpr int kGutter = 50;
-constexpr int kAsmGutter = 70;
-constexpr int kAsmBytes = 100;
+constexpr int kAsmGutter = 90;
+constexpr int kAsmBytes = 128;
 constexpr int kRegH = 74;
 constexpr int kColumnHeader = 18;
 
@@ -206,6 +206,7 @@ void App::layout() {
         session_.loaded() && !busy);
     add(Action::Reload, "Reload", 88, false,
         session_.loaded() && !busy);
+    step_reset_rect_ = Rect{x, y, x + 118, y + 28};
     Button reset;
     reset.rect = Rect{top_bar_.right - 100, y, top_bar_.right - 12, y + 28};
     reset.label = "Reset stats";
@@ -261,19 +262,40 @@ void App::draw_top(Canvas& canvas) {
         }
     }
 
+    fill(canvas, step_reset_rect_, kPanelAlt);
+    frame(canvas, step_reset_rect_,
+          hover_step_reset_ ? kAccent : kBorder);
+    const Rect step_box{step_reset_rect_.left + 8,
+                        step_reset_rect_.top + 7,
+                        step_reset_rect_.left + 22,
+                        step_reset_rect_.top + 21};
+    fill(canvas, step_box, kPanel);
+    frame(canvas, step_box, step_at_reset_ ? kAccent : kBorder);
+    if (step_at_reset_) {
+        fill(canvas, Rect{step_box.left + 4, step_box.top + 4,
+                          step_box.right - 4, step_box.bottom - 4},
+             kAccent);
+    }
+    text(canvas, step_reset_rect_.left + 28, step_reset_rect_.top + 5,
+         "Step @ Reset", step_at_reset_ ? kText : kTextDim,
+         FontRole::Ui);
+
     const int y = top_bar_.top + 9;
-    int x = top_bar_.left + 480;
+    int x = step_reset_rect_.right + 12;
+    const int reset_left = top_bar_.right - 112;
     const std::uint64_t elapsed = session_.run_time_ms();
     text(canvas, x, y, "INS", kTextDim, FontRole::MonoSmall);
     text(canvas, x + 30, y,
          decimal_with_commas(session_.instructions_executed()), kText,
          FontRole::MonoSmall);
     x += 200;
-    text(canvas, x, y, "TIME", kTextDim, FontRole::MonoSmall);
-    text(canvas, x + 42, y, format_duration(elapsed), kText,
-         FontRole::MonoSmall);
+    if (x + 140 < reset_left) {
+        text(canvas, x, y, "TIME", kTextDim, FontRole::MonoSmall);
+        text(canvas, x + 42, y, format_duration(elapsed), kText,
+             FontRole::MonoSmall);
+    }
     x += 165;
-    if (x + 100 < top_bar_.right - 110) {
+    if (x + 100 < reset_left) {
         text(canvas, x, y, "IPS", kTextDim, FontRole::MonoSmall);
         std::string rate = "-";
         if (session_.instructions_executed() == 0) {
@@ -833,8 +855,8 @@ void App::draw_asm(Canvas& canvas) {
         text(canvas, text_x, y + 1, instruction.text,
              current ? kText : kTextDim, FontRole::Mono);
         if (session_.has_breakpoint(instruction.address)) {
-            fill(canvas, Rect{asm_text_.left + 10, y + 7,
-                              asm_text_.left + 16, y + 13},
+            fill(canvas, Rect{asm_text_.left + 12, y + 3,
+                              asm_text_.left + 26, y + 17},
                  kRed);
         }
     }
@@ -1058,6 +1080,11 @@ void App::event(const Event& event) {
             hover_button_ = hover;
             window_.invalidate();
         }
+        const bool step_hover = step_reset_rect_.contains(move->position);
+        if (step_hover != hover_step_reset_) {
+            hover_step_reset_ = step_hover;
+            window_.invalidate();
+        }
         int register_index = -1;
         for (int i = 0; i < 8; ++i) {
             if (register_rects_[i].contains(move->position)) {
@@ -1127,6 +1154,7 @@ void App::event(const Event& event) {
         leave != nullptr) {
         (void)leave;
         hover_memory_byte_ = -1;
+        hover_step_reset_ = false;
         window_.invalidate();
         return;
     }
@@ -1189,6 +1217,24 @@ void App::event(const Event& event) {
                 start_register_edit(i);
                 return;
             }
+        }
+        if (step_reset_rect_.contains(down->position)) {
+            step_at_reset_ = !step_at_reset_;
+            if (step_at_reset_) {
+                if (session_.running()) {
+                    stop_run("paused");
+                }
+                apply_reset_entry();
+            } else {
+                if (reset_breakpoint_owned_ &&
+                    session_.has_breakpoint(reset_breakpoint_)) {
+                    session_.toggle_address_breakpoint(reset_breakpoint_);
+                }
+                reset_breakpoint_owned_ = false;
+                message_ = "step at reset disabled";
+                window_.invalidate();
+            }
+            return;
         }
         const int index = hit_button(down->position);
         if (index >= 0) {
@@ -1282,6 +1328,9 @@ void App::activate(Action action) {
                 window_.show_error("KR16", error);
             } else {
                 message_ = "restarted";
+                if (step_at_reset_) {
+                    apply_reset_entry();
+                }
             }
             layout();
             window_.invalidate();
@@ -1297,6 +1346,9 @@ void App::activate(Action action) {
                 window_.show_error("KR16", error);
             } else {
                 message_ = "image reloaded";
+                if (step_at_reset_) {
+                    apply_reset_entry();
+                }
             }
             layout();
             window_.invalidate();
@@ -1364,6 +1416,43 @@ void App::on_timer() {
         window_.set_timer(8, false);
         message_ = stop == SessionRunStop::Halted ? "halted" : "paused";
     }
+    window_.invalidate();
+}
+
+void App::apply_reset_entry() {
+    if (!step_at_reset_) {
+        return;
+    }
+    if (!session_.loaded()) {
+        message_ = "step at reset: no image loaded";
+        window_.invalidate();
+        return;
+    }
+    if (session_.running()) {
+        stop_run("paused");
+    }
+    const std::uint16_t vector = session_.read16(0xFFFE);
+    const std::uint16_t start = vector == 0 ? 0x0100 : vector;
+    const bool already_owned =
+        reset_breakpoint_owned_ && reset_breakpoint_ == start &&
+        session_.has_breakpoint(start);
+    if (!already_owned) {
+        if (reset_breakpoint_owned_ &&
+            session_.has_breakpoint(reset_breakpoint_)) {
+            session_.toggle_address_breakpoint(reset_breakpoint_);
+        }
+        if (!session_.has_breakpoint(start)) {
+            session_.toggle_address_breakpoint(start);
+            reset_breakpoint_owned_ = true;
+        } else {
+            reset_breakpoint_owned_ = false;
+        }
+    }
+    reset_breakpoint_ = start;
+    session_.set_reg(5, start);
+    message_ = vector == 0 ? "no BIOS; breakpoint at 0x0100"
+                           : "reset vector " + hex4(vector);
+    layout();
     window_.invalidate();
 }
 
@@ -1777,6 +1866,9 @@ void App::open(const std::filesystem::path& path) {
     message_ = "loaded";
     window_.set_title("KR16 - " + path.filename().string());
     layout();
+    if (step_at_reset_) {
+        apply_reset_entry();
+    }
     window_.invalidate();
 }
 

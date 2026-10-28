@@ -647,3 +647,25 @@ runtime. The remaining work is ARM64 CI and AppImage packaging.
 
 The tag workflow builds the ARM64 AppImage inside an `arm64v8/ubuntu:22.04`
 container for the same baseline.
+
+### 2026-10-28 — disassembly spacing, gutter and Step @ Reset
+
+- Widened the instruction-bytes column so four-byte instructions keep a clear
+  gap before the mnemonic (`00 81 BD FF  CALL`).
+- Widened the address/breakpoint gutter and enlarged the breakpoint marker to
+  a 14×14 red block; the current-PC bar stays outside it.
+- Added a **Step @ Reset** checkbox to the top bar. When enabled, loading,
+  restarting or reloading:
+  - reads the reset vector at `$FFFE`;
+  - uses that address when non-zero, otherwise `0x0100`;
+  - adds a breakpoint at that address and sets PC there.
+  This makes a reset vector/BIOS entry immediately steppable; the status line
+  reports the vector or the no-BIOS fallback.
+- Shifted the counters to make room; at narrow widths the timer and IPS fields
+  are omitted rather than overlapping Reset stats.
+
+![four-byte instruction spacing](ui-win32-asm-spacing.png)
+
+![breakpoint gutter](ui-win32-breakpoint-gutter.png)
+
+![Step @ Reset fallback](ui-win32-step-reset.png)

@@ -88,6 +88,7 @@ private:
     void start_run();
     void stop_run(const std::string& reason);
     void on_timer();
+    void apply_reset_entry();
     void toggle_asm_breakpoint(Point point);
     void toggle_source_breakpoint(Point point);
     void toggle_flag(int index);
@@ -117,6 +118,7 @@ private:
 
     Size size_{1280, 820};
     Rect top_bar_{};
+    Rect step_reset_rect_{};
     Rect source_pane_{};
     Rect source_text_{};
     Rect asm_pane_{};
@@ -154,6 +156,10 @@ private:
     int editing_var_ = -1;
     int hover_asm_index_ = -1;
     bool hover_asm_operand_ = false;
+    bool step_at_reset_ = false;
+    bool hover_step_reset_ = false;
+    std::uint16_t reset_breakpoint_ = 0;
+    bool reset_breakpoint_owned_ = false;
     std::string var_name_;
     std::uint16_t var_address_ = 0;
     int var_size_ = 2;
