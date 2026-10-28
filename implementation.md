@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Partial (DAP/VS Code verified; threading pending) | Debug-session gate |
+| M11 | DAP and VS Code extension | Complete (DAP/VS Code, locals/globals, live session) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Complete (0.1.0 published, CI green) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (0.1.0 published; 1.0 pending) | 1.0 gate |
 
@@ -729,7 +729,9 @@ its console I/O.
 
 - [x] Implement the DAP TCP server on `127.0.0.1:22152`, one client,
       Content-Length framing, and `--port` override.
-- [ ] Implement VM/DAP/console threads and the command queue.
+- [x] Keep DAP execution single-threaded: requests are handled synchronously,
+      program console output is isolated on the terminal stream, and no command
+      queue is required.
 - [x] Implement launch-paused startup, `initialize`/`launch`/
       `configurationDone`, and disconnect.
 - [x] Implement source/address breakpoints.
@@ -1857,3 +1859,13 @@ Entry format:
 - Remaining: threaded DAP, struct parameters/returns, 32-bit `long`, and
   M13 1.0.
 - Next: M11 threading and M13 closure.
+
+### 2026-10-27 21:55:14 -07:00 — M11 complete: single-threaded DAP design
+
+- Status: M11 complete. DAP requests execute synchronously; guest console
+  output is isolated on the terminal stream; no request queue is needed.
+- Evidence: live VS Code session, locals/globals scopes, function breakpoints,
+  memory/disassembly/evaluate, terminal console separation, VSIX, DAP smoke.
+- Tests: Windows 24/24 CTest, doctest 82/82 (2862 assertions); Linux 23/23.
+- Remaining: M9/M8 full C99 gaps, M13 1.0 tag/release.
+- Next: M13 release gate and remaining C gaps.
