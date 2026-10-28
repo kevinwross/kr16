@@ -1912,3 +1912,12 @@ Entry format:
 - Remaining: realloc/calloc, 32-bit `long`, type/frame debug records, and
   M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:04:53 -07:00 — M7: calloc
+
+- Status: added zero-initializing `calloc(count, size)`.
+- Changes: multiplies element count by size, allocates through `malloc`, and
+  zero-fills the block; `<stdlib.h>` updated; manifest regenerated.
+- Tests: compiler/libc suite; zero initialization and returned storage.
+- Remaining: `realloc`, 32-bit `long`, type/frame debug records, and M13 1.0.
+- Next: M13 release gate and remaining C gaps.

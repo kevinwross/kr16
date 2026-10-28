@@ -269,6 +269,28 @@ malloc:
   MOV R0, #0
   RET
 
+.global calloc
+calloc:
+  PUSH R4
+  MUL R1, R2
+  PUSH R1
+  CALL malloc
+  POP R2
+  MOV R4, R0
+  MOV R1, R4
+.Lcalloc_zero:
+  CMP R2, #0
+  BEQ .Lcalloc_done
+  MOV R3, #0
+  STB [R1], R3
+  INC R1
+  DEC R2
+  BRA .Lcalloc_zero
+.Lcalloc_done:
+  MOV R0, R4
+  POP R4
+  RET
+
 .global free
 free:
   MOV R0, #0
