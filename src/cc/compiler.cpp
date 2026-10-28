@@ -1489,7 +1489,29 @@ private:
             case Expr::Kind::Call:
                 gen_call(expr, out);
                 return;
-            case Expr::Kind::Assign:
+            case Expr::Kind::Assign: {
+                const auto target_type = expression_type(expr->children[0].get());
+                if (target_type->kind == TypeKind::Struct) {
+                    gen_addr(expr->children[0].get(), out);
+                    out << "  PUSH R0\n";
+                    gen_addr(expr->children[1].get(), out);
+                    out << "  MOV R1, R0\n";
+                    out << "  POP R2\n";
+                    for (int offset = 0; offset < target_type->size();) {
+                        const int remaining = target_type->size() - offset;
+                        if (remaining == 1) {
+                            out << "  LDB R0, [R1+" << offset << "]\n";
+                            out << "  STB [R2+" << offset << "], R0\n";
+                            ++offset;
+                        } else {
+                            out << "  LD R0, [R1+" << offset << "]\n";
+                            out << "  ST [R2+" << offset << "], R0\n";
+                            offset += 2;
+                        }
+                    }
+                    out << "  MOV R0, #0\n";
+                    return;
+                }
                 gen_addr(expr->children[0].get(), out);
                 out << "  PUSH R0\n";
                 gen_expr(expr->children[1].get(), out);
@@ -1500,6 +1522,7 @@ private:
                             : "  ST [R0], R1\n");
                 out << "  MOV R0, R1\n";
                 return;
+            }
             case Expr::Kind::Unary:
                 gen_unary(expr, out);
                 return;

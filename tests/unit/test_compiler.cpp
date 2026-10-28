@@ -177,6 +177,9 @@ TEST_CASE("compiled control flow works") {
                 "return p.a + p.b; }\n") == 67);
     CHECK(run_c("struct Pair { char a; int b; }; "
                 "int main(void) { return sizeof(struct Pair); }\n") == 4);
+    CHECK(run_c("struct Pair { int x; int y; }; "
+                "int main(void) { struct Pair a; struct Pair b; "
+                "a.x = 1; a.y = 2; b = a; return b.x + b.y; }\n") == 3);
 }
 
 TEST_CASE("compiled C calls libc") {

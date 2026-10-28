@@ -1542,3 +1542,13 @@ Entry format:
 - Remaining: unions, struct initializers/assignment, `long`, variadics, full
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:00:59 -07:00 — M8: whole-struct assignment
+
+- Status: `a = b` now copies whole struct values.
+- Changes: assignment codegen copies each 2-byte word and byte member from the
+  source address; tests for local struct copies.
+- Tests: compiler suite 9/9; struct copy verified.
+- Remaining: struct initializers/parameters/returns, unions, `long`,
+  variadics, full preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.
