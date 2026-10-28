@@ -257,7 +257,7 @@ LinkResult link_objects(const std::vector<Container>& objects,
             for (const auto& placement : placements) {
                 if (placement.object == object_index &&
                     outputs[placement.output].name == ".text") {
-                    text_address = outputs[placement.output].address;
+                    text_address = placement.address;
                     break;
                 }
             }
@@ -484,4 +484,5 @@ LinkResult link_files(const std::vector<std::string>& paths,
 }
 
 }  // namespace kr16
+
 

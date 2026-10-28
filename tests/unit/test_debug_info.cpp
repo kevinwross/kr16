@@ -49,3 +49,20 @@ TEST_CASE("debug dump renders line information") {
     CHECK(text.find("file 0:7:2") != std::string::npos);
 }
 
+
+TEST_CASE("debug line rows account for object placement") {
+    const auto prefix = kr16::assemble_text(
+        ".text\n  NOP\n  NOP\n", kr16::AsmOptions{});
+    REQUIRE(prefix.ok);
+    const auto debug = kr16::assemble_text(
+        ".file 0 \"main.c\"\n.text\n.loc 0 2 0\n  NOP\n",
+        kr16::AsmOptions{});
+    REQUIRE(debug.ok);
+    const auto linked = kr16::link_objects({prefix.object, debug.object});
+    REQUIRE(linked.ok);
+    const auto* line = linked.image.find_section(".debug_line");
+    REQUIRE(line != nullptr);
+    const auto rows = kr16::parse_debug_line(line->data);
+    REQUIRE(rows.size() == 1);
+    CHECK(rows[0].address == 0x0104);
+}

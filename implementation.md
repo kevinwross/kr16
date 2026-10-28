@@ -2087,3 +2087,16 @@ Entry format:
   Linux 23/23; extension JS syntax check passes.
 - Next: rebuild the adapter after stopping the active debug session, then
   reload VS Code.
+
+### 2026-10-28 06:08:51 -07:00 — source breakpoint relocation fix
+
+- Root cause: `.debug_line` relocation added only the output `.text` section
+  base, not the object's placement offset. With libc first, bigtest line 9
+  mapped to `0x010C` inside libc, so the source breakpoint never hit.
+- Fix: relocate debug-line rows by the object `.text` placement address.
+  Bigtest line 9 now maps to `0x0388`; continuing from line 14 stops at the
+  line-9 breakpoint.
+- Added a multi-object `.debug_line` placement test.
+- Tests: 90/90 doctest (2976 assertions), Windows 24/24 CTest, Linux 23/23;
+  source breakpoint smoke returned `reason: breakpoint`, `hitBreakpointIds:[1]`.
+- Rebuilt `build\windows-ninja\kr16.exe` and `tests\kevin\bigtest.kex`.
