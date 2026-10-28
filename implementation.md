@@ -1552,3 +1552,16 @@ Entry format:
 - Remaining: struct initializers/parameters/returns, unions, `long`,
   variadics, full preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:03:32 -07:00 — M8: aggregate initializers
+
+- Status: local struct and array initializers supported:
+  `struct P p = {1, 2};` and `int a[3] = {1, 2, 3};`.
+- Fix: local member addresses use a single `[R4-N]` offset; the assembler
+  parsed `[R4-4+2]` as `R4-6`, so the initializer code now subtracts the member
+  offset from the local offset.
+- Tests: compiler suite 9/9; struct, int-array, and char-array initializers
+  covered.
+- Remaining: global aggregate initializers, struct parameters/returns, unions,
+  `long`, variadics, full preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

@@ -292,7 +292,7 @@ private:
 struct Expr {
     enum class Kind {
         Number, String, Identifier, Call, Binary, Unary, Assign, Index,
-        Conditional, Sizeof, Member
+        Conditional, Sizeof, Member, InitList
     };
     Kind kind = Kind::Number;
     std::int64_t value = 0;
@@ -567,7 +567,7 @@ private:
             global.type = make_type(TypeKind::Array, global.type, count);
         }
         if (accept("=")) {
-            global.init = parse_expression();
+            global.init = parse_initializer();
         }
         expect(";");
         program.globals.push_back(std::move(global));
@@ -617,7 +617,7 @@ private:
                     decl.type = make_type(TypeKind::Array, decl.type, count);
                 }
                 if (accept("=")) {
-                    decl.init = parse_expression();
+                    decl.init = parse_initializer();
                 }
                 stmt->declarations.push_back(std::move(decl));
                 if (!accept(",")) {
@@ -724,7 +724,7 @@ private:
                     decl.name = parse_name();
                     decl.type = type;
                     if (accept("=")) {
-                        decl.init = parse_expression();
+                        decl.init = parse_initializer();
                     }
                     init->declarations.push_back(std::move(decl));
                     expect(";");
@@ -770,6 +770,23 @@ private:
         stmt->expr = parse_expression();
         expect(";");
         return stmt;
+    }
+
+    std::unique_ptr<Expr> parse_initializer() {
+        if (!accept("{")) {
+            return parse_expression();
+        }
+        auto list = std::make_unique<Expr>();
+        list->kind = Expr::Kind::InitList;
+        list->line = peek().line;
+        while (!check("}") && !at_end()) {
+            list->children.push_back(parse_initializer());
+            if (!accept(",")) {
+                break;
+            }
+        }
+        expect("}");
+        return list;
     }
 
     std::unique_ptr<Expr> parse_expression() { return parse_assignment(); }
@@ -1346,6 +1363,37 @@ private:
                     if (decl.init) {
                         const auto it = locals_.find(decl.name);
                         if (it == locals_.end()) {
+                            continue;
+                        }
+                        if (decl.init->kind == Expr::Kind::InitList &&
+                            (decl.type->kind == TypeKind::Struct ||
+                             decl.type->kind == TypeKind::Array)) {
+                            for (std::size_t i = 0; i < decl.init->children.size();
+                                 ++i) {
+                                int offset = 0;
+                                std::shared_ptr<Type> element_type = decl.type;
+                                if (decl.type->kind == TypeKind::Struct) {
+                                    if (i >= decl.type->members.size()) {
+                                        break;
+                                    }
+                                    offset = decl.type->members[i].offset;
+                                    element_type = decl.type->members[i].type;
+                                } else {
+                                    offset = static_cast<int>(i) *
+                                             (decl.type->base
+                                                  ? decl.type->base->size()
+                                                  : 2);
+                                    element_type = decl.type->base;
+                                }
+                                gen_expr(decl.init->children[i].get(), out);
+                                const int address_offset =
+                                    it->second.offset - offset;
+                                out << "  LEA R1, [R4-"
+                                    << address_offset << "]\n";
+                                out << (element_type && element_type->is_char()
+                                            ? "  STB [R1], R0\n"
+                                            : "  ST [R1], R0\n");
+                            }
                             continue;
                         }
                         gen_expr(decl.init.get(), out);

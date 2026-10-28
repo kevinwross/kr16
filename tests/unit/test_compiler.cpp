@@ -180,6 +180,13 @@ TEST_CASE("compiled control flow works") {
     CHECK(run_c("struct Pair { int x; int y; }; "
                 "int main(void) { struct Pair a; struct Pair b; "
                 "a.x = 1; a.y = 2; b = a; return b.x + b.y; }\n") == 3);
+    CHECK(run_c("struct Pair { int x; int y; }; "
+                "int main(void) { struct Pair p = {3, 4}; "
+                "return p.x + p.y; }\n") == 7);
+    CHECK(run_c("int main(void) { int a[3] = {1, 2, 3}; "
+                "return a[1] + a[2]; }\n") == 5);
+    CHECK(run_c("int main(void) { char s[3] = {'A', 'B', 0}; "
+                "return s[1]; }\n") == 66);
 }
 
 TEST_CASE("compiled C calls libc") {
