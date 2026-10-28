@@ -121,4 +121,4 @@ compiler.
 - `tests/unit/test_compiler.cpp`:
   - a 160-statement `if (1)` body compiles and runs;
   - the same body under `if (0)` is skipped correctly.
-- Full CTest: **38/38**; doctest: **117 cases / 3186 assertions**.
+- Full CTest: **38/38**; doctest: **118 cases / 3228 assertions**.

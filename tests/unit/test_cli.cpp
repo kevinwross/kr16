@@ -2,11 +2,31 @@
 
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
+#include <iostream>
 #include <iterator>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "kr16/cli.hpp"
+
+namespace {
+
+std::string run_cli(std::initializer_list<std::string> arguments, int& status) {
+    std::vector<std::string> storage(arguments);
+    std::vector<char*> argv;
+    for (auto& argument : storage) {
+        argv.push_back(argument.data());
+    }
+    std::ostringstream output;
+    auto* previous = std::cout.rdbuf(output.rdbuf());
+    status = kr16::cli::run(static_cast<int>(argv.size()), argv.data());
+    std::cout.rdbuf(previous);
+    return output.str();
+}
+
+}  // namespace
 
 TEST_CASE("known commands are recognized") {
     CHECK(kr16::cli::is_known_command("as"));
@@ -30,6 +50,30 @@ TEST_CASE("usage lists every command") {
     CHECK(text.find("dap") != std::string::npos);
     CHECK(text.find("version") != std::string::npos);
     CHECK(text.find("help") != std::string::npos);
+}
+
+TEST_CASE("every command has detailed --help") {
+    const char* commands[] = {"as", "dis", "cc", "build", "ld", "size",
+                              "debug", "vm", "dap", "version", "shell", "help"};
+    for (const char* command : commands) {
+        int status = -1;
+        const auto text = run_cli({"kr16", command, "--help"}, status);
+        CHECK(status == 0);
+        CHECK(text.find(std::string("usage: kr16 ") + command) !=
+              std::string::npos);
+        CHECK(text.find("-h, --help") != std::string::npos);
+    }
+
+    int status = -1;
+    const auto as = run_cli({"kr16", "as", "--help"}, status);
+    CHECK(status == 0);
+    CHECK(as.find("--raw") != std::string::npos);
+    CHECK(as.find("--base") != std::string::npos);
+    CHECK(as.find("-l <path>") != std::string::npos);
+
+    const auto aliased = run_cli({"kr16", "help", "vm"}, status);
+    CHECK(status == 0);
+    CHECK(aliased.find("usage: kr16 vm") != std::string::npos);
 }
 
 TEST_CASE("as -l writes a listing beside the object") {

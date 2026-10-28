@@ -37,6 +37,252 @@ constexpr std::array<std::string_view, 12> kCommands = {
     "debug", "vm", "dap", "version", "help", "shell",
 };
 
+std::string command_help(std::string_view command) {
+    if (command == "as") {
+        return R"(usage: kr16 as <file.s> [options]
+
+Assemble one source file into a relocatable object, or a raw binary.
+
+Arguments:
+  <file.s>             assembly source to assemble
+
+Options:
+  -o <path>            output path (default: a.o, or a.bin with --raw)
+  -l <path>            write a listing file
+  -I <dir>             add an include search directory (repeatable)
+  -g                   include debug information
+  --raw                write a flat binary instead of a relocatable object
+  --base <addr>        raw load address (default: 0x0100)
+  -h, --help           show this help
+
+Examples:
+  kr16 as hello.s -o hello.o
+  kr16 as boot.s --raw --base 0x0100 -o boot.bin -l boot.lst
+
+)";
+    }
+    if (command == "dis") {
+        return R"(usage: kr16 dis <file.o|file.kex> [options]
+
+Disassemble a KR16 object or executable image.
+
+Arguments:
+  <file.o|file.kex>    image to disassemble
+
+Options:
+  --raw                treat the input as a flat binary
+  --base <addr>        base address for --raw (default: 0)
+  --no-hex             omit the raw instruction bytes
+  --source             accepted for compatibility; source interleaving is
+                       not implemented in v1
+  --symbols            accepted for compatibility; container symbols are
+                       already used for labels
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "cc") {
+        return R"(usage: kr16 cc <file.c> [options]
+
+Compile C to assembly, then assemble it to an object.
+
+Arguments:
+  <file.c>             C source file
+
+Options:
+  -S                   write assembly (.s); do not assemble
+  -c                   write an object (.o); this is the default
+  -o <path>            output path (default: input with .s or .o)
+  -g                   include debug information
+  -I <dir>             add an include search directory
+  -I<dir>              attached form of -I
+  -D <name[=value]>    accepted for compatibility; macro is not applied
+  -U <name>            accepted for compatibility; macro is not undefined
+  -O0                  accepted; the compiler is fixed at -O0
+  -std=c99             accepted; the compiler is C99-like
+  -std=c11             accepted; the compiler is C99-like
+  -E                   unavailable in this subset compiler
+  -h, --help           show this help
+
+-S and -c are mutually exclusive.
+
+)";
+    }
+    if (command == "build") {
+        return R"(usage: kr16 build <file.c|file.s|file.asm|file.o> [options]
+
+Compile, assemble and link one input into a KR16 image.
+
+Arguments:
+  <file.c>             compile with cc, assemble, and link libc
+  <file.s|file.asm>    assemble, then link
+  <file.o>             link
+
+Options:
+  -o <path>            image path (default: <input>.kex)
+  -l, -L               write a listing beside the source
+  -l=<path>            write the listing to the given path
+  --listing=<path>     write the listing to the given path
+  -I <dir>             add an include path for cc/as
+  -I<dir>              attached form of -I
+  -g                   record debug information (default)
+  --no-debug           omit debug sections
+  --libc               link resources/libc.s for .s/.asm/.o input
+  --run                run the image after a successful build
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "ld") {
+        return R"(usage: kr16 ld <object.o>... [options]
+
+Link relocatable objects into a KR16 image.
+
+Arguments:
+  <object.o>...        input objects; at least one is required
+
+Options:
+  -o <path>            output image (default: a.kex)
+  --map <path>         write a map of sections and symbols
+  --strip-debug        remove debug sections
+  --strip              remove debug sections and all but required symbols
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "size") {
+        return R"(usage: kr16 size <file.kex|file.o>
+
+Report the allocatable .text, .data and .bss sizes of an image or object.
+
+Arguments:
+  <file>               container to inspect
+
+Options:
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "debug") {
+        return R"(usage: kr16 debug <file.o|file.kex> [filters]
+
+Dump decoded debug information.
+
+Arguments:
+  <file>               image or object to inspect
+
+Filters (default: all):
+  --lines              source line table
+  --types              type records
+  --vars               variable records
+  --frames             frame records
+  --objects            object records
+  --json               unavailable in v1
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "vm") {
+        return R"(usage: kr16 vm <program.kex|program.bin> [options] [-- args...]
+
+Run a KR16 program on the virtual machine.
+
+Arguments:
+  <program>            image to run
+  [args...]            non-option words after the program are guest args
+  -- <args...>         stop option parsing; pass the rest to the guest
+
+Options:
+  --raw                treat the program as a flat binary
+  --base <addr>        raw load address (default: 0x0100)
+  --bios <path>        load a 3.75 KiB BIOS ROM
+  --no-bios            start directly at the image entry point
+  --max-cycles <n>     stop after n cycles (default: unlimited)
+  --realtime           pace execution to the requested MHz
+  --mhz <n>            real-time clock rate (default: 1)
+  --input <path>       feed scripted keyboard input
+  --headless           run without a display
+  --line-input         read guest input line by line
+  --trace              print an instruction trace
+  --trace-syscalls     print host syscall calls
+  --stats              print cycle and instruction totals
+  --fs-root <path>     accepted; file services are deferred
+  --fs-quota <n>       accepted; file services are deferred
+  --fs-readonly        accepted; file services are deferred
+  --no-host-fs         accepted; file services are deferred
+  -i                   unavailable in v1
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "dap") {
+        return R"(usage: kr16 dap <program.kex> [options]
+
+Run the VM with the Debug Adapter Protocol server listening on TCP.
+
+Arguments:
+  <program.kex>        image to debug
+
+Options:
+  --port <n>           TCP port (default: 22152)
+  --raw                treat the program as a flat binary
+  --base <addr>        raw load address (default: 0x0100)
+  --bios <path>        load a 3.75 KiB BIOS ROM
+  --no-bios            start directly at the entry point
+  --ready-file <path>  write a readiness marker after binding
+  --stop-on-entry      report a stopped/entry event (default)
+  --no-stop-on-entry   run silently until a breakpoint
+  --force, -f          accepted for shell compatibility; no adapter effect
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "version") {
+        return R"(usage: kr16 version
+
+Print the tool, ISA, container, host-service ABI and debug format versions.
+
+Options:
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "shell") {
+        return R"(usage: kr16 shell
+
+Start the interactive KR16 command shell.
+
+The shell reads commands from stdin. Piped input runs without prompts.
+Use `exit` or `quit` to leave.
+
+Options:
+  -h, --help           show this help
+
+)";
+    }
+    if (command == "help") {
+        return R"(usage: kr16 help [command]
+
+Print general help, or detailed help for one command.
+
+Arguments:
+  [command]            command name (as, dis, cc, build, ld, size, debug,
+                       vm, dap, version, shell)
+
+Options:
+  -h, --help           show this help
+
+Examples:
+  kr16 help
+  kr16 help as
+  kr16 as --help
+
+)";
+    }
+    return {};
+}
+
+
 std::string lowercase_copy(const std::string& text) {
     std::string result = text;
     std::transform(result.begin(), result.end(), result.begin(),
@@ -126,8 +372,7 @@ int run_as(int argc, char** argv) {
         } else if (argument == "-g") {
             options.debug = true;
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 as file.s -o file.o [-l listing] "
-                         "[--raw --base addr] [-I dir] [-g]\n";
+            std::cout << command_help("as");
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 as: unknown option " << argument << '\n';
@@ -202,8 +447,7 @@ int run_dis(int argc, char** argv) {
         } else if (argument == "--source" || argument == "--symbols") {
             // Recognized; source interleaving arrives with debug info in M7.
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 dis file.o|file.kex [--raw --base addr] "
-                         "[--no-hex]\n";
+            std::cout << command_help("dis");
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 dis: unknown option " << argument << '\n';
@@ -319,14 +563,7 @@ int run_vm_command(int argc, char** argv) {
             std::cerr << "kr16 vm: interactive monitor is not available yet\n";
             return 2;
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 vm program.kex|program.bin [options] "
-                         "[-- args...]\n"
-                         "  --raw --base addr   load a raw image\n"
-                         "  --bios path         load a 3.75 KiB BIOS ROM\n"
-                         "  --no-bios           start directly at the entry point\n"
-                         "  --max-cycles n      stop after n cycles\n"
-                         "  --input path        feed scripted keyboard bytes\n"
-                         "  --trace --stats     diagnostic output\n";
+            std::cout << command_help("vm");
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 vm: unknown option " << argument << '\n';
@@ -397,8 +634,7 @@ int run_ld_command(int argc, char** argv) {
             options.strip_debug = true;
             options.strip_symbols = true;
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 ld [objects...] -o image.kex "
-                         "[--map file] [--strip-debug] [--strip]\n";
+            std::cout << command_help("ld");
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 ld: unknown option " << argument << '\n';
@@ -449,7 +685,7 @@ int run_size_command(int argc, char** argv) {    std::string input;
     for (int i = 0; i < argc; ++i) {
         const std::string argument = argv[i];
         if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 size file.kex\n";
+            std::cout << command_help("size");
             return 0;
         }
         if (!argument.empty() && argument.front() == '-') {
@@ -522,8 +758,7 @@ int run_debug_command(int argc, char** argv) {
             std::cerr << "kr16 debug: --json is not available in v1\n";
             return 2;
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 debug file.o|file.kex "
-                         "[--lines|--types|--vars|--frames|--objects]\n";
+            std::cout << command_help("debug");
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 debug: unknown option " << argument << '\n';
@@ -594,8 +829,7 @@ int run_cc_command(int argc, char** argv) {
             std::cerr << "kr16 cc: -E is not available in the subset compiler\n";
             return 2;
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 cc file.c [-S|-c] [-o file] [-g] "
-                         "[-I dir]\n";
+            std::cout << command_help("cc");
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 cc: unknown option " << argument << '\n';
@@ -720,14 +954,7 @@ int run_dap_command(int argc, char** argv) {
         } else if (argument == "--force" || argument == "-f") {
             // Accepted for interactive-shell use; no effect on the adapter.
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 dap [--port 22152] program.kex\n"
-                         "  --raw --base addr      load a raw image\n"
-                         "  --bios path            load a 3.75 KiB BIOS ROM\n"
-                         "  --no-bios              start directly at the entry point\n"
-                         "  --ready-file path      write a marker after binding\n"
-                         "  --stop-on-entry        report a stopped/entry event\n"
-                         "  --no-stop-on-entry     run silently until a breakpoint\n"
-                         "  --force, -f            allow blocking in the shell\n";
+            std::cout << command_help("dap");
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 dap: unknown option " << argument << '\n';
@@ -787,20 +1014,7 @@ int run_build_command(int argc, char** argv) {
         } else if (flag == "--libc") {
             options.link_libc = true;
         } else if (flag == "--help" || flag == "-h") {
-            std::cout
-                << "usage: kr16 build file.c|file.s|file.asm|file.o "
-                   "[-o out.kex] [-l] [-I dir] [--no-debug] [--libc] [--run]\n"
-                   "  file.c          compile with cc, assemble, link libc\n"
-                   "  file.s, .asm    assemble, then link\n"
-                   "  file.o          link\n"
-                   "  -o path         image path (default: <input>.kex)\n"
-                   "  -l, -L          also write a listing beside the source\n"
-                   "  --listing=FILE  write the listing to FILE instead\n"
-                   "  -I dir          add an include path for cc/as\n"
-                   "  -g              record debug info (default)\n"
-                   "  --no-debug      omit debug sections\n"
-                   "  --libc          link resources/libc.s for .s/.asm/.o input\n"
-                   "  --run           run the image after a successful build\n";
+            std::cout << command_help("build");
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 build: unknown option " << argument << '\n';
@@ -867,14 +1081,19 @@ std::string usage_text() {
         "  cc       Compile C to assembly, then assemble to .o\n"
         "  build    Compile, assemble, and link one input into a .kex\n"
         "  ld       Link .o files into a .kex\n"
-        "  size     Report code/data/bss and free heap/stack\n"
+        "  size     Report code, data and bss sizes\n"
         "  debug    Dump decoded symbols, lines, types, variables, frames, objects\n"
         "  vm       Run a .kex (or raw binary) on the virtual machine\n"
         "  dap      Run the VM with the debug adapter listening on TCP\n"
         "  version  Print tool, ISA, container, host-service ABI, and debug versions\n"
         "  shell    Start the interactive shell\n"
         "  (none)   Start the windowed UI (when built)\n"
-        "  help     Print help (also: kr16 <command> --help)\n";
+        "  help     Print general help (also: kr16 help <command>)\n"
+        "\n"
+        "Every command accepts --help (or -h). Examples:\n"
+        "  kr16 as --help\n"
+        "  kr16 vm --help\n"
+        "  kr16 help build\n";
     return text;
 }
 
@@ -896,14 +1115,40 @@ int run(int argc, char** argv) {
 
     const std::string_view command = argv[1];
     if (command == "help" || command == "--help" || command == "-h") {
+        if (argc > 2) {
+            if (std::string_view(argv[2]) == "--help" ||
+                std::string_view(argv[2]) == "-h") {
+                std::cout << command_help("help");
+                return 0;
+            }
+            const auto help = command_help(argv[2]);
+            if (!help.empty()) {
+                std::cout << help;
+                return 0;
+            }
+            std::cerr << "kr16: unknown command '" << argv[2] << "'\n";
+            return 2;
+        }
         std::cout << usage_text();
         return 0;
     }
     if (command == "version" || command == "--version") {
+        if (argc > 2 &&
+            (std::string_view(argv[2]) == "--help" ||
+             std::string_view(argv[2]) == "-h")) {
+            std::cout << command_help("version");
+            return 0;
+        }
         std::cout << format_version() << '\n';
         return 0;
     }
     if (command == "shell") {
+        if (argc > 2 &&
+            (std::string_view(argv[2]) == "--help" ||
+             std::string_view(argv[2]) == "-h")) {
+            std::cout << command_help("shell");
+            return 0;
+        }
         const bool interactive = platform::stdin_is_terminal();
         return run_shell(std::cin, std::cout, std::cerr, interactive,
                          interactive ? default_history_path() : std::string{});

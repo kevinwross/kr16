@@ -12,6 +12,9 @@ KR16 is a 16-bit teaching computer with a single-binary toolchain:
 - `kr16 vm` — virtual machine
 - `kr16 dap` — minimal Debug Adapter Protocol TCP server
 
+Every tool has detailed option help: `kr16 <command> --help` (or
+`kr16 help <command>`).
+
 The design specification is [kr16-plan.md](kr16-plan.md). The implementation
 plan, milestones, test gates, and work log are in
 [implementation.md](implementation.md).

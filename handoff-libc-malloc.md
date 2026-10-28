@@ -15,8 +15,8 @@
 - Assembler branch relaxation is implemented, so large C functions no longer
   hit the `branch target out of range` limit.
 - The heap work and its new tests are committed. Full CTest result after the
-  cast, linker and relaxation changes: **38/38**; doctest: **117 cases /
-  3186 assertions**.
+  cast, linker and relaxation changes: **38/38**; doctest: **118 cases /
+  3228 assertions**.
 
 
 This document is for whoever picks this up next. It assumes you know nothing
@@ -261,3 +261,4 @@ choice, not a remaining toolchain blocker.
 4. Optional: `--stack-reserve` exists as a `LinkOptions` field but has no CLI
    flag; once the heap derives from the linker symbols, that flag becomes the
    knob for trading heap against stack.
+

@@ -2228,5 +2228,20 @@ Entry format:
   long unconditional branches use `JMP` directly.
 - Added `docs/decisions/0003-branch-relaxation.md` and tests for forward and
   backward long branches plus large C functions (taken and skipped bodies).
-- CTest: 38/38; doctest: 117 cases / 3186 assertions.
+- CTest: 38/38; doctest: 118 cases / 3228 assertions.
 - `kr16 cc` is no longer limited to roughly 1 KiB functions by branch range.
+
+### 2026-10-28 — detailed command help
+
+- Added a centralized `command_help()` in `src/cli/commands.cpp` with complete
+  usage, positional arguments, options, defaults and examples for `as`, `dis`,
+  `cc`, `build`, `ld`, `size`, `debug`, `vm`, `dap`, `version`, `shell` and
+  `help`.
+- Every command now accepts `--help` and `-h`; `kr16 help <command>` uses the
+  same text. The general help points at both forms.
+- Documented accepted-but-inactive compatibility flags (`-D`/`-U`, `-O0`,
+  `-std=...`, deferred file-service flags) and unavailable options (`-E`,
+  `--json`, `-i`) rather than omitting them.
+- Added a unit test that runs every command with `--help`, checks exit status
+  and usage text, plus checks for the assembler's key options.
+- CTest: 38/38; doctest: 118 cases / 3228 assertions.
