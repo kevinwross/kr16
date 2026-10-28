@@ -404,6 +404,11 @@ TEST_CASE("compiled C calls libc") {
               "#include <stdlib.h>\n"
               "int main(void) { int *p = calloc(3, 2); p[2] = 7; "
               "int v = p[1] + p[2]; free(p); return v; }\n") == 7);
+    CHECK(run_c_libc_exit(
+              "#include <stdlib.h>\n"
+              "int main(void) { char *p = malloc(2); p[0] = 'A'; "
+              "p = realloc(p, 4); p[1] = 'B'; "
+              "int v = p[0] + p[1]; free(p); return v; }\n") == 131);
 }
 
 TEST_CASE("compiled char locals and globals") {

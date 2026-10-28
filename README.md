@@ -33,7 +33,7 @@ arrays, function/variadic prototypes, object/function macros, `#`/`##` operators
 `return`, arithmetic/comparisons/logical operators, strings, and
 `main(argc, argv)`. A small `libc.s` provides `putchar`, `puts`, `getchar`,
 `printf` (`%d`, `%s`, `%c`, `%%`), `strlen`, `strcpy`, `strcmp`, `memset`,
-`memcpy`, `malloc`, `calloc`, `free`, and `exit`. `long`, the full preprocessor
+`memcpy`, `malloc`, `calloc`, `realloc`, `free`, and `exit`. `long`, the full preprocessor
 (`#line`, pragmas), and the full `printf` family are not implemented yet.
 
 The DAP TCP server and a minimal VS Code extension are implemented. Advanced
@@ -113,6 +113,7 @@ host-call tests, and compiled-C end-to-end execution tests.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 
 

@@ -329,6 +329,7 @@ std::string builtin_header(std::string_view name) {
                "void exit(int code);\n"
                "void *malloc(size_t size);\n"
                "void *calloc(size_t count, size_t size);\n"
+               "void *realloc(void *ptr, size_t size);\n"
                "void free(void *ptr);\n";
     }
     if (name == "stdint.h") {

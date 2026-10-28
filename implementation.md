@@ -1921,3 +1921,12 @@ Entry format:
 - Tests: compiler/libc suite; zero initialization and returned storage.
 - Remaining: `realloc`, 32-bit `long`, type/frame debug records, and M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:06:40 -07:00 — M7: realloc
+
+- Status: added `realloc`, with 2-byte allocation headers and copy-on-grow.
+- Changes: `malloc` stores the block size before the pointer; `realloc` copies
+  the smaller of old/new sizes and returns the new block; manifest regenerated.
+- Tests: compiler/libc suite; grow-and-preserve data.
+- Remaining: 32-bit `long`, type/frame debug records, and M13 1.0.
+- Next: M13 release gate and remaining C gaps.

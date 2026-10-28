@@ -261,7 +261,10 @@ malloc:
   MOV R3, #__kr16_heap_ptr
   LD R2, [R3]
   MOV R0, R2
+  ST [R0], R1
+  ADD R0, #2
   ADD R2, R1
+  ADD R2, #2
   ST [R3], R2
   POP R4
   RET
@@ -289,6 +292,45 @@ calloc:
 .Lcalloc_done:
   MOV R0, R4
   POP R4
+  RET
+
+.global realloc
+realloc:
+  CMP R1, #0
+  BEQ .Lrealloc_null
+  PUSH R4
+  PUSH R1
+  PUSH R2
+  LD R1, [R1-2]
+  PUSH R1
+  MOV R1, R2
+  CALL malloc
+  POP R2
+  POP R3
+  POP R4
+  CMP R2, R3
+  BLE .Lrealloc_count
+  MOV R2, R3
+.Lrealloc_count:
+  PUSH R0
+  MOV R1, R4
+  MOV R3, R0
+.Lrealloc_copy:
+  CMP R2, #0
+  BEQ .Lrealloc_done
+  LDB R0, [R1]
+  STB [R3], R0
+  INC R1
+  INC R3
+  DEC R2
+  BRA .Lrealloc_copy
+.Lrealloc_done:
+  POP R0
+  POP R4
+  RET
+.Lrealloc_null:
+  MOV R1, R2
+  CALL malloc
   RET
 
 .global free
