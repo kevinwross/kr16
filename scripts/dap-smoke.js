@@ -142,6 +142,34 @@ function frame(value) {
     socket.write(frame({
       seq: 4,
       type: 'request',
+      command: 'setFunctionBreakpoints',
+      arguments: { breakpoints: [{ name: 'main' }] }
+    }));
+    const functionBreakpoints = await waitFor(
+      (m) => m.type === 'response' && m.command === 'setFunctionBreakpoints',
+      'setFunctionBreakpoints response');
+    if (!functionBreakpoints.success || !functionBreakpoints.body ||
+        !Array.isArray(functionBreakpoints.body.breakpoints) ||
+        !functionBreakpoints.body.breakpoints[0].verified) {
+      console.error('function breakpoint was not resolved');
+      stop(1);
+    }
+
+    socket.write(frame({
+      seq: 5,
+      type: 'request',
+      command: 'continue',
+      arguments: { threadId: 1 }
+    }));
+    await waitFor((m) => m.type === 'response' && m.command === 'continue',
+                  'continue response');
+    await waitFor((m) => m.type === 'event' && m.event === 'stopped' &&
+                         m.body && m.body.reason === 'breakpoint',
+                  'function breakpoint stop');
+
+    socket.write(frame({
+      seq: 6,
+      type: 'request',
       command: 'evaluate',
       arguments: { expression: '$pc', context: 'hover' }
     }));
@@ -155,7 +183,7 @@ function frame(value) {
     }
 
     socket.write(frame({
-      seq: 5,
+      seq: 7,
       type: 'request',
       command: 'readMemory',
       arguments: { memoryReference: '0x0100', count: 4, offset: 0 }
@@ -169,7 +197,7 @@ function frame(value) {
     }
 
     socket.write(frame({
-      seq: 6,
+      seq: 8,
       type: 'request',
       command: 'disassemble',
       arguments: { memoryReference: '0x0100', instructionCount: 1 }
@@ -185,7 +213,7 @@ function frame(value) {
     }
 
     socket.write(frame({
-      seq: 7,
+      seq: 9,
       type: 'request',
       command: 'threads',
       arguments: {}
@@ -199,7 +227,7 @@ function frame(value) {
     }
 
     socket.write(frame({
-      seq: 8,
+      seq: 10,
       type: 'request',
       command: 'disconnect',
       arguments: {}

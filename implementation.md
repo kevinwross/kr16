@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Partial (DAP/VS Code + memory/disassembly/evaluate) | Debug-session gate |
+| M11 | DAP and VS Code extension | Partial (DAP/VS Code; host trace and live session pending) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Partial (Windows 0.1.0 RC; Linux CI pending) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC, Linux/sanitizer matrix verified; 1.0 pending) | 1.0 gate |
 
@@ -737,8 +737,11 @@ its console I/O.
 - [x] Implement stack walks, scopes, registers, and variable views.
 - [x] Implement memory reads, disassembly, and simple `$pc`/`$sp`/register
       evaluate views.
-- [ ] Implement watch expressions and host-call trace views.
-- [ ] Implement function-entry breakpoints after the prologue.
+- [x] Implement simple watch/register evaluation through the DAP `evaluate`
+      request.
+- [ ] Implement the host-call trace view.
+- [x] Implement function-entry breakpoints at symbol entry; prologue-boundary
+      refinement remains.
 - [ ] Keep program output on the terminal; DAP output is debugger messages only.
 - [x] Build the separate `vscode/` extension with
       `DebugAdapterServer(22152)`, terminal launch, launch configuration, and
@@ -1354,3 +1357,17 @@ Entry format:
 - Remaining: `.debug_types`/`.debug_vars`/`.debug_frames`, full C99, and 1.0
   release gates.
 - Next: final release verification and remaining debugger views.
+
+### 2026-10-27 20:06:49 -07:00 — M11: function-entry breakpoints and watches
+
+- Status: M11 DAP now supports function-entry breakpoints and simple
+  watch/register evaluation; host-call trace view remains.
+- Changes: added `setFunctionBreakpoints`, symbol lookup by name, capability
+  flags, and a live smoke sequence that sets a `main` function breakpoint,
+  continues, and verifies the breakpoint stop before evaluate/readMemory/
+  disassemble.
+- Tests: DAP smoke passes with function breakpoints; Windows Debug full suite
+  remains green.
+- Remaining: host-call trace, prologue-boundary breakpoint refinement, live
+  VS Code session, and Linux CI confirmation.
+- Next: final release/debugger closure.

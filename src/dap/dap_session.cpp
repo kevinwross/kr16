@@ -614,6 +614,8 @@ struct DapSession::Impl {
                                            std::string_view command);
     std::vector<std::string> handle_set_breakpoints(const JsonValue& request,
                                                     const JsonValue* arguments);
+    std::vector<std::string> handle_set_function_breakpoints(
+        const JsonValue& request, const JsonValue* arguments);
     std::vector<std::string> handle_configuration_done(
         const JsonValue& request);
     std::vector<std::string> handle_threads(const JsonValue& request);
@@ -648,7 +650,7 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
              JsonValue::boolean(true));
     body.set("supportsConditionalBreakpoints", JsonValue::boolean(false));
     body.set("supportsHitConditionalBreakpoints", JsonValue::boolean(false));
-    body.set("supportsFunctionBreakpoints", JsonValue::boolean(false));
+    body.set("supportsFunctionBreakpoints", JsonValue::boolean(true));
     body.set("supportsStepBack", JsonValue::boolean(false));
     body.set("supportsRestartRequest", JsonValue::boolean(false));
     body.set("supportsSetVariable", JsonValue::boolean(false));
@@ -709,6 +711,52 @@ std::vector<std::string> DapSession::Impl::handle_launch(
     }
     append_response(out, request, command, true, JsonValue::object());
     start_ready(out);
+    return out;
+}
+
+std::vector<std::string> DapSession::Impl::handle_set_function_breakpoints(
+    const JsonValue& request, const JsonValue* arguments) {
+    std::vector<std::string> out;
+    JsonValue reported = JsonValue::array();
+    const JsonValue* items = arguments != nullptr
+                                 ? arguments->find("breakpoints")
+                                 : nullptr;
+    if (!launched) {
+        append_response(out, request, "setFunctionBreakpoints", false,
+                        JsonValue::null(), "program is not loaded");
+        return out;
+    }
+    if (items != nullptr && items->is_array()) {
+        for (const auto& item : items->as_array()) {
+            JsonValue function_entry = JsonValue::object();
+            const auto name = string_or(&item, "name", {});
+            const Symbol* found = nullptr;
+            for (const auto& symbol : container.symbols) {
+                if (symbol.name == name) {
+                    found = &symbol;
+                    break;
+                }
+            }
+            if (found == nullptr) {
+                function_entry.set("verified", JsonValue::boolean(false));
+                function_entry.set("message", JsonValue::string("function not found"));
+            } else {
+                const auto address = static_cast<std::uint16_t>(found->value);
+                const auto id =
+                    add_breakpoint(address, line_for_address(line_rows, address));
+                function_entry.set("id", JsonValue::integer(id));
+                function_entry.set("verified", JsonValue::boolean(true));
+                function_entry.set("line",
+                          JsonValue::integer(
+                              line_for_address(line_rows, address)));
+            }
+            reported.push(std::move(function_entry));
+        }
+    }
+    JsonValue body = JsonValue::object();
+    body.set("breakpoints", std::move(reported));
+    append_response(out, request, "setFunctionBreakpoints", true,
+                    std::move(body));
     return out;
 }
 
@@ -1195,6 +1243,9 @@ std::vector<std::string> DapSession::Impl::handle_message(
     }
     if (command == "setBreakpoints") {
         return handle_set_breakpoints(request, arguments);
+    }
+    if (command == "setFunctionBreakpoints") {
+        return handle_set_function_breakpoints(request, arguments);
     }
     if (command == "setExceptionBreakpoints") {
         std::vector<std::string> out;
