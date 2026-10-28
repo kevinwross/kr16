@@ -17,7 +17,11 @@ plan, milestones, test gates, and work log are in
 
 ## Status
 
-Milestones M0–M10 are implemented locally and pushed. The working pipeline is:
+The **0.1.0 early-access release candidate** is published at
+<https://github.com/kevinwross/kr16/releases/tag/v0.1.0>. It includes the
+Windows zip, VS Code VSIX, and SHA256SUMS.
+
+Milestones M0–M12 are implemented. The working pipeline is:
 
 ```text
 C or assembly → .o → .kex → VM
