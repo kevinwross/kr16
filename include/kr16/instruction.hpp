@@ -71,6 +71,7 @@ struct Instruction {
     std::uint8_t n = 0;
     bool is_immediate = false;
     bool absolute = false;
+    bool force_long = false;
     std::uint8_t size_bytes = 2;
 
     std::vector<std::uint16_t> encode() const;

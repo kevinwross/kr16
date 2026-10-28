@@ -234,6 +234,11 @@ std::vector<std::uint16_t> Instruction::encode() const {
         case Op::Mov:
             if (!is_immediate) {
                 words.push_back(r_type(8, rd, rs));
+            } else if (force_long) {
+                require(imm >= -32768 && imm <= 65535,
+                        "16-bit immediate out of range");
+                words.push_back(x_type(0, rd, 0));
+                words.push_back(static_cast<std::uint16_t>(imm & 0xFFFF));
             } else if (imm >= -32 && imm <= 31) {
                 words.push_back(i_type(6, rd, imm));
             } else if (imm >= 0 && imm <= 255) {
@@ -258,7 +263,7 @@ std::vector<std::uint16_t> Instruction::encode() const {
         case Op::Test:
             if (!is_immediate) {
                 words.push_back(r_type(alu_r_func(op), rd, rs));
-            } else if (imm >= -32 && imm <= 31) {
+            } else if (imm >= -32 && imm <= 31 && !force_long) {
                 words.push_back(i_type(alu_i_func(op), rd, imm));
             } else {
                 require(imm >= -32768 && imm <= 65535,
@@ -327,7 +332,7 @@ std::vector<std::uint16_t> Instruction::encode() const {
                 require(imm >= 0 && imm <= 0xFFFF, "address out of range");
                 words.push_back(x_type(memory_abs_ext(op), rd, 0));
                 words.push_back(static_cast<std::uint16_t>(imm));
-            } else if (imm >= -32 && imm <= 31) {
+            } else if (imm >= -32 && imm <= 31 && !force_long) {
                 words.push_back(m_type(memory_top(op), rd, rs, imm));
             } else {
                 const std::uint8_t ext = memory_index_ext(op);

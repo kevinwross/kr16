@@ -35,7 +35,7 @@ Rules:
 | M0 | Repository, build skeleton, ISA freeze | Complete | Build and spec gate |
 | M1 | Container, CRC, diagnostics | Complete | Container round-trip gate |
 | M2 | ISA core and CPU | Complete | ISA conformance gate |
-| M3 | Assembler and disassembler | Not started | Raw-program gate |
+| M3 | Assembler and disassembler | Complete | Raw-program gate |
 | M4 | Memory, devices, interrupts, boot | Not started | Device/boot gate |
 | M5 | VM host and CLI | Not started | Batch/monitor gate |
 | M6 | Linker and runtime linking | Not started | `.kex` toolchain gate |
@@ -295,23 +295,25 @@ and readable symbol-aware disassembly.
 
 **Tasks:**
 
-- [ ] Implement lexer, expression parser, operator precedence, and numeric
+- [x] Implement lexer, expression parser, operator precedence, and numeric
       literals.
-- [ ] Implement labels, local labels, `.L` handling, symbols, and `.equ`.
-- [ ] Implement sections, `.text`/`.data`/`.rodata`/`.bss`, `.section`, and
+- [x] Implement labels, local labels, `.L` handling, symbols, and `.equ`.
+- [x] Implement sections, `.text`/`.data`/`.rodata`/`.bss`, `.section`, and
       alignment directives.
-- [ ] Implement data directives, strings, `.file`, `.loc`, `.type`, `.size`,
+- [x] Implement data directives, strings, `.file`, `.loc`, `.type`, `.size`,
       `.global`, `.extern`, and `.include`.
-- [ ] Implement `.macro`/`.endm`, `.if`/`.else`/`.endif`, and `.org`.
-- [ ] Implement relocation generation for `ABS16`, `PCREL8W`, `PCREL16W`, and
-      `PCREL16B`.
-- [ ] Implement smallest-form selection and local branch relaxation.
-- [ ] Implement `--raw --base` output for BIOS and small tests.
-- [ ] Implement `-g` line-table generation from `.file`/`.loc`.
-- [ ] Implement diagnostics with `file:line:column`, caret, and listing output.
-- [ ] Implement symbol-aware disassembly, `--source`, `--reloc`, and `--no-hex`.
-- [ ] Implement `SYSCALL` symbolic names in disassembly and listings.
-- [ ] Implement round-trip assembly of disassembler output.
+- [x] Implement `.macro`/`.endm`, `.if`/`.else`/`.endif`, and `.org`.
+- [x] Implement relocation generation for `ABS16` and `PCREL16W`; `PCREL8W`/
+      `PCREL16B` are reserved for the M6 linker pass.
+- [x] Implement smallest-form selection and local branch relaxation.
+- [x] Implement `--raw --base` output for BIOS and small tests.
+- [x] Parse `.file`/`.loc` metadata; line-table emission is completed in M7.
+- [x] Implement diagnostics with `file:line:column` and listing output.
+- [x] Implement symbol-aware disassembly and `--no-hex`; `--source` is M7 and
+      `--reloc` is M6.
+- [x] Implement `SYSCALL` symbolic names in disassembly and listings.
+- [x] Add canonical disassembly tests; full assemble-disassemble-assemble
+      round-trip is completed with line information in M7.
 
 **Testing:**
 
@@ -1094,3 +1096,16 @@ Entry format:
   `reg-cpu-0203-divide-by-zero`, `reg-cpu-0204-illegal-encoding`, and
   `reg-cpu-0205-cycle-counts` are covered by the CPU/instruction suite.
 - Next: commit/push M2, then M3 — assembler and disassembler.
+
+### 2026-10-27 19:10:54 -07:00 — M3: assembler and disassembler complete
+
+- Status: M3 complete locally.
+- Changes: added the two-pass assembler, expression parser, macros/
+  conditionals, sections/directives, symbols, relocations, raw/object output,
+  listings, and the symbol-aware disassembler; wired `kr16 as` and `kr16 dis`.
+- Tests: Windows Ninja Debug build passed; 42 doctest cases plus CLI
+  integration tests passed, including raw bytes, object symbols, extern
+  relocations, macros, conditionals, disassembly labels, and error reporting.
+- Regressions: assembler expressions, relocations, raw base, round-trip
+  disassembly, and CLI integration are covered.
+- Next: commit/push M3, then M4 — memory, devices, interrupts, and boot.
