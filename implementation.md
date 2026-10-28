@@ -1957,3 +1957,11 @@ Entry format:
   linked it from the README; refreshed the debugger status text.
 - Remaining: `.debug_types`, 32-bit `long`, and M13 1.0.
 - Next: M13 release gate and remaining C gaps.
+
+### 2026-10-27 22:13:02 -07:00 — documentation handoff correction
+
+- The assembly manual is still being written by another session. It has been
+  untracked from this repository (the working file is preserved) and will be
+  committed by that session; the premature README link was removed.
+- Remaining: `.debug_types`, 32-bit `long`, and M13 1.0.
+- Next: M13 release gate and remaining C gaps.
