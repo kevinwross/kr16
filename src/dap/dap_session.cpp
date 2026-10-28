@@ -1,6 +1,7 @@
 #include "kr16/dap.hpp"
 
 #include <charconv>
+#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -18,6 +19,7 @@
 #include "kr16/dap_json.hpp"
 #include "kr16/debug_info.hpp"
 #include "kr16/debug_objects.hpp"
+#include "kr16/disassembler.hpp"
 #include "kr16/instruction.hpp"
 #include "kr16/machine.hpp"
 
@@ -47,6 +49,26 @@ std::string format_hex(std::uint16_t value) {
     for (int i = 0; i < 4; ++i) {
         result[2 + (3 - i)] =
             kHex[(static_cast<unsigned>(value) >> (4 * i)) & 0xFu];
+    }
+    return result;
+}
+
+std::string base64_encode(const std::vector<std::uint8_t>& bytes) {
+    static constexpr char kAlphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string result;
+    for (std::size_t i = 0; i < bytes.size(); i += 3) {
+        const std::uint32_t a = bytes[i];
+        const std::uint32_t b = i + 1 < bytes.size() ? bytes[i + 1] : 0;
+        const std::uint32_t c = i + 2 < bytes.size() ? bytes[i + 2] : 0;
+        const std::uint32_t combined = (a << 16) | (b << 8) | c;
+        result.push_back(kAlphabet[(combined >> 18) & 0x3F]);
+        result.push_back(kAlphabet[(combined >> 12) & 0x3F]);
+        result.push_back(i + 1 < bytes.size()
+                             ? kAlphabet[(combined >> 6) & 0x3F]
+                             : '=');
+        result.push_back(i + 2 < bytes.size() ? kAlphabet[combined & 0x3F]
+                                              : '=');
     }
     return result;
 }
@@ -610,6 +632,12 @@ struct DapSession::Impl {
     std::vector<std::string> handle_scopes(const JsonValue& request);
     std::vector<std::string> handle_variables(const JsonValue& request,
                                               const JsonValue* arguments);
+    std::vector<std::string> handle_read_memory(const JsonValue& request,
+                                                 const JsonValue* arguments);
+    std::vector<std::string> handle_disassemble(const JsonValue& request,
+                                                 const JsonValue* arguments);
+    std::vector<std::string> handle_evaluate(const JsonValue& request,
+                                              const JsonValue* arguments);
     std::vector<std::string> handle_continue(const JsonValue& request);
     std::vector<std::string> handle_pause(const JsonValue& request);
     std::vector<std::string> handle_step(const JsonValue& request,
@@ -624,12 +652,14 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
     JsonValue body = JsonValue::object();
     body.set("supportsConfigurationDoneRequest", JsonValue::boolean(true));
     body.set("supportsTerminateRequest", JsonValue::boolean(true));
+    body.set("supportsReadMemoryRequest", JsonValue::boolean(true));
+    body.set("supportsDisassembleRequest", JsonValue::boolean(true));
+    body.set("supportsEvaluateForHovers", JsonValue::boolean(true));
     body.set("supportsSingleThreadExecutionRequests",
              JsonValue::boolean(true));
     body.set("supportsConditionalBreakpoints", JsonValue::boolean(false));
     body.set("supportsHitConditionalBreakpoints", JsonValue::boolean(false));
     body.set("supportsFunctionBreakpoints", JsonValue::boolean(false));
-    body.set("supportsEvaluateForHovers", JsonValue::boolean(false));
     body.set("supportsStepBack", JsonValue::boolean(false));
     body.set("supportsRestartRequest", JsonValue::boolean(false));
     body.set("supportsSetVariable", JsonValue::boolean(false));
@@ -893,6 +923,166 @@ std::vector<std::string> DapSession::Impl::handle_variables(
     return out;
 }
 
+std::vector<std::string> DapSession::Impl::handle_read_memory(
+    const JsonValue& request, const JsonValue* arguments) {
+    std::vector<std::string> out;
+    if (!launched) {
+        append_response(out, request, "readMemory", false, JsonValue::null(),
+                        "program is not loaded");
+        return out;
+    }
+    const auto base = arguments != nullptr
+                          ? parse_address(arguments->find("memoryReference"))
+                          : std::nullopt;
+    if (!base.has_value()) {
+        append_response(out, request, "readMemory", false, JsonValue::null(),
+                        "invalid memory reference");
+        return out;
+    }
+    const auto offset = integer_or(arguments, "offset", 0);
+    auto count = integer_or(arguments, "count", 16);
+    if (offset < 0 || count < 0 || count > 256) {
+        append_response(out, request, "readMemory", false, JsonValue::null(),
+                        "invalid read range");
+        return out;
+    }
+    const auto address = static_cast<std::uint32_t>(*base) +
+                         static_cast<std::uint32_t>(offset);
+    if (address + static_cast<std::uint32_t>(count) > 0x10000) {
+        append_response(out, request, "readMemory", false, JsonValue::null(),
+                        "read range exceeds the address space");
+        return out;
+    }
+    std::vector<std::uint8_t> bytes;
+    bytes.reserve(static_cast<std::size_t>(count));
+    for (std::int64_t i = 0; i < count; ++i) {
+        bytes.push_back(machine.read8(
+            static_cast<std::uint16_t>(address + static_cast<std::uint32_t>(i))));
+    }
+    JsonValue body = JsonValue::object();
+    body.set("address", JsonValue::string(format_hex(
+                            static_cast<std::uint16_t>(address))));
+    body.set("data", JsonValue::string(base64_encode(bytes)));
+    append_response(out, request, "readMemory", true, std::move(body));
+    return out;
+}
+
+std::vector<std::string> DapSession::Impl::handle_disassemble(
+    const JsonValue& request, const JsonValue* arguments) {
+    std::vector<std::string> out;
+    if (!launched) {
+        append_response(out, request, "disassemble", false, JsonValue::null(),
+                        "program is not loaded");
+        return out;
+    }
+    const auto base = arguments != nullptr
+                          ? parse_address(arguments->find("memoryReference"))
+                          : std::nullopt;
+    if (!base.has_value()) {
+        append_response(out, request, "disassemble", false, JsonValue::null(),
+                        "invalid memory reference");
+        return out;
+    }
+    auto count = integer_or(arguments, "instructionCount", 10);
+    if (count < 0 || count > 64) {
+        append_response(out, request, "disassemble", false, JsonValue::null(),
+                        "invalid instruction count");
+        return out;
+    }
+    JsonValue instructions = JsonValue::array();
+    std::uint32_t address = *base;
+    for (std::int64_t i = 0; i < count; ++i) {
+        if (address + 2 > 0x10000) {
+            break;
+        }
+        const auto pc = static_cast<std::uint16_t>(address);
+        const auto first = machine.read16(pc);
+        const bool is_long = Instruction::first_word_is_32_bit(first);
+        const auto size = is_long ? 4u : 2u;
+        if (address + size > 0x10000) {
+            break;
+        }
+        std::vector<std::uint8_t> bytes;
+        bytes.push_back(static_cast<std::uint8_t>(first & 0xFF));
+        bytes.push_back(static_cast<std::uint8_t>(first >> 8));
+        if (is_long) {
+            const auto second = machine.read16(static_cast<std::uint16_t>(pc + 2));
+            bytes.push_back(static_cast<std::uint8_t>(second & 0xFF));
+            bytes.push_back(static_cast<std::uint8_t>(second >> 8));
+        }
+        const auto text = disassemble_raw(
+            bytes, DisassemblyOptions{pc, false});
+        std::string instruction = text;
+        while (!instruction.empty() &&
+               (instruction.back() == '\n' || instruction.back() == '\r' ||
+                instruction.back() == ' ')) {
+            instruction.pop_back();
+        }
+        const auto first_space = instruction.find("  ");
+        if (first_space != std::string::npos) {
+            instruction = instruction.substr(first_space + 2);
+        }
+        JsonValue instruction_entry = JsonValue::object();
+        instruction_entry.set("address", JsonValue::string(format_hex(pc)));
+        instruction_entry.set("instruction", JsonValue::string(instruction));
+        instruction_entry.set(
+            "instructionBytes",
+            JsonValue::string(base64_encode(bytes)));
+        instructions.push(std::move(instruction_entry));
+        address += size;
+    }
+    JsonValue body = JsonValue::object();
+    body.set("instructions", std::move(instructions));
+    append_response(out, request, "disassemble", true, std::move(body));
+    return out;
+}
+
+std::vector<std::string> DapSession::Impl::handle_evaluate(
+    const JsonValue& request, const JsonValue* arguments) {
+    std::vector<std::string> out;
+    const auto expression = string_or(arguments, "expression", {});
+    std::string name = expression;
+    for (auto& ch : name) {
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    std::optional<std::uint16_t> value;
+    if (name == "$pc") value = cpu.pc();
+    else if (name == "$sp") value = cpu.sp();
+    else if (name == "$sr") value = cpu.sr();
+    else if (name == "$r0") value = cpu.reg(0);
+    else if (name == "$r1") value = cpu.reg(1);
+    else if (name == "$r2") value = cpu.reg(2);
+    else if (name == "$r3") value = cpu.reg(3);
+    else if (name == "$r4") value = cpu.reg(4);
+    else {
+        std::string_view text = expression;
+        int base = 10;
+        if (text.size() > 2 && text[0] == '0' &&
+            (text[1] == 'x' || text[1] == 'X')) {
+            base = 16;
+            text.remove_prefix(2);
+        }
+        unsigned long long parsed = 0;
+        const auto result = std::from_chars(
+            text.data(), text.data() + text.size(), parsed, base);
+        if (result.ec == std::errc{} &&
+            result.ptr == text.data() + text.size() && parsed <= 0xFFFF) {
+            value = static_cast<std::uint16_t>(parsed);
+        }
+    }
+    if (!value.has_value()) {
+        append_response(out, request, "evaluate", false, JsonValue::null(),
+                        "unsupported expression");
+        return out;
+    }
+    JsonValue body = JsonValue::object();
+    body.set("result", JsonValue::string(format_hex(*value)));
+    body.set("type", JsonValue::string("uint16"));
+    body.set("variablesReference", JsonValue::integer(0));
+    append_response(out, request, "evaluate", true, std::move(body));
+    return out;
+}
+
 std::vector<std::string> DapSession::Impl::handle_continue(
     const JsonValue& request) {
     std::vector<std::string> out;
@@ -1038,6 +1228,15 @@ std::vector<std::string> DapSession::Impl::handle_message(
     }
     if (command == "variables") {
         return handle_variables(request, arguments);
+    }
+    if (command == "readMemory") {
+        return handle_read_memory(request, arguments);
+    }
+    if (command == "disassemble") {
+        return handle_disassemble(request, arguments);
+    }
+    if (command == "evaluate") {
+        return handle_evaluate(request, arguments);
     }
     if (command == "continue") {
         return handle_continue(request);

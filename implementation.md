@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Partial (DAP + VS Code core) | Debug-session gate |
+| M11 | DAP and VS Code extension | Partial (DAP/VS Code + memory/disassembly/evaluate) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Partial (Windows 0.1.0 RC; Linux CI pending) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC/classroom; 1.0 pending) | 1.0 gate |
 
@@ -735,7 +735,9 @@ its console I/O.
 - [x] Implement source/address breakpoints.
 - [x] Implement continue, pause, step in/over/out, and single instruction.
 - [x] Implement stack walks, scopes, registers, and variable views.
-- [ ] Implement memory, disassembly, evaluate/watch, and host-call trace.
+- [x] Implement memory reads, disassembly, and simple `$pc`/`$sp`/register
+      evaluate views.
+- [ ] Implement watch expressions and host-call trace views.
 - [ ] Implement function-entry breakpoints after the prologue.
 - [ ] Keep program output on the terminal; DAP output is debugger messages only.
 - [x] Build the separate `vscode/` extension with
@@ -1313,3 +1315,16 @@ Entry format:
   output was `Hello, KR16!` with exit 0.
 - Remaining: Linux/sanitizer matrix, live VS Code session, advanced DAP views,
   1.0 tag/release.
+
+### 2026-10-27 19:59:25 -07:00 — M11: memory, disassembly, and evaluate requests
+
+- Status: M11 advanced DAP views partially complete.
+- Changes: added `readMemory` (base64 bytes), `disassemble` (decoded instruction
+  ranges), and `evaluate` (`$pc`, `$sp`, `$sr`, `$r0`–`$r4`, numeric literals),
+  plus capability flags; extended the live DAP smoke test to exercise all
+  three.
+- Tests: Windows Debug 24/24 CTest; `kr16.dap.smoke` passes with
+  initialize/launch/step/evaluate/readMemory/disassemble/threads/disconnect.
+- Remaining: watch expressions, host-call trace view, function-entry
+  breakpoints, Linux/sanitizer matrix, and 1.0 release.
+- Next: close remaining release gates and improve debugger coverage.

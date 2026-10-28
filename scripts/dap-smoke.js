@@ -142,6 +142,51 @@ function frame(value) {
     socket.write(frame({
       seq: 4,
       type: 'request',
+      command: 'evaluate',
+      arguments: { expression: '$pc', context: 'hover' }
+    }));
+    const evaluated = await waitFor((m) => m.type === 'response' &&
+                                           m.command === 'evaluate',
+                                     'evaluate response');
+    if (!evaluated.success || !evaluated.body ||
+        typeof evaluated.body.result !== 'string') {
+      console.error('evaluate response is malformed');
+      stop(1);
+    }
+
+    socket.write(frame({
+      seq: 5,
+      type: 'request',
+      command: 'readMemory',
+      arguments: { memoryReference: '0x0100', count: 4, offset: 0 }
+    }));
+    const memory = await waitFor((m) => m.type === 'response' &&
+                                       m.command === 'readMemory',
+                                 'readMemory response');
+    if (!memory.success || !memory.body || typeof memory.body.data !== 'string') {
+      console.error('readMemory response is malformed');
+      stop(1);
+    }
+
+    socket.write(frame({
+      seq: 6,
+      type: 'request',
+      command: 'disassemble',
+      arguments: { memoryReference: '0x0100', instructionCount: 1 }
+    }));
+    const disassembly = await waitFor((m) => m.type === 'response' &&
+                                           m.command === 'disassemble',
+                                     'disassemble response');
+    if (!disassembly.success || !disassembly.body ||
+        !Array.isArray(disassembly.body.instructions) ||
+        disassembly.body.instructions.length !== 1) {
+      console.error('disassemble response is malformed');
+      stop(1);
+    }
+
+    socket.write(frame({
+      seq: 7,
+      type: 'request',
       command: 'threads',
       arguments: {}
     }));
@@ -154,7 +199,7 @@ function frame(value) {
     }
 
     socket.write(frame({
-      seq: 5,
+      seq: 8,
       type: 'request',
       command: 'disconnect',
       arguments: {}
