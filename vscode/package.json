@@ -99,5 +99,12 @@
         ]
       }
     ]
+  },
+  "scripts": {
+    "test": "node test/runTest.js"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "^3.1.0",
+    "mocha": "^12.0.3"
   }
 }

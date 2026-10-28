@@ -43,7 +43,7 @@ Rules:
 | M8 | C front end | Partial (teaching subset) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
-| M11 | DAP and VS Code extension | Partial (DAP/VS Code; live session and threading pending) | Debug-session gate |
+| M11 | DAP and VS Code extension | Partial (DAP/VS Code verified; locals/threading pending) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Complete (0.1.0 published, CI green) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Partial (0.1.0 published; 1.0 pending) | 1.0 gate |
 
@@ -748,6 +748,7 @@ its console I/O.
       manual attach.
 - [x] Package the extension with `vsce`; the adapter keeps the program console
       visible in the integrated terminal.
+- [x] Verify a live VS Code debug session with the extension test host.
 - [x] Add scripted DAP session/JSON/framing tests.
 
 **Testing:**
@@ -1461,3 +1462,17 @@ Entry format:
   deterministic archive and extracted-archive smoke were verified earlier.
 - Remaining: M11 live VS Code/threading, M13 1.0 tag and full C99.
 - Next: tag/publish the 0.1.0 candidate and continue M13 hardening.
+
+### 2026-10-27 20:45:25 -07:00 — M11: live VS Code session verified
+
+- Status: live VS Code debug session passes in the Extension Development Host.
+- Root causes fixed: PowerShell needed the `&` call operator; the extension
+  was probing the single-client DAP socket and consuming VS Code's connection.
+  The server now writes a `--ready-file` marker after binding, and the
+  extension waits for that marker instead of connecting.
+- Test: `vscode/test` launches a real VS Code host, starts the KR16 debug
+  session, holds it for 4 seconds, and stops it; result 1 passing (7.5s).
+- Screenshot: `docs/images/vscode-debug-session.png` shows the live session,
+  debug toolbar, and KR16 DAP terminal.
+- Remaining: locals/parameters/globals views, threaded console coordination,
+  and M13 1.0.

@@ -2,6 +2,8 @@
 
 Minimal VS Code debug adapter integration for KR16.
 
+![KR16 debug session](../docs/images/vscode-debug-session.png)
+
 ## Launch configuration
 
 ```json
@@ -38,3 +40,28 @@ The debugger supports initialize/launch/configurationDone, source and address
 breakpoints, continue, pause, step in/over/out, stack frames, register scopes,
 and disconnect. Memory/disassembly/evaluate views and function-entry
 breakpoints are not implemented yet.
+
+## Integration test
+
+The extension test launches a real VS Code Extension Development Host and
+starts a KR16 debug session:
+
+```text
+npm install
+KR16_TEST_PROGRAM=<absolute path to hello.kex> \
+KR16_TEST_EXE=<absolute path to kr16> \
+npm test
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:KR16_TEST_PROGRAM = (Resolve-Path "..\build\windows-ninja\tests\hello.kex").Path
+$env:KR16_TEST_EXE = (Resolve-Path "..\build\windows-ninja\kr16.exe").Path
+npm test
+```
+
+The adapter writes a readiness marker next to the program after binding its
+TCP port; the extension waits for that marker instead of probing the
+single-client socket.
+

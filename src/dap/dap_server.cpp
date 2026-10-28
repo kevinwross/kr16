@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <span>
@@ -164,6 +165,11 @@ int DapServer::run(std::uint16_t port) {    std::string error;
     }
     std::cerr << "kr16 dap: listening on 127.0.0.1:" << listener->local_port()
               << '\n';
+    if (!options_.ready_file.empty()) {
+        std::ofstream ready(options_.ready_file);
+        ready << listener->local_port() << '\n';
+        ready.close();
+    }
 
     auto client = listener->accept(error);
     if (!client.has_value()) {

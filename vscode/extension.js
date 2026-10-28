@@ -1,6 +1,7 @@
 'use strict';
 
-const net = require('net');
+const fs = require('fs');
+const path = require('path');
 const vscode = require('vscode');
 
 function shellQuote(value) {
@@ -12,33 +13,6 @@ function shellQuote(value) {
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function canConnect(port) {
-  return new Promise((resolve) => {
-    const socket = net.connect({ host: '127.0.0.1', port }, () => {
-      socket.destroy();
-      resolve(true);
-    });
-    socket.on('error', () => {
-      socket.destroy();
-      resolve(false);
-    });
-    socket.setTimeout(250, () => {
-      socket.destroy();
-      resolve(false);
-    });
-  });
-}
-
-async function waitForAdapter(port) {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    if (await canConnect(port)) {
-      return true;
-    }
-    await delay(100);
-  }
-  return false;
 }
 
 class Kr16DescriptorFactory {
@@ -67,20 +41,51 @@ class Kr16DescriptorFactory {
       });
       terminal.show(true);
       const args = Array.isArray(configuration.args) ? configuration.args : [];
+      const readyFile = path.join(
+        path.dirname(program),
+        '.kr16-dap-' + process.pid + '-' + port + '-' + Date.now() + '.ready'
+      );
+      try {
+        fs.unlinkSync(readyFile);
+      } catch (_) {
+        // Nothing to clean up.
+      }
       const command = [
         shellQuote(executable),
         'dap',
         '--port',
         String(port),
+        '--ready-file',
+        shellQuote(readyFile),
         shellQuote(program),
         ...args.map(shellQuote)
       ].join(' ');
-      terminal.sendText(command, true);
+      const shell = (vscode.env.shell || '').toLowerCase();
+      const needsCallOperator =
+        process.platform === 'win32' &&
+        (shell.includes('powershell') || shell.includes('pwsh'));
+      terminal.sendText((needsCallOperator ? '& ' : '') + command, true);
       this.context.subscriptions.push(terminal);
-      const ready = await waitForAdapter(port);
-      if (!ready) {
+      // The server writes a readiness marker after binding. Do not probe the
+      // TCP port: the DAP server accepts exactly one client, so a probe would
+      // consume the connection VS Code needs.
+      let ready = false;
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        if (fs.existsSync(readyFile)) {
+          ready = true;
+          break;
+        }
+        await delay(100);
+      }
+      if (ready) {
+        try {
+          fs.unlinkSync(readyFile);
+        } catch (_) {
+          // The server may already have removed it.
+        }
+      } else {
         throw new Error(
-          'KR16: DAP server did not start on 127.0.0.1:' +
+          'KR16: DAP server did not become ready on 127.0.0.1:' +
             port +
             '; check the KR16 DAP terminal'
         );
@@ -128,3 +133,4 @@ function activate(context) {
 function deactivate() {}
 
 module.exports = { activate, deactivate };
+

@@ -20,6 +20,8 @@ struct DapOptions {
     std::string bios_path;
     bool no_bios = false;
     bool stop_on_entry = true;
+    // Optional readiness marker written after the TCP listener is bound.
+    std::string ready_file;
     // Bound for a single continue/step request so a runaway guest cannot hang
     // the adapter. Reaching the limit reports a paused stop.
     std::uint64_t max_run_instructions = 1'000'000;

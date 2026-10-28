@@ -666,6 +666,12 @@ int run_dap_command(int argc, char** argv) {
             options.bios_path = argv[i];
         } else if (argument == "--no-bios") {
             options.no_bios = true;
+        } else if (argument == "--ready-file") {
+            if (++i >= argc) {
+                std::cerr << "kr16 dap: --ready-file needs a path\n";
+                return 2;
+            }
+            options.ready_file = argv[i];
         } else if (argument == "--stop-on-entry") {
             options.stop_on_entry = true;
         } else if (argument == "--no-stop-on-entry") {
@@ -675,6 +681,7 @@ int run_dap_command(int argc, char** argv) {
                          "  --raw --base addr      load a raw image\n"
                          "  --bios path            load a 3.75 KiB BIOS ROM\n"
                          "  --no-bios              start directly at the entry point\n"
+                         "  --ready-file path      write a marker after binding\n"
                          "  --stop-on-entry        report a stopped/entry event\n"
                          "  --no-stop-on-entry     run silently until a breakpoint\n";
             return 0;
