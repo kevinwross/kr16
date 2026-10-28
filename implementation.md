@@ -45,7 +45,7 @@ Rules:
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Partial (DAP/VS Code + memory/disassembly/evaluate) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Partial (Windows 0.1.0 RC; Linux CI pending) | Release-candidate gate |
-| M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC/classroom; 1.0 pending) | 1.0 gate |
+| M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC, Linux/sanitizer matrix verified; 1.0 pending) | 1.0 gate |
 
 Dependency order:
 
@@ -843,7 +843,8 @@ ship `1.0.0`.
 - [x] Add examples and curriculum notes for assembly, C, and interrupts.
 - [ ] Polish diagnostics and error messages.
 - [x] Run the Windows Debug and Release regression matrix.
-- [ ] Run the full regression suite on Linux and sanitizers.
+- [x] Run the full regression suite on Windows Debug/Release, Linux Debug,
+      and Linux GCC ASan/UBSan.
 - [x] Perform a Windows classroom smoke test: extract the release archive,
       compile, assemble, link, and run the hello example.
 - [x] Verify deterministic Windows release artifact and SHA256SUMS.
@@ -1328,3 +1329,16 @@ Entry format:
 - Remaining: watch expressions, host-call trace view, function-entry
   breakpoints, Linux/sanitizer matrix, and 1.0 release.
 - Next: close remaining release gates and improve debugger coverage.
+
+### 2026-10-27 20:02:12 -07:00 — M13: Linux and sanitizer matrix verification
+
+- Status: Windows Debug/Release, Linux GCC Debug, and Linux GCC ASan/UBSan all
+  pass locally.
+- Changes: fixed GCC `-Werror` findings in instruction encoding and the CPU
+  test helper; DAP advanced views remain in the prior commit.
+- Evidence: WSL Ubuntu GCC 15.2 built with Unix Makefiles; Linux Debug 23/23
+  CTest passed; Linux ASan/UBSan 23/23 CTest passed; Windows Debug 24/24 and
+  Release 24/24 passed.
+- Remaining: actual GitHub-hosted matrix run, 1.0 tag/release, and the full C99
+  subset work.
+- Next: final release gate preparation.

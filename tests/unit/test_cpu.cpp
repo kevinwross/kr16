@@ -16,10 +16,6 @@ void emit(kr16::FlatMemory& memory, std::uint16_t address,
     }
 }
 
-void set_pc(kr16::Cpu& cpu, std::uint16_t pc) {
-    cpu.set_pc(pc);
-}
-
 kr16::Instruction mov_imm(std::uint8_t rd, std::int32_t imm) {
     kr16::Instruction instruction;
     instruction.op = kr16::Op::Mov;

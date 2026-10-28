@@ -119,17 +119,6 @@ std::int64_t integer_or(const JsonValue* object, std::string_view key,
     return value->as_integer();
 }
 
-bool boolean_or(const JsonValue* object, std::string_view key, bool fallback) {
-    if (object == nullptr) {
-        return fallback;
-    }
-    const JsonValue* value = object->find(key);
-    if (value == nullptr || !value->is_boolean()) {
-        return fallback;
-    }
-    return value->as_boolean();
-}
-
 std::string string_or(const JsonValue* object, std::string_view key,
                       const std::string& fallback) {
     if (object == nullptr) {

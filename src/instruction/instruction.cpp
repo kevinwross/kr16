@@ -150,11 +150,6 @@ std::uint8_t memory_index_ext(Op op) {
     }
 }
 
-bool is_byte_memory(Op op) {
-    return op == Op::LoadByte || op == Op::LoadSignedByte ||
-           op == Op::StoreByte;
-}
-
 Op r_decode(std::uint8_t func) {
     switch (func) {
         case 0: return Op::Add;
@@ -396,7 +391,6 @@ std::vector<std::uint16_t> Instruction::encode() const {
             words.push_back(c_type(12, 0, 0));
             break;
         case Op::Syscall:
-            require(n <= 255, "syscall number out of range");
             words.push_back(static_cast<std::uint16_t>(0x8F00u | n));
             break;
         case Op::Invalid:
