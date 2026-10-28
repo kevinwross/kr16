@@ -1592,6 +1592,9 @@ private:
                                         : "  LD R0, [R0]\n");
                 return;
             }
+            case Expr::Kind::InitList:
+                out << "  MOV R0, #0\n";
+                return;
             case Expr::Kind::Conditional: {
                 const auto else_label = new_label("condelse");
                 const auto end = new_label("condend");
