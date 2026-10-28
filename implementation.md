@@ -44,8 +44,8 @@ Rules:
 | M9 | C backend, ABI, and runtime | Partial (teaching subset) | C execution gate |
 | M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Partial (DAP + VS Code core) | Debug-session gate |
-| M12 | Bootstrap, CI, and release | Partial (resources, BIOS, packaging scripts) | Release-candidate gate |
-| M13 | Hardening, curriculum, `1.0.0` | Partial (docs) | 1.0 gate |
+| M12 | Bootstrap, CI, and release | Partial (Windows 0.1.0 RC; Linux CI pending) | Release-candidate gate |
+| M13 | Hardening, curriculum, `1.0.0` | Partial (Windows RC/classroom; 1.0 pending) | 1.0 gate |
 
 Dependency order:
 
