@@ -898,12 +898,13 @@ Tracked but intentionally outside `1.0.0`:
 ## 9. Log
 
 Append-only. Add a new entry at the bottom at the end of each work session.
+Each entry starts with the local date and time, including the UTC offset.
 Do not rewrite previous entries; corrections belong in a new entry.
 
 Entry format:
 
 ```text
-### YYYY-MM-DD — <milestone or summary>
+### YYYY-MM-DD HH:MM:SS ±HH:MM — <milestone or summary>
 - Status:
 - Changes:
 - Tests:
@@ -911,11 +912,20 @@ Entry format:
 - Next:
 ```
 
-### 2026-10-27 — Implementation plan created
+### 2026-10-27 18:32:56 -07:00 — Implementation plan created
 
 - Status: planning complete; M0 not started.
 - Changes: created `implementation.md` with milestones, task lists, testing,
   regression expectations, release gates, and a log.
 - Tests: none; planning only.
+- Regressions: none.
+- Next: start M0 — repository/build skeleton and ISA freeze.
+
+### 2026-10-27 18:37:42 -07:00 — Log timestamp format updated
+
+- Status: documentation-only change.
+- Changes: Section 9 now requires a local date, time, and UTC offset on every
+  entry; the initial entry was updated to the same format.
+- Tests: none; Markdown-only.
 - Regressions: none.
 - Next: start M0 — repository/build skeleton and ISA freeze.
