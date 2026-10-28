@@ -1748,3 +1748,13 @@ Entry format:
   variadic definitions, struct parameters/returns, `long`, full libc, and
   M13 1.0.
 - Next: continue M11 locals and C subset.
+
+### 2026-10-27 21:34:53 -07:00 — M8: macro stringification
+
+- Status: added the preprocessor `#` stringification operator for macro
+  parameters.
+- Changes: parameter substitution emits an escaped string literal for `#param`.
+- Tests: compiler/libc suite; `#define STR(x) #x` produces `"hello"`.
+- Remaining: `##`, `#line`, pragmas, variadic definitions, struct parameters/
+  returns, locals views, and M13 1.0.
+- Next: continue preprocessor/M11 work.

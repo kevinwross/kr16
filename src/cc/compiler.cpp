@@ -158,6 +158,39 @@ std::string substitute_macro(const std::string& body,
             }
             continue;
         }
+        if (ch == '#' && (i + 1 >= body.size() || body[i + 1] != '#')) {
+            std::size_t next = i + 1;
+            while (next < body.size() &&
+                   std::isspace(static_cast<unsigned char>(body[next])) != 0) {
+                ++next;
+            }
+            const std::size_t start = next;
+            while (next < body.size() &&
+                   (std::isalnum(static_cast<unsigned char>(body[next])) != 0 ||
+                    body[next] == '_')) {
+                ++next;
+            }
+            const std::string name = body.substr(start, next - start);
+            bool replaced = false;
+            for (std::size_t p = 0; p < params.size(); ++p) {
+                if (params[p] == name && p < args.size()) {
+                    out += '"';
+                    for (const char arg_ch : args[p]) {
+                        if (arg_ch == '\\' || arg_ch == '"') {
+                            out += '\\';
+                        }
+                        out += arg_ch;
+                    }
+                    out += '"';
+                    i = next;
+                    replaced = true;
+                    break;
+                }
+            }
+            if (replaced) {
+                continue;
+            }
+        }
         if (std::isalpha(static_cast<unsigned char>(ch)) != 0 || ch == '_') {
             const std::size_t start = i;
             while (i < body.size() &&

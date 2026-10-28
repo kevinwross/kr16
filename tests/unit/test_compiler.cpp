@@ -293,6 +293,9 @@ TEST_CASE("compiled control flow works") {
     CHECK(run_c_with_libc("#include <stdio.h>\n"
                           "int main(void) { putchar('A'); return 0; }\n") ==
           "A");
+    CHECK(run_c_with_libc("#define STR(x) #x\n"
+                          "int main(void) { puts(STR(hello)); return 0; }\n") ==
+          "hello\n");
 }
 
 TEST_CASE("compiled C calls libc") {

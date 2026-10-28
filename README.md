@@ -28,12 +28,12 @@ C or assembly → .o → .kex → VM
 ```
 
 The C compiler currently implements a teaching subset: `int`/`char`, pointers,
-arrays, function/variadic prototypes, object/function macros, conditionals, local `#include`, built-in system headers, `-I` include paths,  local/global variables, `if`/`else`, `while`, `do`/`while`,
+arrays, function/variadic prototypes, object/function macros, `#` stringification, conditionals, local `#include`, built-in system headers, `-I` include paths,  local/global variables, `if`/`else`, `while`, `do`/`while`,
 `for`, `switch`/`case`/`default`, `enum` constants/types, `typedef` aliases, `struct`/`union` members and aggregate initializers and inferred array sizes, self-referential struct pointers, compound assignments, `goto` labels,
 `return`, arithmetic/comparisons/logical operators, strings, and
 `main(argc, argv)`. A small `libc.s` provides `putchar`, `puts`, `getchar`,
 `printf` (`%d`, `%s`, `%c`, `%%`), and `exit`. `long`, variadic function
-definitions, the full preprocessor (`#`/`##`, `#line`, pragmas), the full `printf` family, and `malloc` are
+definitions, the full preprocessor (`##`, `#line`, pragmas), the full `printf` family, and `malloc` are
 not implemented yet.
 
 The DAP TCP server and a minimal VS Code extension are implemented. Advanced
@@ -113,6 +113,7 @@ host-call tests, and compiled-C end-to-end execution tests.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 
 
