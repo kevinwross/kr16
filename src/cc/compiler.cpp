@@ -25,7 +25,7 @@ struct CompileError : std::runtime_error {
     int column;
 };
 
-enum class TypeKind { Void, Char, Int, Pointer, Array, Struct };
+enum class TypeKind { Void, Char, Int, Pointer, Array, Struct, Union };
 
 struct Type;
 struct Member {
@@ -51,6 +51,13 @@ struct Type {
                 int total = 0;
                 for (const auto& member : members) {
                     total = std::max(total, member.offset + member.type->size());
+                }
+                return total;
+            }
+            case TypeKind::Union: {
+                int total = 0;
+                for (const auto& member : members) {
+                    total = std::max(total, member.type->size());
                 }
                 return total;
             }
@@ -399,6 +406,7 @@ private:
                text == "long" || text == "short" || text == "unsigned" ||
                text == "signed" || text == "const" || text == "static" ||
                text == "enum" || text == "typedef" || text == "struct" ||
+               text == "union" ||
                typedefs_.count(std::string(text)) != 0;
     }
 
@@ -445,6 +453,34 @@ private:
             const auto found = structs_.find(tag);
             if (found == structs_.end()) {
                 error("unknown struct '" + tag + "'");
+            }
+            return found->second;
+        }
+        if (accept("union")) {
+            std::string tag;
+            if (peek().kind == TokenKind::Identifier) {
+                tag = tokens_[position_++].text;
+            }
+            if (accept("{")) {
+                auto type = make_type(TypeKind::Union);
+                while (!check("}") && !at_end()) {
+                    auto member_type = parse_type();
+                    const std::string member_name = parse_name();
+                    expect(";");
+                    type->members.push_back(Member{member_name, member_type, 0});
+                }
+                expect("}");
+                if (!tag.empty()) {
+                    unions_[tag] = type;
+                }
+                return type;
+            }
+            if (tag.empty()) {
+                error("expected a union tag or body");
+            }
+            const auto found = unions_.find(tag);
+            if (found == unions_.end()) {
+                error("unknown union '" + tag + "'");
             }
             return found->second;
         }
@@ -1079,6 +1115,7 @@ private:
     std::unordered_map<std::string, std::int64_t> enum_constants_;
     std::unordered_map<std::string, std::shared_ptr<Type>> typedefs_;
     std::unordered_map<std::string, std::shared_ptr<Type>> structs_;
+    std::unordered_map<std::string, std::shared_ptr<Type>> unions_;
 };
 
 class Codegen {
@@ -1150,6 +1187,7 @@ private:
             } else if (global.init &&
                        global.init->kind == Expr::Kind::InitList &&
                        (global.type->kind == TypeKind::Struct ||
+                        global.type->kind == TypeKind::Union ||
                         global.type->kind == TypeKind::Array)) {
                 out << ".data\n";
                 out << ".align 2\n";
@@ -1160,7 +1198,8 @@ private:
                      i < global.init->children.size(); ++i) {
                     int offset = 0;
                     std::shared_ptr<Type> element_type = global.type;
-                    if (global.type->kind == TypeKind::Struct) {
+                    if (global.type->kind == TypeKind::Struct ||
+                        global.type->kind == TypeKind::Union) {
                         if (i >= global.type->members.size()) {
                             break;
                         }
@@ -1345,7 +1384,8 @@ private:
             if (expr->op == "->" && base->kind == TypeKind::Pointer) {
                 base = base->base;
             }
-            if (base && base->kind == TypeKind::Struct) {
+            if (base && (base->kind == TypeKind::Struct ||
+                    base->kind == TypeKind::Union)) {
                 for (const auto& member : base->members) {
                     if (member.name == expr->text) {
                         return member.type;
@@ -1410,12 +1450,14 @@ private:
                         }
                         if (decl.init->kind == Expr::Kind::InitList &&
                             (decl.type->kind == TypeKind::Struct ||
+                             decl.type->kind == TypeKind::Union ||
                              decl.type->kind == TypeKind::Array)) {
                             for (std::size_t i = 0; i < decl.init->children.size();
                                  ++i) {
                                 int offset = 0;
                                 std::shared_ptr<Type> element_type = decl.type;
-                                if (decl.type->kind == TypeKind::Struct) {
+                                if (decl.type->kind == TypeKind::Struct ||
+                                    decl.type->kind == TypeKind::Union) {
                                     if (i >= decl.type->members.size()) {
                                         break;
                                     }
@@ -1582,7 +1624,8 @@ private:
                 return;
             case Expr::Kind::Assign: {
                 const auto target_type = expression_type(expr->children[0].get());
-                if (target_type->kind == TypeKind::Struct) {
+                if (target_type->kind == TypeKind::Struct ||
+                    target_type->kind == TypeKind::Union) {
                     gen_addr(expr->children[0].get(), out);
                     out << "  PUSH R0\n";
                     gen_addr(expr->children[1].get(), out);
@@ -1732,7 +1775,8 @@ private:
                 base = base->base;
             }
             int offset = 0;
-            if (base && base->kind == TypeKind::Struct) {
+            if (base && (base->kind == TypeKind::Struct ||
+                    base->kind == TypeKind::Union)) {
                 for (const auto& member : base->members) {
                     if (member.name == expr->text) {
                         offset = member.offset;
@@ -1915,3 +1959,5 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+

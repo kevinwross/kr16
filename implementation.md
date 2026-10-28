@@ -1577,6 +1577,18 @@ Entry format:
   preprocessor/libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
 
+### 2026-10-27 21:08:05 -07:00 — M8: C union support
+
+- Status: added tagged/anonymous unions with shared member offsets, member
+  access, `sizeof`, and whole-union assignment.
+- Changes: `TypeKind::Union`, parser registry, max-member layout, member
+  handling in expression/assignment/initializer codegen.
+- Tests: compiler suite 9/9; overlapping `int`/`char` members and union size
+  covered.
+- Remaining: union member arrays, struct parameters/returns, `long`,
+  variadics, full preprocessor/libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.
+
 ### 2026-10-27 21:04:38 -07:00 — Linux -Werror follow-up
 
 - Fixed GCC `-Wswitch` on the new `InitList` expression kind; Linux Debug and
