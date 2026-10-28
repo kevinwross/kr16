@@ -1724,3 +1724,15 @@ Entry format:
 - Remaining: configurable system header paths, variadic definitions, struct
   parameters/returns, `long`, full libc, and M13 1.0.
 - Next: continue C subset and M11 locals views.
+
+### 2026-10-27 21:31:14 -07:00 — M8: -I include paths
+
+- Status: `kr16 cc -I dir` and `-Idir` search user header directories before
+  built-in headers for angular includes, and after the source directory for
+  quoted includes.
+- Changes: `CompileOptions::include_paths`; preprocessor search order; CLI
+  parsing/help.
+- Tests: compiler include test covers a custom header found via `-I`.
+- Remaining: variadic definitions, struct parameters/returns, `long`, full
+  libc, and M13 1.0.
+- Next: continue C subset and M11 locals views.

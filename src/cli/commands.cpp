@@ -545,7 +545,15 @@ int run_cc_command(int argc, char** argv) {
         } else if (argument == "-O0" || argument == "-std=c99" ||
                    argument == "-std=c11") {
             // Accepted; this compiler is always -O0 and C99-like.
-        } else if (argument == "-I" || argument == "-D" || argument == "-U") {
+        } else if (argument == "-I") {
+            if (++i >= argc) {
+                std::cerr << "kr16 cc: -I needs a path\n";
+                return 2;
+            }
+            options.include_paths.push_back(argv[i]);
+        } else if (argument.size() > 2 && argument.rfind("-I", 0) == 0) {
+            options.include_paths.push_back(argument.substr(2));
+        } else if (argument == "-D" || argument == "-U") {
             if (++i >= argc) {
                 std::cerr << "kr16 cc: " << argument << " needs a value\n";
                 return 2;
@@ -554,7 +562,8 @@ int run_cc_command(int argc, char** argv) {
             std::cerr << "kr16 cc: -E is not available in the subset compiler\n";
             return 2;
         } else if (argument == "--help" || argument == "-h") {
-            std::cout << "usage: kr16 cc file.c [-S|-c] [-o file] [-g]\n";
+            std::cout << "usage: kr16 cc file.c [-S|-c] [-o file] [-g] "
+                         "[-I dir]\n";
             return 0;
         } else if (!argument.empty() && argument.front() == '-') {
             std::cerr << "kr16 cc: unknown option " << argument << '\n';

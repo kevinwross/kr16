@@ -13,6 +13,7 @@ struct CompileDiagnostic {
 
 struct CompileOptions {
     std::string source_name = "<input>";
+    std::vector<std::string> include_paths;
     bool debug = false;
 };
 

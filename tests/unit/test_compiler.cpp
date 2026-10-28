@@ -137,6 +137,23 @@ TEST_CASE("compiler includes local headers") {
     std::filesystem::remove(header);
     REQUIRE(compiled.ok);
     CHECK(compiled.assembly.find("MOV R0, #7") != std::string::npos);
+
+    const auto incdir = dir / "kr16_incdir_test";
+    std::filesystem::create_directories(incdir);
+    {
+        std::ofstream output(incdir / "custom.h");
+        output << "#define CUSTOM_VALUE 9\n";
+    }
+    kr16::CompileOptions include_options;
+    include_options.source_name = (dir / "kr16_incdir_main.c").string();
+    include_options.include_paths.push_back(incdir.string());
+    const auto with_path = kr16::compile_c(
+        "#include <custom.h>\n"
+        "int main(void) { return CUSTOM_VALUE; }\n",
+        include_options);
+    std::filesystem::remove_all(incdir);
+    REQUIRE(with_path.ok);
+    CHECK(with_path.assembly.find("MOV R0, #9") != std::string::npos);
 }
 
 TEST_CASE("compiled C runs end-to-end") {

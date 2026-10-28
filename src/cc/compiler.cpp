@@ -301,6 +301,7 @@ std::string builtin_header(std::string_view name) {
 
 std::string preprocess_source_impl(
     const std::string& source, const std::string& base_dir,
+    const std::vector<std::string>& include_paths,
     std::map<std::string, Macro>& macros, int depth) {
     std::istringstream input(source);
     std::string line;
@@ -340,20 +341,29 @@ std::string preprocess_source_impl(
                     system_header = true;
                 }
                 bool included = false;
-                if (!system_header && !file.empty()) {
-                    std::filesystem::path path(file);
-                    if (path.is_relative()) {
-                        path = std::filesystem::path(base_dir) / path;
-                    }
+                auto include_file = [&](const std::filesystem::path& path) {
                     std::ifstream include(path, std::ios::binary);
-                    if (include.good()) {
-                        std::string included_text{
-                            std::istreambuf_iterator<char>(include),
-                            std::istreambuf_iterator<char>()};
-                        out += preprocess_source_impl(
-                            included_text, path.parent_path().string(), macros,
-                            depth + 1);
-                        included = true;
+                    if (!include.good()) {
+                        return false;
+                    }
+                    std::string included_text{
+                        std::istreambuf_iterator<char>(include),
+                        std::istreambuf_iterator<char>()};
+                    out += preprocess_source_impl(
+                        included_text, path.parent_path().string(),
+                        include_paths, macros, depth + 1);
+                    return true;
+                };
+                if (!system_header && !file.empty()) {
+                    included = include_file(
+                        std::filesystem::path(base_dir) / file);
+                }
+                if (!included && !file.empty()) {
+                    for (const auto& dir : include_paths) {
+                        if (include_file(std::filesystem::path(dir) / file)) {
+                            included = true;
+                            break;
+                        }
                     }
                 }
                 if (!included && !file.empty()) {
@@ -370,7 +380,8 @@ std::string preprocess_source_impl(
                         if (macros.count(guard) == 0) {
                             macros[guard] = Macro{};
                             out += preprocess_source_impl(
-                                header, base_dir, macros, depth + 1);
+                                header, base_dir, include_paths, macros,
+                                depth + 1);
                         }
                     }
                 }
@@ -464,9 +475,10 @@ std::string preprocess_source_impl(
 }
 
 std::string preprocess_source(const std::string& source,
-                              const std::string& base_dir) {
+                              const std::string& base_dir,
+                              const std::vector<std::string>& include_paths) {
     std::map<std::string, Macro> macros;
-    return preprocess_source_impl(source, base_dir, macros, 0);
+    return preprocess_source_impl(source, base_dir, include_paths, macros, 0);
 }
 
 class Lexer {
@@ -2443,7 +2455,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
             source_path.has_parent_path() ? source_path.parent_path().string()
                                           : "";
         const std::string preprocessed =
-            preprocess_source(source, base_dir);
+            preprocess_source(source, base_dir, options.include_paths);
         Lexer lexer(preprocessed);
         auto tokens = lexer.run();
         Parser parser(std::move(tokens), options.source_name);
