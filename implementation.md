@@ -2408,3 +2408,11 @@ Entry format:
 - Hovering a `char *` displays up to 16 characters of the pointed-to string,
   with `...` when longer or `<null>` for a null pointer.
 - Clicking a pointer variable's value routes that value into the memory pane.
+
+### 2026-10-28 — disassembly hover index fix
+
+- Hover detection stored the visible-row index, then the tooltip looked up that
+  index in the full disassembly vector. After scrolling, this showed help for a
+  completely different instruction.
+- Rows now carry their full disassembly index; hover highlighting and help use
+  that index. Scrolling also clears the stale hover.

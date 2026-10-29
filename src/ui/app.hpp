@@ -51,6 +51,7 @@ private:
     };
 
     struct AsmRow {
+        int index = 0;
         std::uint16_t address = 0;
         Rect rect;
         Rect mnemonic;

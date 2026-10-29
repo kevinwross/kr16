@@ -1054,7 +1054,7 @@ void App::draw_asm(Canvas& canvas) {
             }
         }
         asm_rows_.push_back(
-            AsmRow{instruction.address, line_rect, mnemonic_rect,
+            AsmRow{index, instruction.address, line_rect, mnemonic_rect,
                    operand_rect});
         text_right(canvas, asm_text_.left + kAsmGutter - 8, y + 1,
                    hex4(instruction.address), kTextDim, FontRole::Mono);
@@ -1642,12 +1642,12 @@ void App::event(const Event& event) {
         bool help_operand = false;
         for (std::size_t i = 0; i < asm_rows_.size(); ++i) {
             if (asm_rows_[i].mnemonic.contains(move->position)) {
-                help_index = static_cast<int>(i);
+                help_index = asm_rows_[i].index;
                 help_operand = false;
                 break;
             }
             if (asm_rows_[i].operand.contains(move->position)) {
-                help_index = static_cast<int>(i);
+                help_index = asm_rows_[i].index;
                 help_operand = true;
                 break;
             }
@@ -1678,6 +1678,8 @@ void App::event(const Event& event) {
         hover_memory_byte_ = -1;
         hover_step_reset_ = false;
         hover_settings_ = false;
+        hover_asm_index_ = -1;
+        hover_asm_operand_ = false;
         scroll_drag_ = ScrollPane::None;
         window_.invalidate();
         return;
@@ -1819,10 +1821,14 @@ void App::event(const Event& event) {
         if (source_text_.contains(wheel->position)) {
             source_scroll_ += steps;
             source_scroll_ = std::max(0, source_scroll_);
+            hover_asm_index_ = -1;
+            hover_asm_operand_ = false;
             window_.invalidate();
         } else if (asm_text_.contains(wheel->position)) {
             asm_scroll_ += steps;
             asm_scroll_ = std::max(0, asm_scroll_);
+            hover_asm_index_ = -1;
+            hover_asm_operand_ = false;
             window_.invalidate();
         }
         return;
@@ -2119,6 +2125,10 @@ App::ScrollBarState& App::scroll_bar(ScrollPane pane) {
 }
 
 void App::set_scroll_offset(ScrollPane pane, int offset) {
+    if (pane == ScrollPane::Asm) {
+        hover_asm_index_ = -1;
+        hover_asm_operand_ = false;
+    }
     ScrollBarState& bar = scroll_bar(pane);
     const int value = std::clamp(offset, 0, bar.max_offset);
     switch (pane) {
