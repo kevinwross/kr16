@@ -17,6 +17,11 @@ struct VmOptions {
     bool stats = false;
     bool realtime = false;
     bool trace_syscalls = false;
+    std::string fs_root = "sandbox";
+    bool fs_root_explicit = false;
+    bool fs_readonly = false;
+    bool no_host_fs = false;
+    std::uint32_t fs_quota = 5u * 1024u * 1024u;
     unsigned mhz = 1;
     std::string input_path;
     std::vector<std::string> program_args;

@@ -1,10 +1,17 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parent
-source = root / "libc.s"
 output = root.parent / "src" / "resources" / "embedded_libc.cpp"
 header = root.parent / "src" / "resources" / "embedded_libc.hpp"
-data = source.read_bytes()
+sources = [
+    ("kLibc", "embedded_libc_source", root / "libc.s"),
+    ("kFileio", "embedded_fileio_source", root / "fileio.c"),
+    (
+        "kSystemServices",
+        "embedded_systemservices_header",
+        root.parent / "include" / "kr16" / "systemservices.h",
+    ),
+]
 
 header.write_text(
     """#pragma once
@@ -15,6 +22,8 @@ header.write_text(
 namespace kr16 {
 
 std::span<const std::uint8_t> embedded_libc_source();
+std::span<const std::uint8_t> embedded_fileio_source();
+std::span<const std::uint8_t> embedded_systemservices_header();
 
 }  // namespace kr16
 """,
@@ -29,22 +38,35 @@ lines = [
     "",
     "namespace kr16 {",
     "namespace {",
-    "constexpr std::array<std::uint8_t, " + str(len(data)) + "> kLibc = {",
 ]
-for i in range(0, len(data), 16):
-    chunk = data[i : i + 16]
-    lines.append("    " + ", ".join(f"0x{b:02X}" for b in chunk) + ",")
+for array_name, _, source in sources:
+    data = source.read_bytes()
+    lines.append(
+        "constexpr std::array<std::uint8_t, "
+        + str(len(data))
+        + "> "
+        + array_name
+        + " = {"
+    )
+    for i in range(0, len(data), 16):
+        chunk = data[i : i + 16]
+        lines.append("    " + ", ".join(f"0x{b:02X}" for b in chunk) + ",")
+    lines.append("};")
 lines.extend(
     [
-        "};",
         "}  // namespace",
         "",
-        "std::span<const std::uint8_t> embedded_libc_source() {",
-        "    return kLibc;",
-        "}",
-        "",
-        "}  // namespace kr16",
     ]
 )
-output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+for array_name, function_name, source in sources:
+    lines.extend(
+        [
+            "std::span<const std::uint8_t> " + function_name + "() {",
+            "    return std::span<const std::uint8_t>(" + array_name + ");",
+            "}",
+            "",
+        ]
+    )
+lines.extend(["}", ""])
+output.write_text("\n".join(lines), encoding="utf-8")
 print(output)

@@ -333,10 +333,31 @@ std::string expand_macros(const std::string& line,
 
 std::string builtin_header(std::string_view name) {
     if (name == "stdio.h") {
-        return "int putchar(int c);\n"
+        return "typedef struct FILE FILE;\n"
+               "#define SEEK_SET 0\n"
+               "#define SEEK_CUR 1\n"
+               "#define SEEK_END 2\n"
+               "int putchar(int c);\n"
                "int puts(char *s);\n"
                "int getchar(void);\n"
-               "int printf(char *fmt, ...);\n";
+               "int printf(char *fmt, ...);\n"
+               "FILE *fopen(const char *path, const char *mode);\n"
+               "int fclose(FILE *stream);\n"
+               "int fread(void *buffer, int size, int count, FILE *stream);\n"
+               "int fwrite(const void *buffer, int size, int count, FILE *stream);\n"
+               "int fgetc(FILE *stream);\n"
+               "int fputc(int value, FILE *stream);\n"
+               "char *fgets(char *buffer, int size, FILE *stream);\n"
+               "int fputs(const char *text, FILE *stream);\n"
+               "int fseek(FILE *stream, int offset, int whence);\n"
+               "int ftell(FILE *stream);\n"
+               "void rewind(FILE *stream);\n"
+               "int fflush(FILE *stream);\n"
+               "int feof(FILE *stream);\n"
+               "int ferror(FILE *stream);\n"
+               "void clearerr(FILE *stream);\n"
+               "int remove(const char *path);\n"
+               "int rename(const char *old_path, const char *new_path);\n";
     }
     if (name == "stdlib.h") {
         return "typedef int size_t;\n"

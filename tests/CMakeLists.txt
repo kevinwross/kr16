@@ -297,6 +297,39 @@ set_tests_properties(kr16.vm.printf_hex PROPERTIES LABELS "integration"
   DEPENDS kr16.build.printf_hex
   PASS_REGULAR_EXPRESSION "0 1 f 10 ff fff 1234 ffff -> 255=ff hex Z")
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/fileio.c"
+               "${CMAKE_CURRENT_BINARY_DIR}/fileio.c" COPYONLY)
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/fileio-sandbox")
+
+add_test(NAME kr16.fileio.build
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/fileio.c"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/fileio.kex"
+)
+set_tests_properties(kr16.fileio.build PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.fileio.run
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/fileio.kex"
+    --fs-root "${CMAKE_CURRENT_BINARY_DIR}/fileio-sandbox"
+)
+set_tests_properties(kr16.fileio.run PROPERTIES LABELS "integration"
+  DEPENDS kr16.fileio.build)
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/sysfile.c"
+               "${CMAKE_CURRENT_BINARY_DIR}/sysfile.c" COPYONLY)
+
+add_test(NAME kr16.sysfile.build
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/sysfile.c"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/sysfile.kex"
+)
+set_tests_properties(kr16.sysfile.build PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.sysfile.run
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/sysfile.kex"
+    --fs-root "${CMAKE_CURRENT_BINARY_DIR}/fileio-sandbox"
+)
+set_tests_properties(kr16.sysfile.run PROPERTIES LABELS "integration"
+  DEPENDS kr16.sysfile.build)
+
 find_program(KR16_NODE_EXECUTABLE node)
 if(KR16_NODE_EXECUTABLE)
   add_test(NAME kr16.dap.smoke

@@ -4008,8 +4008,10 @@ table.
 
 ### 17.3 Host calls
 
-`SYS #0` (`SYS_VERSION`) is the only host service implemented in v1. The
-block layout and status codes are documented with the `SYS` instruction in
+`SYS #0` (`SYS_VERSION`) and the sandboxed file, time, random, and
+filesystem-information services are implemented. The complete C interface is
+in [systemservices.md](systemservices.md). The block layout and status codes
+are documented with the `SYS` instruction in
 [Section 15](#15-instruction-set-reference).
 
 A complete example:

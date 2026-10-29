@@ -4,9 +4,9 @@
 /*
  * KR16 host-service C interface.
  *
- * This header is the normative ABI description. Wrappers are implemented as
- * services become available in the VM/libc; callers link against those
- * wrappers, not against the __host_call intrinsic directly.
+ * This header is the normative ABI description. The sys_* wrappers are
+ * implemented by resources/fileio.c and linked by the KR16 C runtime.
+ * Applications call the wrappers, not the __host_call intrinsic directly.
  *
  * KR16 primitive sizes: char = 1, int = 2, pointer = 2.
  */

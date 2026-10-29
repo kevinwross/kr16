@@ -42,7 +42,8 @@ and `goto` labels. The assembler relaxes branches that leave the 8-bit `Bcc`
 range, so large C functions assemble without splitting. A small `libc.s`
 provides `putchar`, `puts`, `getchar`, `printf` (`%d`, `%x`, `%s`, `%c`,
 `%%`), string functions, `atoi`, `abs`, a first-fit heap allocator (`malloc`,
-`calloc`, `realloc`, `free`), and `exit`.
+`calloc`, `realloc`, `free`), `exit`, and an unbuffered `fopen`/`fread`/
+`fwrite`/`fclose` file layer over the sandboxed `SYS` services.
 
 `long` is a **16-bit alias** for `int`; see
 [`docs/decisions/0001-16-bit-long.md`](docs/decisions/0001-16-bit-long.md).

@@ -209,10 +209,10 @@ Options:
   --trace              print an instruction trace
   --trace-syscalls     print host syscall calls
   --stats              print cycle and instruction totals
-  --fs-root <path>     accepted; file services are deferred
-  --fs-quota <n>       accepted; file services are deferred
-  --fs-readonly        accepted; file services are deferred
-  --no-host-fs         accepted; file services are deferred
+  --fs-root <path>     host filesystem sandbox root (default: ./sandbox)
+  --fs-quota <n>       host filesystem quota (default: 5M)
+  --fs-readonly        deny host filesystem writes
+  --no-host-fs         disable host filesystem services
   -i                   unavailable in v1
   -h, --help           show this help
 
@@ -557,9 +557,38 @@ int run_vm_command(int argc, char** argv) {
                 std::cerr << "kr16 vm: " << argument << " needs a value\n";
                 return 2;
             }
-            // Accepted; file services are deferred to the post-v1 file phase.
-        } else if (argument == "--fs-readonly" || argument == "--no-host-fs") {
-            // Accepted; file services are deferred to the post-v1 file phase.
+            if (argument == "--fs-root") {
+                options.fs_root = argv[i];
+                options.fs_root_explicit = true;
+            } else {
+                std::string value = argv[i];
+                unsigned long long multiplier = 1;
+                if (!value.empty()) {
+                    const char suffix = static_cast<char>(
+                        std::toupper(static_cast<unsigned char>(value.back())));
+                    if (suffix == 'K' || suffix == 'M' || suffix == 'G') {
+                        value.pop_back();
+                        multiplier = suffix == 'K' ? 1024ull
+                                     : suffix == 'M' ? 1024ull * 1024ull
+                                                     : 1024ull * 1024ull * 1024ull;
+                    }
+                }
+                try {
+                    const auto quota =
+                        std::stoull(value, nullptr, 0) * multiplier;
+                    if (quota > 0xFFFFFFFFull) {
+                        throw std::out_of_range("quota");
+                    }
+                    options.fs_quota = static_cast<std::uint32_t>(quota);
+                } catch (const std::exception&) {
+                    std::cerr << "kr16 vm: bad --fs-quota value\n";
+                    return 2;
+                }
+            }
+        } else if (argument == "--fs-readonly") {
+            options.fs_readonly = true;
+        } else if (argument == "--no-host-fs") {
+            options.no_host_fs = true;
         } else if (argument == "--headless" || argument == "--line-input") {
             options.headless = true;
         } else if (argument == "-i") {

@@ -14,7 +14,7 @@ TEST_CASE("SYS_VERSION returns ABI and capabilities") {
     CHECK(status == 0);
     CHECK(memory.read16(block) == 0);
     CHECK(memory.read16(block + 2) == 1);
-    CHECK(memory.read16(block + 4) == (1u << 4));
+    CHECK(memory.read16(block + 4) == ((1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) | (1u << 4) | (1u << 5)));
     CHECK(memory.read16(block + 6) == 0);
 }
 
@@ -22,7 +22,7 @@ TEST_CASE("unimplemented host services return ENOSYS") {
     kr16::FlatMemory memory;
     kr16::HostServices host;
     constexpr std::uint16_t block = 0x0300;
-    CHECK(host.call(4, block, memory) == 8);
+    CHECK(host.call(99, block, memory) == 8);
     CHECK(memory.read16(block) == 8);
 }
 
@@ -61,7 +61,7 @@ TEST_CASE("host call tracing records service and status") {
     kr16::FlatMemory memory;
     kr16::HostServices host(true);
     host.call(0, 0x0300, memory);
-    host.call(4, 0x0300, memory);
+    host.call(99, 0x0300, memory);
     CHECK(host.trace().find("SYS #0") != std::string::npos);
     CHECK(host.trace().find("status=8") != std::string::npos);
 }

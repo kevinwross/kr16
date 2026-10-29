@@ -111,6 +111,8 @@ fs::path find_libc_source() {
     }
 
     const auto bytes = embedded_libc_source();
+    const auto fileio_bytes = embedded_fileio_source();
+    const auto header_bytes = embedded_systemservices_header();
     if (bytes.empty()) {
         return {};
     }
@@ -133,6 +135,38 @@ fs::path find_libc_source() {
                  static_cast<std::streamsize>(bytes.size()));
     if (!output) {
         return {};
+    }
+    if (!fileio_bytes.empty()) {
+        fs::path fileio_path = directory / "fileio.c";
+        std::ofstream fileio_output(fileio_path,
+                                   std::ios::binary | std::ios::trunc);
+        if (!fileio_output) {
+            return {};
+        }
+        fileio_output.write(
+            reinterpret_cast<const char*>(fileio_bytes.data()),
+            static_cast<std::streamsize>(fileio_bytes.size()));
+        if (!fileio_output) {
+            return {};
+        }
+    }
+    if (!header_bytes.empty()) {
+        fs::path include_dir = directory / "include" / "kr16";
+        fs::create_directories(include_dir, ec);
+        if (ec) {
+            return {};
+        }
+        std::ofstream header_output(include_dir / "systemservices.h",
+                                    std::ios::binary | std::ios::trunc);
+        if (!header_output) {
+            return {};
+        }
+        header_output.write(
+            reinterpret_cast<const char*>(header_bytes.data()),
+            static_cast<std::streamsize>(header_bytes.size()));
+        if (!header_output) {
+            return {};
+        }
     }
     cached = path;
     return cached;
@@ -179,7 +213,18 @@ BuildResult build_program(const BuildOptions& options, std::ostream& error) {
     const fs::path assembly = directory / (stem + ".s");
     const fs::path object = directory / (stem + ".o");
     const fs::path libc_object = directory / (stem + ".libc.o");
-    const auto includes = include_flags(options.include_paths);
+    std::vector<std::string> includes = include_flags(options.include_paths);
+    if (with_libc) {
+        const fs::path runtime_libc = find_libc_source();
+        if (!runtime_libc.empty()) {
+            const fs::path runtime_include =
+                runtime_libc.parent_path().parent_path() / "include";
+            if (fs::exists(runtime_include, ec)) {
+                includes.push_back("-I");
+                includes.push_back(runtime_include.string());
+            }
+        }
+    }
 
     bool ok = true;
     if (extension == ".o") {
@@ -218,6 +263,7 @@ BuildResult build_program(const BuildOptions& options, std::ostream& error) {
         }
     }
 
+    fs::path fileio_object;
     if (ok && with_libc) {
         fs::path libc;
         if (!options.libc_source.empty()) {
@@ -235,6 +281,22 @@ BuildResult build_program(const BuildOptions& options, std::ostream& error) {
             ok = run_step(options.command, error,
                           {"as", libc.string(), "-o", libc_object.string()});
         }
+        if (ok) {
+            const fs::path fileio_source = libc.parent_path() / "fileio.c";
+            if (fs::exists(fileio_source)) {
+                fileio_object = directory / (stem + ".fileio.o");
+                std::vector<std::string> fileio_compile{
+                    "cc", fileio_source.string(), "-c", "-o",
+                    fileio_object.string(), "-O1"};
+                const fs::path include_dir =
+                    libc.parent_path().parent_path() / "include";
+                if (fs::exists(include_dir)) {
+                    fileio_compile.push_back("-I");
+                    fileio_compile.push_back(include_dir.string());
+                }
+                ok = run_step(options.command, error, fileio_compile);
+            }
+        }
     }
 
     if (ok) {
@@ -242,11 +304,17 @@ BuildResult build_program(const BuildOptions& options, std::ostream& error) {
         if (extension == ".c") {
             // libc first: the compiler emits .crt0, which sets the entry point.
             link.push_back(libc_object.string());
+            if (!fileio_object.empty()) {
+                link.push_back(fileio_object.string());
+            }
             link.push_back(object.string());
         } else {
             link.push_back(object.string());
             if (with_libc) {
                 link.push_back(libc_object.string());
+                if (!fileio_object.empty()) {
+                    link.push_back(fileio_object.string());
+                }
             }
         }
         link.push_back("-o");

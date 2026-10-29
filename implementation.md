@@ -2452,3 +2452,18 @@ Entry format:
   policy, and examples.
 - Added the reference `include/kr16/systemservices.h` header. Its `sys_*`
   wrappers will ship as the corresponding host services are implemented.
+
+### 2026-10-29 — sandboxed file I/O and stdio
+
+- Implemented `SYS_OPEN`/`CLOSE`/`READ`/`WRITE`/`SEEK`/`STAT`/`UNLINK`/
+  `RENAME`/`MKDIR`/`READDIR`/`TIME`/`RANDOM`/`FSINFO` with a portable
+  sandbox/filesystem backend.
+- Added `resources/fileio.c` with the `sys_*` wrappers and an unbuffered stdio
+  subset: `fopen`, `fclose`, `fread`, `fwrite`, `fgetc`, `fputc`, `fgets`,
+  `fputs`, `fseek`, `ftell`, `rewind`, `fflush`, `feof`, `ferror`, `clearerr`,
+  `remove`, and `rename`.
+- Added runtime compile/link integration for `fileio.c`, embedded runtime
+  sources, `--fs-root`/`--fs-quota`/`--fs-readonly`/`--no-host-fs` plumbing,
+  and file-I/O CTest coverage.
+- The host ABI now reports the implemented filesystem, directory, time,
+  random, console, and fsinfo capability bits.

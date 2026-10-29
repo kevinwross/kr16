@@ -6,10 +6,12 @@ release.
 
 ## Host and VM
 
-- Host file I/O (`SYS_OPEN`/`SYS_READ`/`SYS_WRITE`/`SYS_STAT` and friends).
-  `SYS_VERSION` reports the host ABI; other services return `ENOSYS`.
-- Sandbox policy (`--fs-root`, `--fs-readonly`, `--fs-quota`, `--no-host-fs`) is
-  parsed but file services are not enabled.
+- Full POSIX file API and buffered stdio. The current sandbox implements
+  `SYS_OPEN`/`SYS_CLOSE`/`SYS_READ`/`SYS_WRITE`/`SYS_SEEK`/`SYS_STAT`,
+  directory and namespace services, and an unbuffered `fopen`/`fread`/
+  `fwrite`/`fclose` subset.
+- Remaining stdio gaps: `fprintf`, `fscanf`, buffering, `setvbuf`, `ungetc`,
+  `freopen`, `tmpfile`, and standard console `FILE` streams.
 - BIOS RAM loading, embedded release BIOS selection, and linker scripts.
 - `--gc-all`, relocatable `-r` links, weak/common symbols, and arm64 hosts.
 - Real-time pacing accuracy and the full interactive monitor.

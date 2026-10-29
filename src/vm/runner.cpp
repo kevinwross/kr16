@@ -163,7 +163,11 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
             input = read_file(options.input_path);
         }
 
-        HostServices host(options.trace_syscalls);
+        HostServices host(
+            options.trace_syscalls,
+            HostFsOptions{options.fs_root, !options.no_host_fs,
+                          options.fs_readonly, options.fs_root_explicit,
+                          options.fs_quota});
         cpu.set_syscall_handler(
             [&host](std::uint8_t service, std::uint16_t block,
                     MemoryBus& bus) { host.call(service, block, bus); });

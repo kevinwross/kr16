@@ -2489,10 +2489,9 @@ Common options:
   the special symbols. Enforce the stack guard and heap-stack collision.
 - Raw images (`--raw --base`) load bytes directly; no symbols or debug info.
   This is for BIOS/ROM experiments and small tests.
-- Host services are initialized before execution. `SYS_VERSION` is always
-  available; file services are a later phase. When enabled, the default
-  sandbox is `./sandbox`, created lazily on first use; `--no-host-fs` disables
-  file services.
+- Host services are initialized before execution. `SYS_VERSION` and the
+  sandboxed service table are available. The default sandbox is `./sandbox`,
+  created lazily on first use; `--no-host-fs` disables file services.
 - A malformed image, bad BIOS, or missing entry point is a clear load error,
   not a crash.
 
@@ -2583,8 +2582,8 @@ Service table (stable numbering):
 | 13 | `SYS_FSINFO` | arg0 = 6-word info buffer (used/quota/free, 32-bit pairs) |
 | 14+ | reserved | |
 
-- v1 implements `SYS_VERSION`; the remaining services return `ENOSYS` until
-  implemented.
+- The sandboxed table is implemented. `SYS_VERSION` reports the capability bits
+  for the active configuration; disabled host file services return `ENOSYS`.
 - `SYS_VERSION` result1 capability bits: bit 0 host FS, bit 1 directories,
   bit 2 time, bit 3 random, bit 4 console fds, bit 5 FSINFO/quota.
 - File descriptors 0/1/2 are the console; 3+ are files once file services are
@@ -2614,9 +2613,8 @@ Portable error codes (word 0):
 
 Sandbox policy:
 
-- Host file services are a later phase. v1 implements `SYS_VERSION`; file
-  services return `ENOSYS` until that phase. The following is the target
-  policy when file services are enabled.
+- Host file services are enabled by default under the sandbox root. The
+  following policy applies.
 - When enabled, the default sandbox root is `./sandbox` relative to the
   process CWD. It is created **lazily on the first file operation**, with a
   one-line notice showing the root and quota. If the path exists as a file or

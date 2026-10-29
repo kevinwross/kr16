@@ -3,9 +3,10 @@
 Status: **normative interface; implementation is incremental**
 
 This document defines the C-facing interface to KR16 host services. The
-instruction is now named `SYS` (previously `SYSCALL`). The VM implementation
-currently provides only `SYS_VERSION`; the remaining services return `ENOSYS`
-until their host implementation lands.
+instruction is now named `SYS` (previously `SYSCALL`). The VM implements the
+sandboxed file, time, random, and filesystem-information services below; the
+libc exposes a small stdio layer on top of them. See `docs/deferred.md` for the
+remaining C library gaps.
 
 ## 1. Design decisions
 
@@ -628,7 +629,8 @@ the service description says otherwise.
 
 ## 6. Host filesystem sandbox
 
-Host file services are disabled in v1 except for `SYS_VERSION`. When enabled:
+Host file services are enabled by default with a lazy `./sandbox` root. They
+honor `--no-host-fs` and the policy below:
 
 - Default root: `./sandbox`, created lazily on first file operation.
 - `--fs-root DIR`: use an existing directory; never auto-created.
@@ -716,17 +718,21 @@ block:
     .space 16
 ```
 
-## 8. Implementation plan
+## 8. Implementation status
 
-1. Add the public header and private `sys_call_block` helper.
-2. Implement `SYS_VERSION` wrapper (already backed by the VM).
-3. Implement the `HostFs` sandbox and file services.
-4. Add time, random, and filesystem-information services.
-5. Add the C libc wrappers (`fopen`, `fread`, `fwrite`, `fclose`, `stat`, etc.)
-   on top of `sys_*`.
-6. Keep all service numbers and struct field order stable; add new fields only
-   as previously reserved tail fields and bump `SYS_VERSION.abi` for incompatible
-   changes.
+1. Public header and private `sys_call_block` helper: implemented.
+2. `SYS_VERSION` wrapper: implemented.
+3. `HostFs` sandbox and file services: implemented.
+4. Time, random, and filesystem-information services: implemented.
+5. C libc stdio wrappers (`fopen`, `fclose`, `fread`, `fwrite`, `fseek`,
+   `ftell`, `fgetc`, `fputc`, `fgets`, `fputs`, `remove`, `rename`):
+   implemented as an unbuffered subset.
+6. Remaining: buffered stdio, `fprintf`/`fscanf`, directory/stat convenience
+   functions in libc, standard streams, and the full POSIX wrapper surface.
+
+Service numbers and struct field order are stable. Add new fields only as
+previously reserved tail fields and bump `SYS_VERSION.abi` for incompatible
+changes.
 
 ## 9. Open items
 
