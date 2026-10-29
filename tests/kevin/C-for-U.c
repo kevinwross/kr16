@@ -6,8 +6,8 @@
  *
  * Supported subset: int/char, locals, globals, one-dimensional arrays,
  * arithmetic/comparison/bitwise/logical expressions, if/else, while, for,
- * do/while, break, continue, function definitions and calls (up to three
- * arguments), strings, printf calls, casts, and sizeof.
+ * do/while, break, continue, prefix/postfix ++/--, function definitions and
+ * calls (up to three arguments), strings, printf calls, casts, and sizeof.
  * Not supported: structs/unions, switch, ternary, typedef, pointer declarators,
  * and calls with more than three arguments.
  */
@@ -108,6 +108,7 @@ void emit_ret_label(void);
 void emit_branch(char *op, int id);
 int new_label(void);
 void gen_name_addr(char *name);
+void gen_incdec(char *name, int delta);
 int gen_name_load(char *name);
 int parse_type(void);
 void parse_program(void);
@@ -453,6 +454,30 @@ void gen_name_addr(char *name) {
     err("unknown variable");
 }
 
+void gen_incdec(char *name, int delta) {
+    int i;
+    int kind;
+    i = find_local(name);
+    if (i >= 0) {
+        kind = ntype[i];
+    } else {
+        i = find_global(name);
+        if (i < 0) err("unknown variable");
+        kind = gtype[i];
+    }
+    gen_name_addr(name);
+    outs("  PUSH R0\n");
+    if (kind == 0) outs("  LDB R0, [R0]\n");
+    else outs("  LD R0, [R0]\n");
+    outs("  MOV R1, R0\n");
+    if (delta > 0) outs("  ADD R0, #1\n");
+    else outs("  SUB R0, #1\n");
+    outs("  POP R2\n");
+    if (kind == 0) outs("  STB [R2], R0\n");
+    else outs("  ST [R2], R0\n");
+    outs("  MOV R0, R1\n");
+}
+
 int gen_name_load(char *name) {
     int i;
     i = find_local(name);
@@ -594,6 +619,20 @@ int parse_primary(void) {
             outs("\n");
             return 1;
         }
+        if (tkind[tpos] == T_INC || tkind[tpos] == T_DEC) {
+            int delta;
+            delta = tkind[tpos] == T_INC ? 1 : 0 - 1;
+            tpos = tpos + 1;
+            i = find_local(name);
+            if (i >= 0) {
+                gen_incdec(name, delta);
+                return ntype[i];
+            }
+            i = find_global(name);
+            if (i < 0) err("unknown variable");
+            gen_incdec(name, delta);
+            return gtype[i];
+        }
         return gen_name_load(name);
     }
     (void)k;
@@ -631,6 +670,25 @@ int parse_postfix(void) {
 
 int parse_unary(void) {
     int type;
+    int i;
+    char *name;
+    if (tkind[tpos] == T_INC || tkind[tpos] == T_DEC) {
+        int delta;
+        delta = tkind[tpos] == T_INC ? 1 : 0 - 1;
+        tpos = tpos + 1;
+        if (tkind[tpos] != T_ID) err("expected variable");
+        name = tok_text(tpos);
+        tpos = tpos + 1;
+        i = find_local(name);
+        if (i >= 0) {
+            gen_incdec(name, delta);
+            return ntype[i];
+        }
+        i = find_global(name);
+        if (i < 0) err("unknown variable");
+        gen_incdec(name, delta);
+        return gtype[i];
+    }
     if (tkind[tpos] == T_SIZEOF) {
         tpos = tpos + 1;
         if (tkind[tpos] == '(' &&
@@ -1371,7 +1429,7 @@ void emit_strings(void) {
 }
 
 int main(void) {
-    strcpy(source, "int fact(int n) {\n    if (n <= 1) return 1;\n    return n * fact(n - 1);\n}\n\nint main(void) {\n    int i;\n    int sum;\n    int values[5];\n    sum = 0;\n    for (i = 0; i < 5; i = i + 1) {\n        values[i] = i * i;\n        sum = sum + values[i];\n    }\n    printf(\"sum=%d fact=%d\\n\", sum, fact(5));\n    return 0;\n}\n");
+    strcpy(source, "int fact(int n) {\n    if (n <= 1) return 1;\n    return n * fact(n - 1);\n}\n\nint main(void) {\n    int i;\n    int sum;\n  int times = 0;\n  int values[5];\n    sum = 0;\n    for (i = 0; i < 5; i = i + 1) {\n        values[i] = i * i;\n        sum = sum + values[i];\n    }\n    printf(\"sum=%d fact=%d\\n\", sum, fact(5));\n do { printf(\"Wow: It's great! #%d\\n\",times++);} while (times < 5);\n   return 0;\n}\n");
     tkind = (int *)malloc(512);
     tval = (int *)malloc(512);
     ttext = (char *)malloc(8192);
@@ -1396,6 +1454,9 @@ int main(void) {
     free(tlen);
     return 0;
 }
+
+
+
 
 
 
