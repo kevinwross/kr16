@@ -219,7 +219,11 @@ Test plan:
   simple-expression paths.
 - [x] Remove fallthrough jumps and coalesce adjacent definition/assignment
   copies.
-- [x] Remove dead pure IR instructions and unused variable assignments.
+- [x] Remove dead pure IR instructions, unused assignments, and overwritten
+  stores.
+- [x] Allocate pure fallback expression trees across `R0`–`R3`, spilling only
+  when the tree needs more registers.
+- [x] Evaluate complex pure call arguments directly into `R1`–`R3`.
 - [x] Strength-reduce multiplication by a power of two to a shift.
 - [x] Fold casts/`sizeof` and constant branches, including IR constant
   conditions.

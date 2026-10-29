@@ -2286,8 +2286,12 @@ Entry format:
 - Fallback simple expressions now use immediate forms (`SUB R0, #1`,
   `AND R0, #0xFF`, power-of-two shifts) and target a caller-selected register
   for direct call arguments.
+- Added liveness-based IR dead-store elimination for overwritten assignments.
+- Added a target-directed pure-expression allocator for the fallback emitter;
+  nested arithmetic uses `R0`–`R3` and spills only for deeper trees.
+- Complex pure call arguments now evaluate directly into `R1`–`R3`.
 - Scalar loop benchmark: `-O1` now 38 text bytes, 5,014 instructions, 7,026
   cycles (from 122 / 35,033 / 56,055 at `-O0`).
-- Doctest: 129 cases / 3372 assertions; CTest 38/38 Windows and 37/37 Linux.
+- Doctest: 131 cases / 3385 assertions; CTest 38/38 Windows and 37/37 Linux.
 - Remaining work recorded in `docs/compiler-opt.md`: stack spilling, full copy
   coalescing, and broader IR coverage.

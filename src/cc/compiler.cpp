@@ -2999,8 +2999,9 @@ private:
         return {uses, defs};
     }
 
-    bool ir_liveness_and_color() {
+    void ir_compute_liveness() {
         const int count = static_cast<int>(ir_values_.size());
+        (void)count;
         for (auto& block : ir_blocks_) {
             block.use.clear();
             block.def.clear();
@@ -3042,6 +3043,54 @@ private:
                     changed = true;
                 }
             }
+        }
+    }
+
+    bool ir_dead_store_elimination() {
+        const auto is_pure = [](const IrInst& inst) {
+            if (inst.op == IrOp::Const || inst.op == IrOp::Move ||
+                inst.op == IrOp::Unary || inst.op == IrOp::Char ||
+                inst.op == IrOp::Assign) {
+                return true;
+            }
+            return inst.op == IrOp::Binary && inst.text != "/" &&
+                   inst.text != "%";
+        };
+        bool changed = false;
+        for (auto& block : ir_blocks_) {
+            std::set<int> live = block.live_out;
+            for (std::size_t i = block.insts.size(); i-- > 0;) {
+                const auto& inst = block.insts[i];
+                auto [uses, defs] = ir_inst_uses_defs(inst);
+                bool dead = is_pure(inst);
+                if (dead) {
+                    for (const int def : defs) {
+                        if (live.count(def) != 0) {
+                            dead = false;
+                        }
+                    }
+                }
+                if (dead) {
+                    block.insts.erase(block.insts.begin() +
+                                      static_cast<std::ptrdiff_t>(i));
+                    changed = true;
+                    continue;
+                }
+                for (const int def : defs) {
+                    live.erase(def);
+                }
+                for (const int use : uses) {
+                    live.insert(use);
+                }
+            }
+        }
+        return changed;
+    }
+
+    bool ir_color() {
+        const int count = static_cast<int>(ir_values_.size());
+        for (auto& value : ir_values_) {
+            value.reg = -1;
         }
         std::vector<std::unordered_set<int>> graph(
             static_cast<std::size_t>(count));
@@ -3334,7 +3383,13 @@ private:
         ir_dead_code_elimination();
         ir_remove_fallthrough_jumps();
         ir_successors();
-        if (!ir_liveness_and_color()) {
+        ir_compute_liveness();
+        if (ir_dead_store_elimination()) {
+            ir_dead_code_elimination();
+            ir_successors();
+            ir_compute_liveness();
+        }
+        if (!ir_color()) {
             return false;
         }
         ir_emit(function, out);
@@ -3980,6 +4035,212 @@ private:
         return false;
     }
 
+    bool is_pure_expr(const Expr* expr) const {
+        if (expr == nullptr) {
+            return false;
+        }
+        switch (expr->kind) {
+            case Expr::Kind::Number:
+            case Expr::Kind::String:
+            case Expr::Kind::Sizeof:
+                return true;
+            case Expr::Kind::Identifier:
+                return true;
+            case Expr::Kind::Cast:
+                return expr->children.size() == 1 &&
+                       is_pure_expr(expr->children[0].get());
+            case Expr::Kind::Unary:
+                return expr->children.size() == 1 &&
+                       (expr->op == "+" || expr->op == "-" ||
+                        expr->op == "~") &&
+                       is_pure_expr(expr->children[0].get());
+            case Expr::Kind::Binary:
+                return expr->children.size() == 2 &&
+                       expr->op != "&&" && expr->op != "||" &&
+                       is_pure_expr(expr->children[0].get()) &&
+                       is_pure_expr(expr->children[1].get());
+            default:
+                return false;
+        }
+    }
+
+    int pure_register_need(const Expr* expr) const {
+        if (expr == nullptr || is_simple_leaf(expr)) {
+            return 1;
+        }
+        if (expr->kind == Expr::Kind::Cast ||
+            expr->kind == Expr::Kind::Unary) {
+            return pure_register_need(expr->children[0].get());
+        }
+        if (expr->kind == Expr::Kind::Binary &&
+            expr->children.size() == 2) {
+            const int left = pure_register_need(expr->children[0].get());
+            const int right = pure_register_need(expr->children[1].get());
+            return std::max(left, right + 1);
+        }
+        return 1;
+    }
+
+    static int pure_popcount(unsigned mask) {
+        int count = 0;
+        while (mask != 0) {
+            count += static_cast<int>(mask & 1u);
+            mask >>= 1;
+        }
+        return count;
+    }
+
+    static int pure_other_register(unsigned mask, int target) {
+        for (int reg = 0; reg < 4; ++reg) {
+            if (reg != target && (mask & (1u << reg)) != 0) {
+                return reg;
+            }
+        }
+        return -1;
+    }
+
+    bool emit_pure_operation(const std::string& op, int target,
+                             const std::string& rhs,
+                             std::ostringstream& out) {
+        if (op == "+") {
+            out << "  ADD R" << target << ", " << rhs << "\n";
+        } else if (op == "-") {
+            out << "  SUB R" << target << ", " << rhs << "\n";
+        } else if (op == "*") {
+            out << "  MUL R" << target << ", " << rhs << "\n";
+        } else if (op == "/") {
+            out << "  DIV R" << target << ", " << rhs << "\n";
+        } else if (op == "%") {
+            out << "  MOD R" << target << ", " << rhs << "\n";
+        } else if (op == "&") {
+            out << "  AND R" << target << ", " << rhs << "\n";
+        } else if (op == "|") {
+            out << "  OR R" << target << ", " << rhs << "\n";
+        } else if (op == "^") {
+            out << "  XOR R" << target << ", " << rhs << "\n";
+        } else if (op == "<<") {
+            out << "  SHL R" << target << ", " << rhs << "\n";
+        } else if (op == ">>") {
+            out << "  SAR R" << target << ", " << rhs << "\n";
+        } else if (op == "==" || op == "!=" || op == "<" || op == ">" ||
+                   op == "<=" || op == ">=") {
+            out << "  CMP R" << target << ", " << rhs << "\n";
+            const auto yes = new_label("purecmp");
+            const auto end = new_label("purecmpend");
+            std::string branch = "BEQ";
+            if (op == "!=") branch = "BNE";
+            if (op == "<") branch = "BLT";
+            if (op == ">") branch = "BGT";
+            if (op == "<=") branch = "BLE";
+            if (op == ">=") branch = "BGE";
+            out << "  " << branch << " " << yes << "\n";
+            out << "  MOV R" << target << ", #0\n";
+            out << "  BRA " << end << "\n";
+            out << yes << ":\n";
+            out << "  MOV R" << target << ", #1\n";
+            out << end << ":\n";
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+    bool emit_pure_expr(const Expr* expr, int target, unsigned mask,
+                        std::ostringstream& out) {
+        if (expr == nullptr || target < 0 || target > 3 ||
+            (mask & (1u << target)) == 0) {
+            return false;
+        }
+        if (is_simple_leaf(expr)) {
+            return emit_simple_leaf(expr, target, out);
+        }
+        if (expr->kind == Expr::Kind::Cast) {
+            if (!emit_pure_expr(expr->children[0].get(), target, mask, out)) {
+                return false;
+            }
+            if (expr->type && expr->type->kind == TypeKind::Char) {
+                out << "  AND R" << target << ", #0xFF\n";
+            }
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Unary) {
+            if (!emit_pure_expr(expr->children[0].get(), target, mask, out)) {
+                return false;
+            }
+            if (expr->op == "-") {
+                out << "  NEG R" << target << "\n";
+            } else if (expr->op == "~") {
+                out << "  NOT R" << target << "\n";
+            }
+            return true;
+        }
+        if (expr->kind != Expr::Kind::Binary ||
+            !is_pure_expr(expr)) {
+            return false;
+        }
+        const auto right_constant =
+            constant_expr_value(expr->children[1].get());
+        const std::string& op = expr->op;
+        bool immediate = false;
+        bool shift_strength = false;
+        std::int64_t immediate_value = 0;
+        if (right_constant) {
+            immediate_value = *right_constant;
+            if (op == "+" || op == "-" || op == "&" || op == "|" ||
+                op == "^") {
+                immediate = true;
+            } else if ((op == "<<" || op == ">>") &&
+                       immediate_value >= 0 && immediate_value <= 15) {
+                immediate = true;
+            } else if (op == "*" && immediate_value > 0 &&
+                       immediate_value <= 32768 &&
+                       (immediate_value & (immediate_value - 1)) == 0) {
+                int shift = 0;
+                while ((std::int64_t{1} << shift) < immediate_value) {
+                    ++shift;
+                }
+                immediate_value = shift;
+                immediate = true;
+                shift_strength = true;
+            }
+        }
+        if (immediate) {
+            if (!emit_pure_expr(expr->children[0].get(), target, mask, out)) {
+                return false;
+            }
+            const std::string rhs = "#" + std::to_string(immediate_value);
+            return emit_pure_operation(shift_strength ? "<<" : op, target,
+                                       rhs, out);
+        }
+        const int scratch = pure_other_register(mask, target);
+        if (scratch < 0) {
+            return false;
+        }
+        const unsigned right_mask = mask & ~(1u << target);
+        if (right_mask != 0 &&
+            pure_register_need(expr->children[1].get()) <=
+                pure_popcount(right_mask)) {
+            if (!emit_pure_expr(expr->children[0].get(), target, mask, out) ||
+                !emit_pure_expr(expr->children[1].get(), scratch,
+                                right_mask, out)) {
+                return false;
+            }
+            return emit_pure_operation(op, target,
+                                       "R" + std::to_string(scratch), out);
+        }
+        if (!emit_pure_expr(expr->children[0].get(), target, mask, out)) {
+            return false;
+        }
+        out << "  PUSH R" << target << "\n";
+        if (!emit_pure_expr(expr->children[1].get(), target, mask, out)) {
+            return false;
+        }
+        out << "  MOV R" << scratch << ", R" << target << "\n";
+        out << "  POP R" << target << "\n";
+        return emit_pure_operation(op, target,
+                                   "R" + std::to_string(scratch), out);
+    }
+
     bool emit_simple_expr_into(const Expr* expr, int target,
                                std::ostringstream& out) {
         if (is_simple_leaf(expr)) {
@@ -4282,6 +4543,10 @@ private:
             return;
         }
         if (optimize_ && emit_simple_expr(expr, out)) {
+            return;
+        }
+        if (optimize_ && is_pure_expr(expr) &&
+            emit_pure_expr(expr, 0, 0x0Fu, out)) {
             return;
         }
         switch (expr->kind) {
@@ -4666,26 +4931,29 @@ private:
         }
         int temporary_bytes = 0;
         if (!expr->children.empty() && expr->children.size() <= 3) {
-            bool all_simple = true;
+            bool all_pure = true;
             for (std::size_t i = 0; i < expr->children.size(); ++i) {
                 const auto* argument = expr->children[i].get();
-                if (struct_args[i] ||
-                    (!is_simple_leaf(argument) &&
-                     !is_simple_binary(argument))) {
-                    all_simple = false;
+                if (struct_args[i] || !is_pure_expr(argument)) {
+                    all_pure = false;
                     break;
                 }
             }
-            if (all_simple) {
+            if (all_pure) {
                 for (std::size_t i = 0; i < expr->children.size(); ++i) {
-                    if (!emit_simple_expr_into(
+                    unsigned mask = 0x0Fu;
+                    for (std::size_t previous = 1; previous <= i;
+                         ++previous) {
+                        mask &= ~(1u << previous);
+                    }
+                    if (!emit_pure_expr(
                             expr->children[i].get(),
-                            static_cast<int>(i) + 1, out)) {
-                        all_simple = false;
+                            static_cast<int>(i) + 1, mask, out)) {
+                        all_pure = false;
                         break;
                     }
                 }
-                if (all_simple) {
+                if (all_pure) {
                     out << "  CALL " << expr->text << "\n";
                     return;
                 }

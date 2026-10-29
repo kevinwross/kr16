@@ -297,6 +297,25 @@ TEST_CASE("constant casts and sizeof conditions are folded") {
     CHECK(assembly.find("CMP R0, #0") == std::string::npos);
 }
 
+TEST_CASE("IR dead stores are removed") {
+    const auto assembly =
+        compile_text("int main(void) { int s = 0; s = 5; return s; }\n");
+    CHECK(assembly.find("MOV R0, #0") == std::string::npos);
+    CHECK(assembly.find("MOV R0, #5") != std::string::npos);
+}
+
+TEST_CASE("pure fallback expressions allocate registers and spill safely") {
+    CHECK(run_c(
+              "int f(int a, int b, int c, int d, int e, int g, int h, "
+              "int i) { int x[2]; return ((a+b)*(c+d)) + "
+              "((e+g)*(h+i)); }\n"
+              "int main(void) { return f(1,2,3,4,5,6,7,8); }\n") == 186);
+    CHECK(run_c(
+              "int g(int x, int y) { return x - y; }\n"
+              "int main(void) { int a = 5; int b = 2; "
+              "return g(a+b, a-b); }\n") == 4);
+}
+
 TEST_CASE("fallback constant arithmetic uses immediates") {
     const auto assembly = compile_text(
         "int f(int n) { int a[2]; return n - 1; }\n"
