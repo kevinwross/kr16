@@ -93,7 +93,7 @@ std::string op_name(Op op) {
         case Op::Ei: return "EI";
         case Op::Di: return "DI";
         case Op::Wait: return "WAIT";
-        case Op::Syscall: return "SYSCALL";
+        case Op::Syscall: return "SYS";
         case Op::Invalid: return "???";
     }
     return "???";
@@ -226,8 +226,8 @@ std::string format_instruction(const Instruction& instruction,
             return "TRAP #" + std::to_string(instruction.n);
         case Op::Syscall: {
             const char* name = syscall_name(instruction.n);
-            return name != nullptr ? std::string("SYSCALL #") + name
-                                   : "SYSCALL #" + std::to_string(instruction.n);
+            return name != nullptr ? std::string("SYS #") + name
+                                   : "SYS #" + std::to_string(instruction.n);
         }
         case Op::Ret:
         case Op::Reti:

@@ -279,7 +279,7 @@ instructions per second and a step is a handful of instructions.
 | Function with no line rows (libc, `_start`, BIOS) | C pane shows "(no C source)". C step keeps running until line info returns, with a budget. |
 | Interrupt handler | KR16 delivers IRQs; the handler has no C rows. Either run through it transparently or stop with reason "interrupt". Do not let a C step land in a handler and look frozen. |
 | `BRK` / faults | Stop with a specific reason and highlight the instruction. The VM already halts with a reason ([`cpu.hpp`](../../include/kr16/cpu.hpp)). |
-| `SYSCALL` / MMIO | Single instruction; no special handling. Console output drains after each stop. |
+| `SYS` / MMIO | Single instruction; no special handling. Console output drains after each stop. |
 | Blocking `getchar` | libc busy-waits on MMIO. If PC stays in a tiny range with an empty keyboard queue, pause with "waiting for keyboard input". This is a teaching feature, not a bug. |
 | Step budget | A line step that never changes line (e.g. a tight infinite loop on one line) must stop at, say, 1,000,000 instructions with reason "budget". The DAP already has this guard. |
 

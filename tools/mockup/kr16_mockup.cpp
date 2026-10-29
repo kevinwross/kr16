@@ -487,7 +487,7 @@ std::wstring instruction_help(const std::string& mnemonic) {
         {"EI", L"Enable interrupts."},
         {"DI", L"Disable interrupts."},
         {"WAIT", L"Wait for an interrupt."},
-        {"SYSCALL", L"Call a host service."},
+        {"SYS", L"Call a host service."},
         {"???", L"Unknown or invalid instruction."},
     };
     for (const auto& entry : kEntries) {
@@ -505,7 +505,7 @@ std::wstring describe_operand(const std::string& raw,
         return L"";
     }
     if (operand.front() == '#') {
-        return mnemonic == "SYSCALL"
+        return mnemonic == "SYS"
                    ? L"immediate host-service number"
                    : L"immediate value (encoded in the instruction)";
     }

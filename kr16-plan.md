@@ -191,7 +191,7 @@ one executable.
 | Flags | C, Z, N, V, I |
 | Interrupts | Maskable, vectored, no automatic nesting |
 | Interrupt sources | Timer 0, keyboard |
-| Host calls | `SYSCALL #n` to VM host services; separate from BIOS `TRAP` |
+| Host calls | `SYS #n` to VM host services; separate from BIOS `TRAP` |
 | I/O | Memory-mapped 256-byte page at `0xF000` |
 | RAM | 60 KiB at `0x0000–0xEFFF`; the first 256 bytes hold the vectors and BIOS jump table |
 | ROM | 3.75 KiB at `0xF100–0xFFFF`, write-protected during execution |
@@ -711,7 +711,7 @@ The C-type control format:
 | 12 | `WAIT` | 16 | — | Wait for interrupt |
 | 13 | `PUSH Rs` | 16 | regA = Rs | Push register |
 | 14 | `POP Rd` | 16 | regA = Rd | Pop register |
-| 15 | `SYSCALL #n` | 16 | bits[7:0] = n; R0 = block pointer | Host service call; VM handles; PC advances |
+| 15 | `SYS #n` | 16 | bits[7:0] = n; R0 = block pointer | Host service call; VM handles; PC advances |
 
 Conditional branches use the B-type format. Condition codes:
 
@@ -769,7 +769,7 @@ exit code. Pending interrupts do not wake a halted CPU.
 interrupt source is pending; the VM advances the timer while waiting. If I=1
 the interrupt is taken; if I=0 execution resumes at the next instruction.
 
-`SYSCALL #n`:
+`SYS #n`:
 
 - It is a **host service call**, not a guest BIOS call and not an exception.
   `n` is 0..255.
@@ -893,7 +893,7 @@ Summary of flag effects:
 | `BTST` | — | NOT bit | — | — | — |
 | `BSET`, `BCLR`, `BTOG` | — | — | — | — | — |
 | `MOV`, loads, stores, `LEA`, `PUSH`, `POP`, `SEXT`, `ZXTB` | — | — | — | — | — |
-| `SYSCALL` | — | — | — | — | — |
+| `SYS` | — | — | — | — | — |
 | `EI` | — | — | — | — | 1 |
 | `DI` | — | — | — | — | 0 |
 | `RETI` | restores SR | | | | |
@@ -906,7 +906,7 @@ Additional rules:
 - `DIV`/`MOD` by zero raises vector 2 before writing the destination.
 - `MULS`/`MULU` require a pair base of `R0` or `R2`; other pair bases raise
   the illegal-instruction exception (vector 0).
-- `SYSCALL` leaves flags unchanged; host errors are returned in the call block,
+- `SYS` leaves flags unchanged; host errors are returned in the call block,
   not as CPU exceptions.
 - Signed division overflow (`-32768 / -1`) wraps to `0x8000`; the compiler may
   treat it as undefined, matching C.
@@ -1089,7 +1089,7 @@ contract once frozen.
 | 16-bit `PUSH`/`POP` | 2 |
 | 16-bit `TRAP` | 4 |
 | 16-bit `BRK` | 4 |
-| 16-bit `SYSCALL` | 10 |
+| 16-bit `SYS` | 10 |
 | `HLT`, `NOP`, `EI`, `DI` | 1 |
 | 32-bit instruction | +1 over the equivalent 16-bit form |
 | Hardware interrupt entry | 7 |
@@ -1097,7 +1097,7 @@ contract once frozen.
 | `WAIT` | 1 to enter; cycles advance while waiting |
 
 Examples: `MOV Rd, #imm16` = 2; `LD Rd, [addr16]` = 3; `JMP rel16` = 3;
-`CALL rel16` = 4. Host wall time spent inside `SYSCALL` does not advance the
+`CALL rel16` = 4. Host wall time spent inside `SYS` does not advance the
 simulated timer; the instruction's fixed cost is 10 cycles.
 
 ### 5.15 Calling Convention (Provisional)
@@ -1170,7 +1170,7 @@ the handler must save/restore any registers it uses before `RETI`. A future
 `__interrupt` attribute can generate this wrapper. Trap handlers are ordinary
 C functions using the standard ABI and return with `RET`.
 
-`SYSCALL` is not part of the C function ABI. It uses the 16-byte host-call
+`SYS` is not part of the C function ABI. It uses the 16-byte host-call
 block in R0 (Section 9.6); libc wrappers translate between the C ABI and the
 host-call block.
 
@@ -1238,7 +1238,7 @@ wraps the same library.
 - `MULS`/`MULU` validation is a hard requirement: only `R0`/`R2` are legal
   pair bases, only `R0`–`R4` are legal multipliers, and invalid forms produce
   a clear diagnostic. `MUL` is unaffected: no pair alignment, no shorthand.
-- `SYSCALL #n` selects a VM host service. The assembler recognizes `SYS_*`
+- `SYS #n` selects a VM host service. The assembler recognizes `SYS_*`
   constants and prints known service names in listings/disassembly; unknown
   numbers remain legal. R0 points to the 16-byte host-call block.
 
@@ -1581,7 +1581,7 @@ sections without extraction or decompression.
   disassembled as code.
 - `MULS`/`MULU` disassemble to the canonical two-operand form; the
   one-operand shorthand is assembler-only.
-- `SYSCALL #n` prints a symbolic `SYS_*` name when the service is known and a
+- `SYS #n` prints a symbolic `SYS_*` name when the service is known and a
   numeric value otherwise.
 - `kr16 debug file.o|file.kex` decodes `.debug_*` tables; `--lines`, `--types`,
   `--vars`, `--frames`, and `--objects` filter the output.
@@ -1938,7 +1938,7 @@ The runtime is a practical embedded libc, not a full hosted C library.
 - `exit` halts with the status; `abort` halts with a nonzero status. `assert`
   prints a diagnostic and aborts; `NDEBUG` disables it.
 - v1 is console-only. A later phase adds `open`/`read`/`write`/`close`/`lseek`/
-  `stat` and `FILE*`/`fopen`/`fread`/`fwrite`/`fclose` on top of `SYSCALL`.
+  `stat` and `FILE*`/`fopen`/`fread`/`fwrite`/`fclose` on top of `SYS`.
   `SYS_VERSION` advertises the host ABI version and capabilities; `errno`
   carries the portable host error code. File access is sandboxed under
   `./sandbox` by default with a 5 MiB quota; `--no-host-fs` disables it.
@@ -2420,7 +2420,7 @@ kr16 ld [options] file.o ... -o out.kex
 | BIOS | Embedded default; `--bios`/`--no-bios`; monitor `load-bios` |
 | Threads | VM main thread + DAP thread + console thread |
 | DAP | Control-only on fixed localhost port `22152`; console retains program I/O |
-| Host services | `SYSCALL` to sandboxed VM services; `./sandbox` default when file phase enabled |
+| Host services | `SYS` to sandboxed VM services; `./sandbox` default when file phase enabled |
 | Headless | Scripted input, cycle limit, trace, exit code |
 
 ### 9.2 Host Modes and CLI
@@ -2457,7 +2457,7 @@ Common options:
 --fs-readonly       make the host filesystem sandbox read-only
 --fs-quota 5M       cap total sandbox file data (default 5 MiB)
 --no-host-fs        disable host file services
---trace-syscalls    log SYSCALL service, args, and status
+--trace-syscalls    log SYS service, args, and status
 ```
 
 ### 9.3 Loading, Reset, and BIOS
@@ -2538,9 +2538,9 @@ The console belongs to the VM, not to VS Code.
   process), raw mode cannot work. The host reports that and falls back to
   `--line-input`/piped mode. See Section 10.7.
 
-### 9.6 Host Services (SYSCALL)
+### 9.6 Host Services (SYS)
 
-`SYSCALL #n` is the guest-to-VM host service call. It is not a BIOS `TRAP`
+`SYS #n` is the guest-to-VM host service call. It is not a BIOS `TRAP`
 and not a CPU exception. The VM is the trusted boundary; the guest never sees
 native Windows/Linux API names, handles, or function pointers.
 
@@ -2561,7 +2561,7 @@ validates the block and every guest pointer inside it.
 32-bit values use two consecutive words (low first). The block pointer stays
 in R0; the VM writes status/results into the block and leaves R0 unchanged.
 The C library builds this block on the stack and wraps it; students use normal
-C functions, not raw `SYSCALL`.
+C functions, not raw `SYS`.
 
 Service table (stable numbering):
 
@@ -2669,7 +2669,7 @@ Execution and diagnostics:
   advance the simulated timer. Interrupts are checked after the call; flags
   are unchanged; no guest vector is taken.
 - `--trace-syscalls` logs the service number, arguments, status, and result to
-  stderr. The DAP can step over a `SYSCALL` and can expose the trace as
+  stderr. The DAP can step over a `SYS` and can expose the trace as
   debugger output.
 - `SYS_VERSION` lets the C library detect host capabilities; file APIs are a
   later phase. v1 console I/O stays on MMIO.
@@ -2866,7 +2866,7 @@ mode the monitor is disabled; the console is program I/O only.
 - Evaluate/watch: C expressions over the current frame; identifiers, member
   access, indexing, dereference, casts, and integer arithmetic. Function calls
   with side effects are out of scope for v1.
-- Host calls: `SYSCALL` is a single instruction and can be stepped over; the
+- Host calls: `SYS` is a single instruction and can be stepped over; the
   DAP can expose `--trace-syscalls` records as debugger output. Program
   console I/O remains outside DAP.
 - Exceptions and `BRK` produce `stopped` events with reasons; `HLT` produces
@@ -2929,7 +2929,7 @@ mode the monitor is disabled; the console is program I/O only.
   stripped executables.
 - Console separation tests: program output appears on the terminal, not in
   DAP `output` events; DAP messages do not pollute the program stream.
-- Host-call tests: `SYSCALL` step-over and trace output; program console I/O
+- Host-call tests: `SYS` step-over and trace output; program console I/O
   stays outside DAP.
 - Windows and Linux, including integrated-terminal/PTY behavior where
   available.
@@ -3195,9 +3195,9 @@ mode the monitor is disabled; the console is program I/O only.
 | DAP I/O | Control-only; program keyboard/output stay on the console | Confirmed |
 | DAP takeover | Launch paused; disconnect pauses and re-listens | Confirmed |
 | Headless | Scripted input, cycle limit, trace, exit code | Confirmed |
-| Host calls | `SYSCALL #n` to VM host services; never raw native APIs | Confirmed |
+| Host calls | `SYS #n` to VM host services; never raw native APIs | Confirmed |
 | Host ABI | 16-byte block in R0: status, results, args | Confirmed |
-| `SYSCALL` encoding | C-type subop 15, `0x8Fnn`; 10 simulated cycles | Confirmed |
+| `SYS` encoding | C-type subop 15, `0x8Fnn`; 10 simulated cycles | Confirmed |
 | Host FS | Later file phase; default `./sandbox` lazy-created; 5 MiB quota; `--fs-root`/`--no-host-fs`/`--fs-readonly`/`--fs-quota` | Confirmed |
 | Host services v1 | `SYS_VERSION`; unimplemented services return `ENOSYS` | Confirmed |
 | Reference BIOS | Embedded default loaded automatically; `--bios` overrides, `--no-bios` disables | Confirmed |
@@ -3249,7 +3249,7 @@ Remaining:
 - **DAP:** Debug Adapter Protocol, the protocol VS Code uses for debugging.
 - **Trap:** A software-initiated call into the BIOS through the writable
   jump table at `0x0010`.
-- **Host call / SYSCALL:** A guest instruction that traps to the VM host for a
+- **Host call / SYS:** A guest instruction that traps to the VM host for a
   service; distinct from a BIOS `TRAP`.
 - **Host service ABI:** The stable, portable service table and call block the
   VM implements over native OS APIs.
@@ -3333,7 +3333,7 @@ instructions are 16-bit unless a 32-bit form is shown.
 | `RET` | Return | — | Pops a return address into PC. |
 | `RETI` | Return from interrupt | — | Pops PC and SR, returning from an interrupt or exception. |
 | `TRAP` | BIOS call | `#n` | Pushes the return address and calls the BIOS function at jump-table entry n (`0x0010 + 2n`). |
-| `SYSCALL` | Host call | `#n` | Calls VM host service n using the 16-byte block pointed to by R0. |
+| `SYS` | Host call | `#n` | Calls VM host service n using the 16-byte block pointed to by R0. |
 | `BRK` | Breakpoint | — | Raises the breakpoint exception (vector 1), which a debugger may intercept. |
 | `HLT` | Halt | — | Stops the CPU, and run mode exits with R0 & 0xFF. |
 | `NOP` | No operation | — | Does nothing. |
@@ -3385,7 +3385,7 @@ instructions are 16-bit unless a 32-bit form is shown.
   `MULU R2, R3`.
 - Pair multiplies write low to `Rd` and high to `Rd+1`; both sources are read
   before either destination is written.
-- `SYSCALL #n` calls a VM host service using the 16-byte block at R0. It is
+- `SYS #n` calls a VM host service using the 16-byte block at R0. It is
   distinct from `TRAP` (BIOS) and `BRK` (debug), leaves flags unchanged, and
   reports host errors in the block rather than as CPU exceptions.
 - `LD`, `LDB`, `LDSB`, `ST`, `STB`, and `LEA` support a PC-relative base when

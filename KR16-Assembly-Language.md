@@ -1789,8 +1789,8 @@ code range, or use a linked `.kex` with section boundaries when possible.
 - **16-bit displacements** are encoded as an unsigned 16-bit word and added
   modulo 64 KiB. The disassembler prints them unsigned. For example,
   `[R1+64536]` means `[R1-1000]`.
-- **`SYSCALL #0`** is printed with the known host-service name:
-  `SYSCALL #SYS_VERSION`.
+- **`SYS #0`** is printed with the known host-service name:
+  `SYS #SYS_VERSION`.
 - **Invalid encodings** print as `.word 0xXXXX`.
 
 ### 9.7 What the disassembler will not tell you
@@ -2326,7 +2326,7 @@ comparisons use combinations of `N` and `V`.
 | `BTST` | unchanged | `Z = NOT bit` | unchanged | unchanged |
 | `BSET`, `BCLR`, `BTOG` | unchanged | unchanged | unchanged | unchanged |
 | `MOV`, loads, stores, `LEA`, `PUSH`, `POP`, `SEXT`, `ZXTB` | unchanged | unchanged | unchanged | unchanged |
-| `SYSCALL` | unchanged | unchanged | unchanged | unchanged |
+| `SYS` | unchanged | unchanged | unchanged | unchanged |
 | `EI`, `DI` | unchanged | unchanged | unchanged | unchanged |
 
 A shift count of zero leaves `C`, `Z`, `N`, and `V` unchanged.
@@ -2500,7 +2500,7 @@ modulo 64 KiB. When `Rs = PC`, the base is the next instruction.
 ```
 
 Subops 0 and 1 are 32-bit; the rest are 16-bit. Some instructions use the low
-8 bits as a number (`TRAP`, `SYSCALL`); see the subop table.
+8 bits as a number (`TRAP`, `SYS`); see the subop table.
 
 ### 14.10 X-type: extended 32-bit
 
@@ -2628,9 +2628,9 @@ Unary functions ignore `Rs`; the assembler encodes `Rs = Rd`.
 | 12 | `WAIT` | 16 | wait for interrupt |
 | 13 | `PUSH Rs` | 16 | push register |
 | 14 | `POP Rd` | 16 | pop register |
-| 15 | `SYSCALL #n` | 16 | host service call |
+| 15 | `SYS #n` | 16 | host service call |
 
-For `TRAP #n`, the instruction is encoded as `0x8600 | n`; for `SYSCALL #n`,
+For `TRAP #n`, the instruction is encoded as `0x8600 | n`; for `SYS #n`,
 it is `0x8F00 | n`. The number occupies the low 8 bits.
 
 ### 14.16 Reserved and illegal encodings
@@ -2647,7 +2647,7 @@ The following raise the illegal-instruction exception (vector 0):
 - A nonzero reserved bit in a control encoding.
 
 An odd instruction-fetch address raises the bus-fault exception (vector 5).
-A `SYSCALL` with an invalid block is an `EFAULT` result, not an illegal
+A `SYS` with an invalid block is an `EFAULT` result, not an illegal
 instruction.
 
 ---
@@ -3800,12 +3800,12 @@ one-cycle no-op and continues to the next instruction; see
 [Section 20](#20-implementation-notes-for-this-release). If you need a real
 wait in the VM today, use a loop or rely on `--max-cycles`.
 
-#### SYSCALL — Host system call
+#### SYS — Host system call
 
 **Syntax**
 
 ```asm
-SYSCALL #n
+SYS #n
 ```
 
 **Operation:** call host service `n`; `R0` points to a 16-byte, 2-byte-aligned
@@ -3841,7 +3841,7 @@ returns `EFAULT` (status 5); an unimplemented service returns `ENOSYS`
 - `result2` = 0
 
 The disassembler prints known service names, such as
-`SYSCALL #SYS_VERSION`. The assembler accepts a numeric `#n`; there are no
+`SYS #SYS_VERSION`. The assembler accepts a numeric `#n`; there are no
 predefined `SYS_*` constants in this release.
 
 ---
@@ -3922,9 +3922,9 @@ in the VM.
 | Handler returns with | `RET` | `RETI` |
 | Table | BIOS jump table at `0x0010` | Hardware vector 1 at `0x0002` |
 
-### 16.6 `SYSCALL` versus `TRAP`
+### 16.6 `SYS` versus `TRAP`
 
-`SYSCALL #n` is a VM host service. It does not use the guest vector or BIOS
+`SYS #n` is a VM host service. It does not use the guest vector or BIOS
 jump table. It passes a 16-byte block in `R0` and returns status/results in that
 block. Use it for host services such as version information. Use `TRAP` for
 guest BIOS services.
@@ -4008,8 +4008,8 @@ table.
 
 ### 17.3 Host calls
 
-`SYSCALL #0` (`SYS_VERSION`) is the only host service implemented in v1. The
-block layout and status codes are documented with the `SYSCALL` instruction in
+`SYS #0` (`SYS_VERSION`) is the only host service implemented in v1. The
+block layout and status codes are documented with the `SYS` instruction in
 [Section 15](#15-instruction-set-reference).
 
 A complete example:
@@ -4025,7 +4025,7 @@ host_block:
 .global _start
 _start:
     MOV   R0, #host_block
-    SYSCALL #0              ; SYS_VERSION
+    SYS #0              ; SYS_VERSION
     LD    R0, [R0+2]        ; result0 = host ABI version (1)
     HLT                     ; exit status 1
 ```
@@ -4033,7 +4033,7 @@ _start:
 With `kr16 vm syscall_demo.kex --trace-syscalls`, the VM prints:
 
 ```text
-SYSCALL #0 block=0x10a status=0 result0=1 result1=16
+SYS #0 block=0x10a status=0 result0=1 result1=16
 ```
 
 ---
@@ -4055,7 +4055,7 @@ counts below are the 16-bit forms unless noted.
 | `PUSH` / `POP` | 2 |
 | `TRAP` | 4 |
 | `BRK` | 7 in the current VM (exception entry) |
-| `SYSCALL` | 10 |
+| `SYS` | 10 |
 | `HLT`, `NOP`, `EI`, `DI` | 1 |
 | 32-bit instruction | +1 over the equivalent 16-bit form |
 | Hardware interrupt entry | 7 |
@@ -4072,7 +4072,7 @@ Examples:
 - `JMP label` — 3 cycles.
 - `CALL label` — 4 cycles.
 - `RET` — 3 cycles.
-- `SYSCALL #0` — 10 simulated cycles; host wall time does not advance the
+- `SYS #0` — 10 simulated cycles; host wall time does not advance the
   simulated timer.
 
 The timer advances with simulated cycles, not wall-clock time. Real-time pacing
@@ -4137,7 +4137,7 @@ RET              0x8400      1000 0100 0000 0000
 TRAP #2          0x8602      1000 0110 0000 0010
                              C-type: subop=6, n=2
 
-SYSCALL #0       0x8F00      1000 1111 0000 0000
+SYS #0       0x8F00      1000 1111 0000 0000
                              C-type: subop=15, n=0
 
 PUSH R0          0x8D00      1000 1101 0000 0000
@@ -4261,11 +4261,11 @@ relocation for `Bcc`, so a cross-section branch is silently wrong. Use `JMP` or
 `CALL` for cross-section and external targets. The assembler reports
 `external branch target is not supported` when a branch cannot be resolved.
 
-### 20.11 `SYSCALL` service names
+### 20.11 `SYS` service names
 
 The disassembler knows the names of the host services (`SYS_VERSION`,
 `SYS_OPEN`, and so on) and prints them. The assembler does not define `SYS_*`
-constants; write the numeric service number, for example `SYSCALL #0`.
+constants; write the numeric service number, for example `SYS #0`.
 
 ### 20.12 Real-time pacing
 
@@ -4534,7 +4534,7 @@ host_block:
 .global _start
 _start:
     MOV   R0, #host_block
-    SYSCALL #0              ; SYS_VERSION
+    SYS #0              ; SYS_VERSION
     LD    R0, [R0+2]        ; result0 = host ABI version (1)
     HLT                     ; exit status 1
 ```

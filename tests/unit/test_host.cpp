@@ -34,7 +34,7 @@ TEST_CASE("invalid host call blocks return EFAULT") {
     CHECK(host.call(0, 0xFFFF, memory) == 5);
 }
 
-TEST_CASE("CPU SYSCALL leaves flags and R0 unchanged") {
+TEST_CASE("CPU SYS leaves flags and R0 unchanged") {
     kr16::FlatMemory memory;
     kr16::Cpu cpu;
     kr16::HostServices host;
@@ -62,6 +62,6 @@ TEST_CASE("host call tracing records service and status") {
     kr16::HostServices host(true);
     host.call(0, 0x0300, memory);
     host.call(4, 0x0300, memory);
-    CHECK(host.trace().find("SYSCALL #0") != std::string::npos);
+    CHECK(host.trace().find("SYS #0") != std::string::npos);
     CHECK(host.trace().find("status=8") != std::string::npos);
 }

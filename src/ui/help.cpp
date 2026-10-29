@@ -51,7 +51,7 @@ std::string describe_operand(const std::string& raw,
         return {};
     }
     if (operand.front() == '#') {
-        return mnemonic == "SYSCALL"
+        return mnemonic == "SYS"
                    ? "immediate host-service number"
                    : "immediate value (encoded in the instruction)";
     }
@@ -160,7 +160,7 @@ std::string instruction_help(const std::string& mnemonic) {
         {"EI", "Enable interrupts."},
         {"DI", "Disable interrupts."},
         {"WAIT", "Wait for an interrupt."},
-        {"SYSCALL", "Call a host service."},
+        {"SYS", "Call a host service."},
         {"???", "Unknown or invalid instruction."},
     };
     for (const auto& entry : kEntries) {

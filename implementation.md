@@ -42,7 +42,7 @@ Rules:
 | M7 | Debug information and `kr16 debug` | Complete | Debug-format gate |
 | M8 | C front end | Complete (teaching subset, ADR 0001) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Complete (teaching subset, ADR 0001) | C execution gate |
-| M10 | Host services (`SYSCALL`) | Complete (host core) | Host-call gate |
+| M10 | Host services (`SYS`) | Complete (host core) | Host-call gate |
 | M11 | DAP and VS Code extension | Complete (DAP/VS Code, locals/globals, live session) | Debug-session gate |
 | M12 | Bootstrap, CI, and release | Complete (0.1.0 published, CI green) | Release-candidate gate |
 | M13 | Hardening, curriculum, `1.0.0` | Complete (1.0.0 published) | 1.0 gate |
@@ -245,7 +245,7 @@ execution, flags, exceptions, and cycle accounting.
 
 - [x] Add the ISA table and encoder/decoder for R, I, M, B, M8, S, BIT, C, and
       X formats.
-- [x] Implement the C-type `SYSCALL #n` decode path.
+- [x] Implement the C-type `SYS #n` decode path.
 - [x] Implement registers R0–R4, PC, SP, SR, flags, and reset state.
 - [x] Implement memory bus hooks and RAM/ROM/MMIO access policy.
 - [x] Implement arithmetic, logic, shifts, bit operations, and compare/test.
@@ -311,7 +311,7 @@ and readable symbol-aware disassembly.
 - [x] Implement diagnostics with `file:line:column` and listing output.
 - [x] Implement symbol-aware disassembly and `--no-hex`; `--source` is M7 and
       `--reloc` is M6.
-- [x] Implement `SYSCALL` symbolic names in disassembly and listings.
+- [x] Implement `SYS` symbolic names in disassembly and listings.
 - [x] Add canonical disassembly tests; full assemble-disassemble-assemble
       round-trip is completed with line information in M7.
 
@@ -670,7 +670,7 @@ unions, `long`, variadics, and compiler debug records remain future work.
 
 ---
 
-### M10 — Host Services (`SYSCALL`)
+### M10 — Host Services (`SYS`)
 
 **Goal:** Implement the VM host-call instruction path, version query, trace,
 and the stable ABI envelope. File services remain deferred to the post-v1 file
@@ -680,7 +680,7 @@ phase.
 
 **Tasks:**
 
-- [x] Implement `SYSCALL` execution: R0 block pointer, 16-byte block,
+- [x] Implement `SYS` execution: R0 block pointer, 16-byte block,
       status/results/args, 10-cycle cost, flags unchanged.
 - [x] Implement block/pointer validation and `EFAULT`.
 - [x] Implement `SYS_VERSION` with ABI and capability bits.
@@ -691,7 +691,7 @@ phase.
       enabling file services.
 - [x] Wire the C `__host_call` intrinsic; `errno` plumbing follows the full
       libc.
-- [x] Ensure DAP can step over `SYSCALL` (single-step executes the host call;
+- [x] Ensure DAP can step over `SYS` (single-step executes the host call;
       `$syscall_trace` exposes the call log).
 
 **Testing:**
@@ -699,7 +699,7 @@ phase.
 - Valid `SYS_VERSION` call and capability bits.
 - Unimplemented service returns `ENOSYS`.
 - Invalid block pointer, alignment, and bounds return `EFAULT`.
-- Flags, PC, and cycle count after `SYSCALL`.
+- Flags, PC, and cycle count after `SYS`.
 - `--trace-syscalls` output.
 - C intrinsic round-trip.
 - Regression under DAP stepping later.
@@ -1114,7 +1114,7 @@ Entry format:
 - Status: M2 complete locally.
 - Changes: added the instruction model and encoder/decoder, CPU registers and
   flags, ALU/multiply/divide/shift/bit execution, loads/stores, stack and
-  control flow, exceptions, `SYSCALL` dispatch, cycle accounting, and a
+  control flow, exceptions, `SYS` dispatch, cycle accounting, and a
   raw-sequence CPU test harness.
 - Tests: Windows Ninja Debug build passed; 31 doctest cases passed, including
   encode/decode examples, ALU flags, pair multiplication, divide-by-zero,
@@ -1241,7 +1241,7 @@ Entry format:
 - Changes: added `resources/manifest.json`, resource hash checking/updating,
   Windows/Linux packaging scripts, CI resource-hash checks, `docs/curriculum.md`
   and `docs/deferred.md`; wired the C `__host_call` intrinsic through
-  `SYSCALL` and the host block.
+  `SYS` and the host block.
 - Tests: compiler host-intrinsic test passes; resource manifest check passes.
 - Remaining: DAP/VS Code, embedded resource arrays, deterministic release
   archives, 0.1.0 RC, and the wider hardening matrix.
@@ -1380,7 +1380,7 @@ Entry format:
 ### 2026-10-27 20:08:35 -07:00 — M11: DAP host-call trace
 
 - Status: M11 host-call trace view added; M10 DAP syscall-step item closed.
-- Changes: DAP session now owns `HostServices`, installs the SYSCALL handler,
+- Changes: DAP session now owns `HostServices`, installs the SYS handler,
   and exposes `$syscall_trace`/`$syscalls` through `evaluate`; live smoke still
   passes.
 - Tests: Windows Debug full suite 24/24 CTest; DAP smoke passes.

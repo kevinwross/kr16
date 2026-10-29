@@ -1954,7 +1954,7 @@ void Assembler::handle_instruction(const std::string& mnemonic,
         return;
     }
 
-    if (mnemonic == "trap" || mnemonic == "syscall") {
+    if (mnemonic == "trap" || mnemonic == "sys") {
         require_operands(1);
         std::string text = trim(operands[0]);
         if (text.empty() || text.front() != '#') {

@@ -391,7 +391,7 @@ TEST_CASE("random instruction words decode without crashing") {
     }
 }
 
-TEST_CASE("HLT and SYSCALL") {    kr16::FlatMemory memory;
+TEST_CASE("HLT and SYS") {    kr16::FlatMemory memory;
     kr16::Cpu cpu;
     cpu.set_pc(0x0100);
     bool called = false;

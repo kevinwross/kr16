@@ -289,7 +289,7 @@ either destination is written.
 | 12 | `WAIT` | 16 | — | Wait for interrupt |
 | 13 | `PUSH Rs` | 16 | regA = Rs | Push register |
 | 14 | `POP Rd` | 16 | regA = Rd | Pop register |
-| 15 | `SYSCALL #n` | 16 | bits 7..0 = n; R0 = block | Host service call |
+| 15 | `SYS #n` | 16 | bits 7..0 = n; R0 = block | Host service call |
 
 `JMP rel16`/`CALL rel16` target = instruction address + 4 + rel16*2.
 
@@ -305,7 +305,7 @@ may intercept it before delivery.
 If I=1, the interrupt is taken; if I=0, execution resumes at the next
 instruction. The VM continues to advance the timer while waiting.
 
-`SYSCALL #n` is a VM host call, not a guest exception and not a BIOS `TRAP`.
+`SYS #n` is a VM host call, not a guest exception and not a BIOS `TRAP`.
 R0 points to a 16-byte, 2-byte-aligned block:
 
 | Word | Field |
@@ -405,7 +405,7 @@ There is no auto-increment/decrement addressing.
 | BTST | — | NOT bit | — | — |
 | BSET/BCLR/BTOG | — | — | — | — |
 | MOV/loads/stores/LEA/PUSH/POP/SEXT/ZXTB | — | — | — | — |
-| SYSCALL | — | — | — | — |
+| SYS | — | — | — | — |
 | EI/DI | — | — | — | — |
 
 A shift count of zero leaves C, Z, N, and V unchanged. `DIV`/`MOD` by zero
@@ -425,14 +425,14 @@ raises vector 2 before writing the destination.
 | 16-bit `PUSH`/`POP` | 2 |
 | 16-bit `TRAP` | 4 |
 | 16-bit `BRK` | 4 |
-| 16-bit `SYSCALL` | 10 |
+| 16-bit `SYS` | 10 |
 | `HLT`, `NOP`, `EI`, `DI` | 1 |
 | 32-bit instruction | +1 over equivalent 16-bit form |
 | Hardware interrupt entry | 7 |
 | Unaligned RAM word access | +1 |
 | `WAIT` | 1 to enter; cycles advance while waiting |
 
-Host wall time inside `SYSCALL` does not advance the simulated timer.
+Host wall time inside `SYS` does not advance the simulated timer.
 
 ## 14. Interrupts and Exceptions
 
@@ -485,7 +485,7 @@ The following are illegal and raise vector 0 unless stated otherwise:
   R0–R4.
 - `LD`/`LDB`/`LDSB`/`LEA` with `Rd = PC` or `Rd = SR`.
 - `TRAP` with n outside 0..119.
-- A `SYSCALL` with no valid 16-byte block is an `EFAULT` result, not an illegal
+- A `SYS` with no valid 16-byte block is an `EFAULT` result, not an illegal
   instruction.
 
 `ROL`/`ROR` are not part of v1. `WAIT` is implemented in v1.
@@ -503,7 +503,7 @@ BEQ label        0x7000|disp   B-type: cond=0
 JMP label        0x8000        C-type subop=0; word2=rel16
 CALL R1          0x8320        C-type subop=3, regA=1
 RET              0x8400        C-type subop=4
-SYSCALL #0       0x8F00        C-type subop=15, n=0
+SYS #0       0x8F00        C-type subop=15, n=0
 ```
 
 The assembler chooses the smallest legal form, subject to relocation range.

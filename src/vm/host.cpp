@@ -17,7 +17,7 @@ std::uint16_t HostServices::call(std::uint8_t service, std::uint16_t block,
         last_status_ = ErrorFault;
         if (trace_enabled_) {
             std::ostringstream line;
-            line << "SYSCALL #" << static_cast<unsigned>(service)
+            line << "SYS #" << static_cast<unsigned>(service)
                  << " block=0x" << std::hex << block << std::dec
                  << " status=" << ErrorFault << " (invalid block)\n";
             trace_ += line.str();
@@ -57,7 +57,7 @@ std::uint16_t HostServices::call(std::uint8_t service, std::uint16_t block,
 
     if (trace_enabled_) {
         std::ostringstream line;
-        line << "SYSCALL #" << static_cast<unsigned>(service)
+        line << "SYS #" << static_cast<unsigned>(service)
              << " block=0x" << std::hex << block << std::dec
              << " status=" << status << " result0=" << values.results[0]
              << " result1=" << values.results[1] << "\n";

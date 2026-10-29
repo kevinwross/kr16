@@ -4967,7 +4967,7 @@ private:
             expr->children[0]->kind == Expr::Kind::Number &&
             expr->children[0]->value >= 0 && expr->children[0]->value <= 255) {
             gen_expr(expr->children[1].get(), out);
-            out << "  SYSCALL #" << expr->children[0]->value << "\n";
+            out << "  SYS #" << expr->children[0]->value << "\n";
             out << "  LD R0, [R0]\n";
             return;
         }
