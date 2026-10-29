@@ -164,6 +164,12 @@ void text_right(Canvas& canvas, int right, int y, const std::string& value,
     canvas.text(right - size.width, y, value, color, role);
 }
 
+void text_center(Canvas& canvas, int center, int y, const std::string& value,
+                 Color color, FontRole role = FontRole::Ui) {
+    const Size size = canvas.measure(value, role);
+    canvas.text(center - size.width / 2, y, value, color, role);
+}
+
 int hex_digit(char ch) {
     if (ch >= '0' && ch <= '9') {
         return ch - '0';
@@ -1078,11 +1084,13 @@ void App::draw_bottom(Canvas& canvas) {
 
     var_hits_.clear();
     const int value_right = variables_.right - 12;
-    const int addr_right = value_right - 56;
-    text_right(canvas, addr_right, variables_.top + 5, "Addr", kTextDim,
-               FontRole::MonoSmall);
-    text_right(canvas, value_right, variables_.top + 5, "Value", kTextDim,
-               FontRole::MonoSmall);
+    const int value_left = value_right - 76;
+    const int addr_right = value_left - 8;
+    const int addr_left = addr_right - 80;
+    text_center(canvas, (addr_left + addr_right) / 2,
+                variables_.top + 5, "Addr", kAccent, FontRole::UiBold);
+    text_center(canvas, (value_left + value_right) / 2,
+                variables_.top + 5, "Value", kAccent, FontRole::UiBold);
     const auto locals = session_.locals();
     const auto globals = session_.globals();
     struct VariableRow {

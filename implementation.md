@@ -2376,3 +2376,9 @@ Entry format:
 - Removed the address suffix from variable names and added separate `Addr` and
   `Value` columns, with headers level with the `Variables` title.
 - Variable addresses are shown as `&0x....` in their own column.
+
+### 2026-10-28 — variable header typography
+
+- `Addr` and `Value` now use the same accent bold font as the `Variables`
+  title.
+- Headers are centered over fixed-width `Addr` and `Value` columns.
