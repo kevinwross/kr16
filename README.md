@@ -202,7 +202,9 @@ Tests use vendored doctest and CTest. Test labels include `unit`, `golden`,
 `integration`, `regression`, `fuzz`, and `slow`. The current suite includes
 assembler/disassembler tests, CPU/device/interrupt tests, container fixtures,
 linker relocation tests, VM boot/argv/headless tests, debug-line tests,
-host-call tests, and compiled-C end-to-end execution tests.
+host-call tests, compiled-C end-to-end execution tests, and the
+[C-for-U compiler test](tests/kevin/C-for-U.c), which emits assembler and has
+its generated program assembled, linked, and executed by CTest.
 
 ## License
 

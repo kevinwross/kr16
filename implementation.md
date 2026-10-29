@@ -2295,3 +2295,21 @@ Entry format:
 - Doctest: 131 cases / 3385 assertions; CTest 38/38 Windows and 37/37 Linux.
 - Remaining work recorded in `docs/compiler-opt.md`: stack spilling, full copy
   coalescing, and broader IR coverage.
+
+### 2026-10-28 — C-for-U test compiler
+
+- Added `tests/kevin/C-for-U.c`, a compact C-to-KR16-assembly compiler
+  written in the KR16 C subset.
+- It embeds a fixed 1024-byte `source` array, streams assembler output through
+  `putchar`, and uses `malloc`/`free` for its token buffers.
+- Target output follows the existing ABI (R1-R3 arguments, R0 return, R4 frame)
+  and can be linked with `resources/libc.s`.
+- The embedded test program exercises recursion, calls, a local array, a loop,
+  arithmetic, string data, and `printf`; generated output prints
+  `sum=30 fact=120`.
+- Compiler image: 17,664 text bytes, 1,809 data bytes, 21,854 bss bytes
+  (including libc's 16 KiB heap); code-only budget is under 40 KiB.
+- Added `kr16.cc.cforu`, `kr16.vm.cforu`, and `kr16.cforu.generated` tests. The
+  last test captures the emitted assembly, assembles/links it, runs it, and
+  checks the output.
+- Full suite: 41/41 Windows CTest and 40/40 Linux CTest.

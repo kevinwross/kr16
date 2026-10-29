@@ -172,6 +172,31 @@ add_test(NAME kr16.vm.hello
 set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
 
+add_test(NAME kr16.cc.cforu
+  COMMAND kr16 build --no-debug
+    "${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+)
+set_tests_properties(kr16.cc.cforu PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.vm.cforu
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+)
+set_tests_properties(kr16.vm.cforu PROPERTIES LABELS "integration"
+  DEPENDS kr16.cc.cforu
+  PASS_REGULAR_EXPRESSION "\\.global fact"
+  FAIL_REGULAR_EXPRESSION "C-for-U error")
+
+add_test(NAME kr16.cforu.generated
+  COMMAND ${CMAKE_COMMAND}
+    "-DKR16=$<TARGET_FILE:kr16>"
+    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    "-DGENDIR=${CMAKE_CURRENT_BINARY_DIR}"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_check.cmake"
+)
+set_tests_properties(kr16.cforu.generated PROPERTIES LABELS "integration"
+  DEPENDS kr16.cc.cforu)
+
 # Heap allocator: the checker is a test-only object, linked explicitly so the
 # runtime itself stays small.
 add_test(NAME kr16.as.heapcheck
