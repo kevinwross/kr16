@@ -699,8 +699,8 @@ void App::draw_source(Canvas& canvas) {
                    std::to_string(index + 1),
                    current ? kAccent : kTextDim, FontRole::Mono);
         if (session_.has_line_breakpoint(index + 1)) {
-            fill(canvas, Rect{source_text_.left + 7, y + 7,
-                              source_text_.left + 13, y + 13},
+            fill(canvas, Rect{source_text_.left + 3, y + 7,
+                              source_text_.left + 9, y + 13},
                  kRed);
         }
         text(canvas, source_text_.left + kGutter + 4, y + 1, lines[index].text,
@@ -881,6 +881,11 @@ void App::draw_asm(Canvas& canvas) {
          kBorder);
 
     fill(canvas, asm_text_, kPanel);
+    const int asm_break_gutter = asm_text_.left + 18;
+    fill(canvas,
+         Rect{asm_text_.left, asm_text_.top, asm_break_gutter,
+              asm_text_.bottom},
+         kPanelAlt);
     const auto& instructions = session_.disassembly();
     if (instructions.empty()) {
         text(canvas, asm_text_.left + 16, asm_text_.top + 16,
@@ -975,11 +980,15 @@ void App::draw_asm(Canvas& canvas) {
         text(canvas, text_x, y + 1, instruction.text,
              current ? kText : kTextDim, FontRole::Mono);
         if (session_.has_breakpoint(instruction.address)) {
-            fill(canvas, Rect{asm_text_.left + 12, y + 3,
-                              asm_text_.left + 26, y + 17},
+            fill(canvas, Rect{asm_text_.left + 3, y + 7,
+                              asm_text_.left + 9, y + 13},
                  kRed);
         }
     }
+    fill(canvas,
+         Rect{asm_break_gutter, asm_text_.top, asm_break_gutter + 1,
+              asm_text_.bottom},
+         kBorder);
     canvas.pop_clip();
 }
 
@@ -1113,7 +1122,9 @@ void App::draw_bottom(Canvas& canvas) {
             fill(canvas, row, kStmt);
             frame(canvas, row, kAccent);
         }
-        text(canvas, variables_.left + 16, y, variable.name, kText,
+        std::string label = variable.name + " (&" + hex4(variable.address) +
+                            ")";
+        text(canvas, variables_.left + 16, y, label, kText,
              FontRole::MonoSmall);
         std::string value;
         if (editing) {

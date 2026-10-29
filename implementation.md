@@ -2347,3 +2347,10 @@ Entry format:
 - Clicking a variable now points the memory panel at that variable's address.
   This is especially useful for arrays such as `source`, whose displayed value
   is its first two bytes, not its address.
+
+### 2026-10-28 — gutter and variable annotation tweaks
+
+- Moved the source breakpoint marker toward the left edge of its gutter.
+- Added matching 18 px gutter, separator, and 6x6 breakpoint marker to the
+  disassembly pane.
+- Variable rows now include their address, for example `source (&0x90CA)`.
