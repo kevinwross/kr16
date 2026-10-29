@@ -1923,7 +1923,15 @@ public:
             for (const auto& variable : debug_vars_) {
                 out << ".asciz \"" << variable.function << "|"
                     << variable.name << "|" << variable.offset << "|"
-                    << variable.size << "\"\n";
+                    << variable.size << "|" << variable.type << "\"\n";
+            }
+            out << ".text\n";
+        }
+        if (debug_ && !program_.globals.empty()) {
+            out << ".section .debug_globals\n";
+            for (const auto& global : program_.globals) {
+                out << ".asciz \"" << global.name << "|"
+                    << type_text(global.type) << "\"\n";
             }
             out << ".text\n";
         }
@@ -1959,6 +1967,7 @@ private:
         std::string name;
         int offset = 0;
         int size = 2;
+        std::string type;
     };
     struct DebugFrame {
         std::string function;
@@ -1968,6 +1977,32 @@ private:
         std::string name;
         int size = 0;
     };
+
+    std::string type_text(const std::shared_ptr<Type>& type) const {
+        if (!type) {
+            return "?";
+        }
+        switch (type->kind) {
+            case TypeKind::Void:
+                return "void";
+            case TypeKind::Char:
+                return "char";
+            case TypeKind::Int:
+                return "int";
+            case TypeKind::Pointer:
+                return type_text(type->base) + " *";
+            case TypeKind::Array:
+                return type_text(type->base) + "[" +
+                       std::to_string(type->count) + "]";
+            case TypeKind::Struct:
+                return "struct " +
+                       (type->name.empty() ? std::string("?") : type->name);
+            case TypeKind::Union:
+                return "union " +
+                       (type->name.empty() ? std::string("?") : type->name);
+        }
+        return "?";
+    }
 
     void record_type(const std::shared_ptr<Type>& type) {
         if (!type || type->name.empty()) {
@@ -3481,7 +3516,8 @@ private:
                 if (!variable.global && !variable.indirect) {
                     debug_vars_.push_back(DebugVar{
                         function.name, name, variable.offset,
-                        variable.type ? variable.type->size() : 2});
+                        variable.type ? variable.type->size() : 2,
+                        type_text(variable.type)});
                 }
             }
         }

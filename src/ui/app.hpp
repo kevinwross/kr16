@@ -64,12 +64,16 @@ private:
 
     struct VarHit {
         Rect rect;
+        Rect value_rect;
         std::string name;
+        std::string type;
         std::uint16_t address = 0;
         std::uint16_t value = 0;
         int size = 2;
         bool local = true;
         bool ok = false;
+        bool pointer = false;
+        bool char_pointer = false;
     };
 
     enum class ScrollPane {

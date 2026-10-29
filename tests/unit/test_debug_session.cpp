@@ -59,7 +59,10 @@ std::filesystem::path make_debug_fixture(std::string& error) {
                     "  LD R0, [R4-2]\n"
                     "  HLT\n"
                     ".section .debug_vars\n"
-                    ".asciz \"_start|local|2|2\"\n"
+                    ".asciz \"_start|local|2|2|int\"\n"
+                    ".text\n"
+                    ".section .debug_globals\n"
+                    ".asciz \"global_value|int\"\n"
                     ".text\n"
                     ".section .debug_frames\n"
                     ".asciz \"_start|1\"\n"
@@ -225,6 +228,7 @@ TEST_CASE("debug session exposes source, functions, frames and locals") {
     REQUIRE(locals.size() == 1);
     CHECK(locals[0].name == "local");
     CHECK(locals[0].scope == "_start");
+    CHECK(locals[0].type == "int");
     CHECK(locals[0].local);
     CHECK(locals[0].ok);
 
@@ -237,6 +241,7 @@ TEST_CASE("debug session exposes source, functions, frames and locals") {
     const auto globals = session.globals();
     REQUIRE_FALSE(globals.empty());
     CHECK(globals[0].name == "global_value");
+    CHECK(globals[0].type == "int");
     CHECK_FALSE(globals[0].local);
     CHECK(globals[0].ok);
 

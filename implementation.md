@@ -2399,3 +2399,12 @@ Entry format:
   scrollbars for Variables, Call stack, and Console.
 - Thumb dragging and track paging update the corresponding scroll offset
   immediately; wheel scrolling and step-follow behavior are unchanged.
+
+### 2026-10-28 — typed variables and pointer preview
+
+- Debug metadata now records local variable types and emits a `.debug_globals`
+  name/type table; the linker preserves it.
+- Variable tooltips show the type.
+- Hovering a `char *` displays up to 16 characters of the pointed-to string,
+  with `...` when longer or `<null>` for a null pointer.
+- Clicking a pointer variable's value routes that value into the memory pane.

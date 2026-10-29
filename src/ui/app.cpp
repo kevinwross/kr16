@@ -170,6 +170,20 @@ void text_center(Canvas& canvas, int center, int y, const std::string& value,
     canvas.text(center - size.width / 2, y, value, color, role);
 }
 
+bool type_is_pointer(const std::string& type) {
+    return type.find('*') != std::string::npos;
+}
+
+bool type_is_char_pointer(const std::string& type) {
+    std::string compact;
+    for (const char ch : type) {
+        if (!std::isspace(static_cast<unsigned char>(ch))) {
+            compact.push_back(ch);
+        }
+    }
+    return compact == "char*";
+}
+
 int hex_digit(char ch) {
     if (ch >= '0' && ch <= '9') {
         return ch - '0';
@@ -502,6 +516,33 @@ void App::draw_var_tooltip(Canvas& canvas) {
     const VarHit& hit = var_hits_[hover_var_];
     std::vector<std::string> lines;
     lines.push_back(hit.name + (hit.local ? "  (local)" : "  (global)"));
+    lines.push_back("type: " + (hit.type.empty() ? "?" : hit.type));
+    if (hit.char_pointer && hit.ok && hit.size <= 2) {
+        if (hit.value == 0) {
+            lines.push_back("<null>");
+        } else {
+            std::string preview;
+            bool ended = false;
+            for (int i = 0; i < 16; ++i) {
+                const unsigned char ch =
+                    session_.read8(static_cast<std::uint16_t>(
+                        hit.value + static_cast<std::uint16_t>(i)));
+                if (ch == 0) {
+                    ended = true;
+                    break;
+                }
+                preview.push_back(ch >= 32 && ch < 127
+                                      ? static_cast<char>(ch)
+                                      : '.');
+            }
+            if (!ended &&
+                session_.read8(static_cast<std::uint16_t>(hit.value + 16)) !=
+                    0) {
+                preview += "...";
+            }
+            lines.push_back("\"" + preview + "\"");
+        }
+    }
     if (!hit.ok) {
         lines.push_back("unavailable");
     } else if (hit.size > 2) {
@@ -545,7 +586,7 @@ void App::draw_var_tooltip(Canvas& canvas) {
     frame(canvas, Rect{x, y, x + width, y + height}, kAccent);
     for (std::size_t i = 0; i < lines.size(); ++i) {
         text(canvas, x + 10, y + 5 + static_cast<int>(i) * 18, lines[i],
-             i == 2 ? kTextDim : kText, FontRole::MonoSmall);
+             i == 0 ? kText : kTextDim, FontRole::MonoSmall);
     }
 }
 
@@ -1160,9 +1201,12 @@ void App::draw_bottom(Canvas& canvas) {
         const int index = static_cast<int>(var_hits_.size());
         const Rect row{variables_.left + 8, y - 2, variables_.right - 12,
                        y + 16};
-        var_hits_.push_back(VarHit{row, variable.name, variable.address,
-                                   variable.value, variable.size,
-                                   variable.local, variable.ok});
+        const Rect value_rect{value_left, y - 2, value_right, y + 16};
+        var_hits_.push_back(VarHit{
+            row, value_rect, variable.name, variable.type, variable.address,
+            variable.value, variable.size, variable.local, variable.ok,
+            type_is_pointer(variable.type),
+            type_is_char_pointer(variable.type)});
         const bool editing = editing_var_ == index;
         const bool hovered = hover_var_ == index;
         if (editing) {
@@ -1686,6 +1730,18 @@ void App::event(const Event& event) {
         }
         for (std::size_t i = 0; i < var_hits_.size(); ++i) {
             if (var_hits_[i].rect.contains(down->position)) {
+                const VarHit& hit = var_hits_[i];
+                if (hit.pointer && hit.ok && hit.size <= 2 &&
+                    hit.value_rect.contains(down->position)) {
+                    memory_address_ =
+                        static_cast<std::uint16_t>(
+                            std::min<unsigned>(hit.value, 0xFFE0));
+                    memory_address_editing_ = false;
+                    memory_byte_editing_ = -1;
+                    hover_memory_byte_ = -1;
+                    window_.invalidate();
+                    return;
+                }
                 start_variable_edit(static_cast<int>(i));
                 return;
             }

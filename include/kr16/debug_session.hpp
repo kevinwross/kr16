@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -42,6 +43,7 @@ struct SessionFrame {
 struct SessionVariable {
     std::string name;
     std::string scope;
+    std::string type;
     std::uint16_t address = 0;
     std::uint16_t value = 0;
     int size = 2;
@@ -175,6 +177,7 @@ private:
     struct LocalDefinition {
         std::string function;
         std::string name;
+        std::string type;
         int offset = 0;
         int size = 2;
     };
@@ -203,6 +206,7 @@ private:
     std::vector<FunctionRecord> function_records_;
     std::set<int> executable_lines_;
     std::vector<LocalDefinition> local_definitions_;
+    std::map<std::string, std::string> global_types_;
     std::set<std::uint16_t> address_breakpoints_;
     std::set<int> line_breakpoints_;
     std::string console_;

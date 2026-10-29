@@ -281,6 +281,7 @@ void DebugSession::clear_image_state() {
     function_records_.clear();
     executable_lines_.clear();
     local_definitions_.clear();
+    global_types_.clear();
     address_breakpoints_.clear();
     line_breakpoints_.clear();
     console_.clear();
@@ -498,6 +499,7 @@ void DebugSession::load_debug_info() {
     function_records_.clear();
     executable_lines_.clear();
     local_definitions_.clear();
+    global_types_.clear();
 
     std::vector<LineRow> decoded_rows;
     for (const auto& section : container_.sections) {
@@ -556,6 +558,9 @@ void DebugSession::load_debug_info() {
                 LocalDefinition local;
                 local.function = trim_copy(parts[0]);
                 local.name = trim_copy(parts[1]);
+                if (parts.size() >= 5) {
+                    local.type = trim_copy(parts[4]);
+                }
                 try {
                     local.offset = std::stoi(parts[2]);
                     local.size = std::stoi(parts[3]);
@@ -565,6 +570,18 @@ void DebugSession::load_debug_info() {
                 if (!local.function.empty() && !local.name.empty()) {
                     function_names.insert(local.function);
                     local_definitions_.push_back(std::move(local));
+                }
+            }
+        } else if (section.name == ".debug_globals") {
+            for (const auto& record : split_records(section.data)) {
+                const auto parts = split_pipe(record);
+                if (parts.size() < 2) {
+                    continue;
+                }
+                const std::string name = trim_copy(parts[0]);
+                const std::string type = trim_copy(parts[1]);
+                if (!name.empty() && !type.empty()) {
+                    global_types_[name] = type;
                 }
             }
         }
@@ -822,6 +839,7 @@ std::vector<SessionVariable> DebugSession::locals() {
         SessionVariable variable;
         variable.name = definition.name;
         variable.scope = definition.function;
+        variable.type = definition.type;
         variable.size = definition.size > 0 ? definition.size : 2;
         variable.local = true;
         variable.address = static_cast<std::uint16_t>(
@@ -867,6 +885,10 @@ std::vector<SessionVariable> DebugSession::globals() {
             variable.name = symbol.name;
             variable.local = false;
             variable.address = symbol.value;
+            const auto type = global_types_.find(symbol.name);
+            if (type != global_types_.end()) {
+                variable.type = type->second;
+            }
             variable.size =
                 symbol.size > 0 ? static_cast<int>(symbol.size) : 2;
             variable.ok = static_cast<std::uint32_t>(symbol.value) +
