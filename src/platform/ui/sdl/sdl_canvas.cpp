@@ -96,8 +96,11 @@ std::unique_ptr<SdlCanvas::Font> load_font(
         stbtt_InitFont(&font->info, font->data.data(), offset) == 0) {
         throw std::runtime_error("cannot parse embedded font");
     }
-    const float scale =
-        stbtt_ScaleForPixelHeight(&font->info, static_cast<float>(pixel_height));
+    // Match the Win32 backend: GDI's negative font height is the em size, so
+    // scale by em rather than by ascent-to-descent (which stb calls "pixel
+    // height"). The latter produced text ~17-24% smaller on Linux.
+    const float scale = stbtt_ScaleForMappingEmToPixels(
+        &font->info, static_cast<float>(pixel_height));
     int ascent = 0;
     int descent = 0;
     int line_gap = 0;
