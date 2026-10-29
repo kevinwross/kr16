@@ -134,8 +134,11 @@ void SdlWindow::open_file(FileCallback callback, std::string_view title,
     (void)title;
     (void)filter;
     file_callback_ = std::move(callback);
+    // SDL3 expects a semicolon-separated list of bare extensions (or a single
+    // "*" for all files); wildcard forms such as "*.c" are rejected, which
+    // makes SDL report an error and invoke the callback with no file.
     static const SDL_DialogFileFilter filters[] = {
-        {"KR16 files", "*.kex;*.c;*.s;*.asm;*.o"},
+        {"KR16 files", "kex;c;s;asm;o"},
         {"All files", "*"}};
     SDL_ShowOpenFileDialog(&SdlWindow::on_file_selected, this, window_,
                            filters, 2, nullptr, false);
