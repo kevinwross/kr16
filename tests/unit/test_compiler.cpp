@@ -297,6 +297,16 @@ TEST_CASE("constant casts and sizeof conditions are folded") {
     CHECK(assembly.find("CMP R0, #0") == std::string::npos);
 }
 
+TEST_CASE("fallback conditions branch directly on comparisons") {
+    const auto assembly = compile_text(
+        "int f(int x) { int a[2]; if (x == 0) return 1; return 2; }\n"
+        "int main(void) { return f(0); }\n");
+    CHECK(assembly.find("MOV R1, #0") == std::string::npos);
+    CHECK(assembly.find("CMP R0, R1") == std::string::npos);
+    CHECK(assembly.find("CMP R0, #0") != std::string::npos);
+    CHECK(assembly.find("BNE ") != std::string::npos);
+}
+
 TEST_CASE("single-argument calls avoid stack shuffling") {
     const auto assembly = compile_text(
         "int f(int x) { return x; }\n"

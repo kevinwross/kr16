@@ -3739,10 +3739,15 @@ private:
                 }
                 const auto else_label = new_label("else");
                 const auto end_label = new_label("endif");
-                gen_expr(stmt->expr.get(), out);
-                out << "  CMP R0, #0\n";
-                out << "  BEQ " << (stmt->else_body ? else_label : end_label)
-                    << "\n";
+                const auto false_target =
+                    stmt->else_body ? else_label : end_label;
+                if (!optimize_ ||
+                    !emit_simple_condition(stmt->expr.get(), false_target,
+                                           false, out)) {
+                    gen_expr(stmt->expr.get(), out);
+                    out << "  CMP R0, #0\n";
+                    out << "  BEQ " << false_target << "\n";
+                }
                 gen_stmt(stmt->body.get(), out);
                 if (stmt->else_body) {
                     out << "  BRA " << end_label << "\n";
@@ -3793,9 +3798,13 @@ private:
                 continue_labels_.push_back(start);
                 out << start << ":\n";
                 if (!condition) {
-                    gen_expr(stmt->expr.get(), out);
-                    out << "  CMP R0, #0\n";
-                    out << "  BEQ " << end << "\n";
+                    if (!optimize_ ||
+                        !emit_simple_condition(stmt->expr.get(), end, false,
+                                               out)) {
+                        gen_expr(stmt->expr.get(), out);
+                        out << "  CMP R0, #0\n";
+                        out << "  BEQ " << end << "\n";
+                    }
                 }
                 gen_stmt(stmt->body.get(), out);
                 out << "  BRA " << start << "\n";
@@ -3813,9 +3822,13 @@ private:
                 out << start << ":\n";
                 gen_stmt(stmt->body.get(), out);
                 out << cond << ":\n";
-                gen_expr(stmt->expr.get(), out);
-                out << "  CMP R0, #0\n";
-                out << "  BNE " << start << "\n";
+                if (!optimize_ ||
+                    !emit_simple_condition(stmt->expr.get(), start, true,
+                                           out)) {
+                    gen_expr(stmt->expr.get(), out);
+                    out << "  CMP R0, #0\n";
+                    out << "  BNE " << start << "\n";
+                }
                 out << end << ":\n";
                 break_labels_.pop_back();
                 continue_labels_.pop_back();
@@ -3841,9 +3854,13 @@ private:
                 continue_labels_.push_back(next);
                 out << start << ":\n";
                 if (stmt->expr && !condition) {
-                    gen_expr(stmt->expr.get(), out);
-                    out << "  CMP R0, #0\n";
-                    out << "  BEQ " << end << "\n";
+                    if (!optimize_ ||
+                        !emit_simple_condition(stmt->expr.get(), end, false,
+                                               out)) {
+                        gen_expr(stmt->expr.get(), out);
+                        out << "  CMP R0, #0\n";
+                        out << "  BEQ " << end << "\n";
+                    }
                 }
                 gen_stmt(stmt->body.get(), out);
                 out << next << ":\n";
@@ -4021,6 +4038,49 @@ private:
         } else {
             return false;
         }
+        return true;
+    }
+
+    bool emit_simple_condition(const Expr* expr, const std::string& target,
+                               bool branch_when_true,
+                               std::ostringstream& out) {
+        if (expr == nullptr || expr->kind != Expr::Kind::Binary ||
+            !is_simple_binary(expr)) {
+            return false;
+        }
+        const std::string& op = expr->op;
+        if (op != "==" && op != "!=" && op != "<" && op != ">" &&
+            op != "<=" && op != ">=") {
+            return false;
+        }
+        const auto right_constant =
+            constant_expr_value(expr->children[1].get());
+        if (!emit_simple_leaf(expr->children[0].get(), 0, out)) {
+            return false;
+        }
+        if (right_constant) {
+            out << "  CMP R0, #" << *right_constant << "\n";
+        } else {
+            if (!emit_simple_leaf(expr->children[1].get(), 1, out)) {
+                return false;
+            }
+            out << "  CMP R0, R1\n";
+        }
+        std::string branch = "BEQ";
+        if (op == "!=") branch = "BNE";
+        if (op == "<") branch = "BLT";
+        if (op == ">") branch = "BGT";
+        if (op == "<=") branch = "BLE";
+        if (op == ">=") branch = "BGE";
+        if (!branch_when_true) {
+            if (branch == "BEQ") branch = "BNE";
+            else if (branch == "BNE") branch = "BEQ";
+            else if (branch == "BLT") branch = "BGE";
+            else if (branch == "BGT") branch = "BLE";
+            else if (branch == "BLE") branch = "BGT";
+            else if (branch == "BGE") branch = "BLT";
+        }
+        out << "  " << branch << " " << target << "\n";
         return true;
     }
 

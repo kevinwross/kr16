@@ -2279,8 +2279,10 @@ Entry format:
   power-of-two multiplies, constant-branch folding, and fallthrough-jump
   removal.
 - Optimized single-argument call marshalling to avoid `PUSH R0`/`POP R1`.
+- Fallback `if`/`while`/`for`/`do` conditions now branch directly on simple
+  comparisons instead of materializing a 0/1 value.
 - Scalar loop benchmark: `-O1` now 38 text bytes, 5,014 instructions, 7,026
   cycles (from 122 / 35,033 / 56,055 at `-O0`).
-- Doctest: 126 cases / 3359 assertions; CTest 38/38 Windows and 37/37 Linux.
+- Doctest: 127 cases / 3364 assertions; CTest 38/38 Windows and 37/37 Linux.
 - Remaining work recorded in `docs/compiler-opt.md`: stack spilling, full copy
   coalescing, and broader IR coverage.

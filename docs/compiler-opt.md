@@ -222,6 +222,7 @@ Test plan:
 - [x] Strength-reduce multiplication by a power of two to a shift.
 - [x] Fold casts/`sizeof` and constant branches, including IR constant
   conditions.
+- [x] Branch directly on simple comparison conditions in the fallback emitter.
 - [x] Avoid `PUSH`/`POP` shuffling for single-argument calls.
 - [ ] Fold remaining address calculations.
 - [ ] Consider loop-invariant code motion and induction-variable strength
