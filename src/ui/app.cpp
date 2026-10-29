@@ -43,6 +43,14 @@ constexpr int kAsmBytes = 128;
 constexpr int kRegH = 74;
 constexpr int kColumnHeader = 18;
 
+// 24x24 monochrome mask derived from the supplied settings gear icon.
+constexpr std::uint32_t kGearIcon[24] = {
+    0x003C00, 0x006600, 0x0E4660, 0x0FC7F0, 0x310098, 0x30000C,
+    0x300018, 0x187E10, 0x10C308, 0x71818E, 0xC10083, 0x810081,
+    0x810081, 0xF1018F, 0x71830E, 0x10C718, 0x187C10, 0x300008,
+    0x30000C, 0x1B0198, 0x0EC770, 0x044620, 0x006600, 0x003C00,
+};
+
 std::filesystem::path settings_path() {
     const char* appdata = std::getenv("APPDATA");
     if (appdata != nullptr && *appdata != 0) {
@@ -352,18 +360,18 @@ void App::draw_top(Canvas& canvas) {
     frame(canvas, settings_rect_, hover_settings_ ? kAccent : kBorder);
     const int gear_x = settings_rect_.left + settings_rect_.width() / 2;
     const int gear_y = settings_rect_.top + settings_rect_.height() / 2;
-    fill(canvas, Rect{gear_x - 7, gear_y - 7, gear_x + 7, gear_y + 7},
-         kText);
-    fill(canvas, Rect{gear_x - 11, gear_y - 3, gear_x - 7, gear_y + 3},
-         kText);
-    fill(canvas, Rect{gear_x + 7, gear_y - 3, gear_x + 11, gear_y + 3},
-         kText);
-    fill(canvas, Rect{gear_x - 3, gear_y - 11, gear_x + 3, gear_y - 7},
-         kText);
-    fill(canvas, Rect{gear_x - 3, gear_y + 7, gear_x + 3, gear_y + 11},
-         kText);
-    fill(canvas, Rect{gear_x - 3, gear_y - 3, gear_x + 3, gear_y + 3},
-         kPanel);
+    const int gear_left = gear_x - 12;
+    const int gear_top = gear_y - 12;
+    const Color gear_color = hover_settings_ ? kAccent : kText;
+    for (int row = 0; row < 24; ++row) {
+        for (int column = 0; column < 24; ++column) {
+            if ((kGearIcon[row] & (1u << (23 - column))) != 0) {
+                fill(canvas, Rect{gear_left + column, gear_top + row,
+                                  gear_left + column + 1, gear_top + row + 1},
+                     gear_color);
+            }
+        }
+    }
 
     fill(canvas, step_reset_rect_, kPanelAlt);
     frame(canvas, step_reset_rect_,
