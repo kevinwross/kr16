@@ -2563,6 +2563,44 @@ private:
         }
     }
 
+    void ir_fold_constant_branches() {
+        std::unordered_map<int, std::int64_t> constants;
+        for (const auto& block : ir_blocks_) {
+            for (const auto& inst : block.insts) {
+                if (inst.op == IrOp::Const) {
+                    constants[inst.dst] = inst.imm;
+                }
+            }
+        }
+        for (auto& block : ir_blocks_) {
+            for (std::size_t i = 0; i < block.insts.size();) {
+                auto& inst = block.insts[i];
+                if (inst.op != IrOp::BranchZero) {
+                    ++i;
+                    continue;
+                }
+                if (inst.lhs < 0 ||
+                    ir_values_[static_cast<std::size_t>(inst.lhs)].variable) {
+                    ++i;
+                    continue;
+                }
+                const auto constant = constants.find(inst.lhs);
+                if (constant == constants.end()) {
+                    ++i;
+                    continue;
+                }
+                if (constant->second != 0) {
+                    block.insts.erase(block.insts.begin() +
+                                      static_cast<std::ptrdiff_t>(i));
+                } else {
+                    inst.op = IrOp::Jump;
+                    inst.lhs = -1;
+                    ++i;
+                }
+            }
+        }
+    }
+
     void ir_dead_code_elimination() {
         const auto is_pure = [](const IrInst& inst) {
             if (inst.op == IrOp::Const || inst.op == IrOp::Move ||
@@ -3292,6 +3330,7 @@ private:
         ir_coalesce_assignments();
         ir_fuse_compare_branches();
         ir_fold_immediates();
+        ir_fold_constant_branches();
         ir_dead_code_elimination();
         ir_remove_fallthrough_jumps();
         ir_successors();
@@ -3687,9 +3726,11 @@ private:
                 }
                 return;
             case Stmt::Kind::If: {
-                if (optimize_ && stmt->expr &&
-                    stmt->expr->kind == Expr::Kind::Number) {
-                    if (stmt->expr->value != 0) {
+                const auto condition =
+                    optimize_ ? constant_expr_value(stmt->expr.get())
+                              : std::nullopt;
+                if (condition) {
+                    if (*condition != 0) {
                         gen_stmt(stmt->body.get(), out);
                     } else if (stmt->else_body) {
                         gen_stmt(stmt->else_body.get(), out);
@@ -3740,9 +3781,10 @@ private:
                 return;
             }
             case Stmt::Kind::While: {
-                if (optimize_ && stmt->expr &&
-                    stmt->expr->kind == Expr::Kind::Number &&
-                    stmt->expr->value == 0) {
+                const auto condition =
+                    optimize_ ? constant_expr_value(stmt->expr.get())
+                              : std::nullopt;
+                if (condition && *condition == 0) {
                     return;
                 }
                 const auto start = new_label("while");
@@ -3750,8 +3792,7 @@ private:
                 break_labels_.push_back(end);
                 continue_labels_.push_back(start);
                 out << start << ":\n";
-                if (!optimize_ || !stmt->expr ||
-                    stmt->expr->kind != Expr::Kind::Number) {
+                if (!condition) {
                     gen_expr(stmt->expr.get(), out);
                     out << "  CMP R0, #0\n";
                     out << "  BEQ " << end << "\n";
@@ -3781,9 +3822,10 @@ private:
                 return;
             }
             case Stmt::Kind::For: {
-                if (optimize_ && stmt->expr &&
-                    stmt->expr->kind == Expr::Kind::Number &&
-                    stmt->expr->value == 0) {
+                const auto condition =
+                    optimize_ ? constant_expr_value(stmt->expr.get())
+                              : std::nullopt;
+                if (condition && *condition == 0) {
                     if (stmt->init) {
                         gen_stmt(stmt->init.get(), out);
                     }
@@ -3798,8 +3840,7 @@ private:
                 break_labels_.push_back(end);
                 continue_labels_.push_back(next);
                 out << start << ":\n";
-                if (!optimize_ || (stmt->expr &&
-                    stmt->expr->kind != Expr::Kind::Number)) {
+                if (stmt->expr && !condition) {
                     gen_expr(stmt->expr.get(), out);
                     out << "  CMP R0, #0\n";
                     out << "  BEQ " << end << "\n";
@@ -4032,6 +4073,109 @@ private:
         const std::string bracketed = "[" + address + "]";
         out << (character ? "  STB " : "  ST ") << bracketed << ", R0\n";
         return true;
+    }
+
+    std::optional<std::int64_t> constant_expr_value(const Expr* expr) {
+        if (expr == nullptr) {
+            return std::nullopt;
+        }
+        switch (expr->kind) {
+            case Expr::Kind::Number:
+                return expr->value;
+            case Expr::Kind::Sizeof:
+                return expr->children.empty()
+                           ? expr->value
+                           : expression_type(expr->children[0].get())->size();
+            case Expr::Kind::Cast: {
+                auto value = constant_expr_value(expr->children[0].get());
+                if (!value) {
+                    return std::nullopt;
+                }
+                if (expr->type && expr->type->kind == TypeKind::Char) {
+                    return static_cast<std::uint16_t>(*value) & 0xFF;
+                }
+                return value;
+            }
+            case Expr::Kind::Unary: {
+                auto value = constant_expr_value(expr->children[0].get());
+                if (!value) {
+                    return std::nullopt;
+                }
+                const auto bits = static_cast<std::uint16_t>(*value);
+                if (expr->op == "+") return *value;
+                if (expr->op == "-") {
+                    return static_cast<std::uint16_t>(0u - bits);
+                }
+                if (expr->op == "~") {
+                    return static_cast<std::uint16_t>(~bits);
+                }
+                if (expr->op == "!") return bits == 0 ? 1 : 0;
+                return std::nullopt;
+            }
+            case Expr::Kind::Binary: {
+                auto left = constant_expr_value(expr->children[0].get());
+                auto right = constant_expr_value(expr->children[1].get());
+                if (!left || !right) {
+                    return std::nullopt;
+                }
+                const auto a = static_cast<std::uint16_t>(*left);
+                const auto b = static_cast<std::uint16_t>(*right);
+                const auto sa = static_cast<std::int16_t>(a);
+                const auto sb = static_cast<std::int16_t>(b);
+                if (expr->op == "+") {
+                    return static_cast<std::uint16_t>(a + b);
+                }
+                if (expr->op == "-") {
+                    return static_cast<std::uint16_t>(a - b);
+                }
+                if (expr->op == "*") {
+                    return static_cast<std::uint16_t>(
+                        static_cast<std::uint32_t>(a) *
+                        static_cast<std::uint32_t>(b));
+                }
+                if (expr->op == "/") {
+                    if (b == 0) return std::nullopt;
+                    return static_cast<std::uint16_t>(
+                        static_cast<std::int32_t>(sa) /
+                        static_cast<std::int32_t>(sb));
+                }
+                if (expr->op == "%") {
+                    if (b == 0) return std::nullopt;
+                    return static_cast<std::uint16_t>(
+                        static_cast<std::int32_t>(sa) %
+                        static_cast<std::int32_t>(sb));
+                }
+                if (expr->op == "&") return static_cast<std::uint16_t>(a & b);
+                if (expr->op == "|") return static_cast<std::uint16_t>(a | b);
+                if (expr->op == "^") return static_cast<std::uint16_t>(a ^ b);
+                if (expr->op == "<<") {
+                    return static_cast<std::uint16_t>(a << (b & 0x0F));
+                }
+                if (expr->op == ">>") {
+                    return static_cast<std::uint16_t>(sa >> (b & 0x0F));
+                }
+                if (expr->op == "==") return a == b ? 1 : 0;
+                if (expr->op == "!=") return a != b ? 1 : 0;
+                if (expr->op == "<") return sa < sb ? 1 : 0;
+                if (expr->op == ">") return sa > sb ? 1 : 0;
+                if (expr->op == "<=") return sa <= sb ? 1 : 0;
+                if (expr->op == ">=") return sa >= sb ? 1 : 0;
+                if (expr->op == "&&") return a != 0 && b != 0 ? 1 : 0;
+                if (expr->op == "||") return a != 0 || b != 0 ? 1 : 0;
+                return std::nullopt;
+            }
+            case Expr::Kind::Conditional: {
+                auto condition =
+                    constant_expr_value(expr->children[0].get());
+                if (!condition || expr->children.size() != 3) {
+                    return std::nullopt;
+                }
+                return constant_expr_value(
+                    expr->children[*condition != 0 ? 1 : 2].get());
+            }
+            default:
+                return std::nullopt;
+        }
     }
 
     void gen_expr(const Expr* expr, std::ostringstream& out) {
@@ -4426,6 +4570,12 @@ private:
             }
         }
         int temporary_bytes = 0;
+        if (expr->children.size() == 1 && !struct_args[0]) {
+            gen_expr(expr->children[0].get(), out);
+            out << "  MOV R1, R0\n";
+            out << "  CALL " << expr->text << "\n";
+            return;
+        }
         for (std::size_t i = expr->children.size(); i-- > 0;) {
             const auto* argument = expr->children[i].get();
             if (!struct_args[i]) {

@@ -218,8 +218,11 @@ Test plan:
 - [x] Fold constant operands into immediate forms where the ISA supports them.
 - [x] Remove fallthrough jumps and coalesce adjacent definition/assignment
   copies.
-- [x] Remove dead pure IR instructions and dead stores.
+- [x] Remove dead pure IR instructions and unused variable assignments.
 - [x] Strength-reduce multiplication by a power of two to a shift.
+- [x] Fold casts/`sizeof` and constant branches, including IR constant
+  conditions.
+- [x] Avoid `PUSH`/`POP` shuffling for single-argument calls.
 - [ ] Fold remaining address calculations.
 - [ ] Consider loop-invariant code motion and induction-variable strength
   reduction.

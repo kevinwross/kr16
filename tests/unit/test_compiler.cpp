@@ -287,6 +287,25 @@ TEST_CASE("IR peepholes fuse branches and fold immediates") {
     CHECK(assembly.find("Lircmp") == std::string::npos);
 }
 
+TEST_CASE("constant casts and sizeof conditions are folded") {
+    CHECK(run_c("int main(void) { int s = 0; if ((int)1) s = 5; "
+                "return s; }\n") == 5);
+    CHECK(run_c("int main(void) { int s = 0; if (sizeof(char)) s = 5; "
+                "return s; }\n") == 5);
+    const auto assembly = compile_text(
+        "int main(void) { int s = 0; if ((int)1) s = 5; return s; }\n");
+    CHECK(assembly.find("CMP R0, #0") == std::string::npos);
+}
+
+TEST_CASE("single-argument calls avoid stack shuffling") {
+    const auto assembly = compile_text(
+        "int f(int x) { return x; }\n"
+        "int main(void) { return f(5); }\n");
+    CHECK(assembly.find("PUSH R0") == std::string::npos);
+    CHECK(assembly.find("POP R1") == std::string::npos);
+    CHECK(assembly.find("MOV R1, R0") != std::string::npos);
+}
+
 TEST_CASE("IR dead code and strength reduction") {
     const auto assembly = compile_text(
         "int main(void) { int dead = 123; int x = 5; return x * 4; }\n");
