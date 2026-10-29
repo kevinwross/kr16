@@ -2138,8 +2138,8 @@ private:
     }
 
     enum class IrOp {
-        Const, Move, Binary, Unary, Char, Assign, Param, BranchZero, Jump,
-        Return
+        Const, Move, Binary, Unary, Char, Assign, Param, BranchZero,
+        BranchCompare, Jump, Return
     };
 
     struct IrValue {
@@ -2155,6 +2155,7 @@ private:
         int lhs = -1;
         int rhs = -1;
         std::int64_t imm = 0;
+        bool immediate = false;
         std::string text;
         int target = -1;
         int line = 0;
@@ -2388,6 +2389,166 @@ private:
             }
         }
         return can_ir_stmt(function.body.get());
+    }
+
+    void ir_coalesce_assignments() {
+        std::vector<int> uses(ir_values_.size(), 0);
+        for (const auto& block : ir_blocks_) {
+            for (const auto& inst : block.insts) {
+                auto [inst_uses, inst_defs] = ir_inst_uses_defs(inst);
+                (void)inst_defs;
+                for (const int value : inst_uses) {
+                    if (value >= 0 &&
+                        value < static_cast<int>(uses.size())) {
+                        ++uses[static_cast<std::size_t>(value)];
+                    }
+                }
+            }
+        }
+        for (auto& block : ir_blocks_) {
+            for (std::size_t i = 0; i + 1 < block.insts.size();) {
+                auto& def = block.insts[i];
+                auto& assign = block.insts[i + 1];
+                if (assign.op != IrOp::Assign || assign.dst < 0 ||
+                    assign.lhs != def.dst || def.dst < 0 ||
+                    uses[static_cast<std::size_t>(def.dst)] != 1 ||
+                    ir_values_[static_cast<std::size_t>(assign.dst)]
+                        .character ||
+                    (def.op != IrOp::Const && def.op != IrOp::Binary &&
+                     def.op != IrOp::Unary && def.op != IrOp::Char)) {
+                    ++i;
+                    continue;
+                }
+                def.dst = assign.dst;
+                block.insts.erase(block.insts.begin() +
+                                  static_cast<std::ptrdiff_t>(i + 1));
+            }
+        }
+    }
+
+    void ir_fuse_compare_branches() {
+        std::vector<int> uses(ir_values_.size(), 0);
+        for (const auto& block : ir_blocks_) {
+            for (const auto& inst : block.insts) {
+                auto [inst_uses, inst_defs] = ir_inst_uses_defs(inst);
+                (void)inst_defs;
+                for (const int value : inst_uses) {
+                    if (value >= 0 &&
+                        value < static_cast<int>(uses.size())) {
+                        ++uses[static_cast<std::size_t>(value)];
+                    }
+                }
+            }
+        }
+        const auto is_compare = [](const std::string& op) {
+            return op == "==" || op == "!=" || op == "<" || op == ">" ||
+                   op == "<=" || op == ">=";
+        };
+        for (auto& block : ir_blocks_) {
+            for (std::size_t i = 0; i + 1 < block.insts.size();) {
+                const auto& compare = block.insts[i];
+                const auto& branch = block.insts[i + 1];
+                if (compare.op != IrOp::Binary || compare.dst < 0 ||
+                    !is_compare(compare.text) || branch.op != IrOp::BranchZero ||
+                    branch.lhs != compare.dst ||
+                    uses[static_cast<std::size_t>(compare.dst)] != 1) {
+                    ++i;
+                    continue;
+                }
+                IrInst fused;
+                fused.op = IrOp::BranchCompare;
+                fused.lhs = compare.lhs;
+                fused.rhs = compare.rhs;
+                fused.text = compare.text;
+                fused.target = branch.target;
+                fused.line = compare.line;
+                block.insts.erase(
+                    block.insts.begin() + static_cast<std::ptrdiff_t>(i),
+                    block.insts.begin() +
+                        static_cast<std::ptrdiff_t>(i + 2));
+                block.insts.insert(
+                    block.insts.begin() + static_cast<std::ptrdiff_t>(i),
+                    std::move(fused));
+            }
+        }
+    }
+
+    void ir_fold_immediates() {
+        const auto supports_immediate = [](const std::string& op) {
+            return op == "+" || op == "-" || op == "&" || op == "|" ||
+                   op == "^" || op == "<<" || op == ">>" || op == "==" ||
+                   op == "!=" || op == "<" || op == ">" || op == "<=" ||
+                   op == ">=";
+        };
+        const auto find_const = [&](int value) -> const IrInst* {
+            for (const auto& block : ir_blocks_) {
+                for (const auto& inst : block.insts) {
+                    if (inst.op == IrOp::Const && inst.dst == value) {
+                        return &inst;
+                    }
+                }
+            }
+            return nullptr;
+        };
+        std::vector<int> uses(ir_values_.size(), 0);
+        for (const auto& block : ir_blocks_) {
+            for (const auto& inst : block.insts) {
+                auto [inst_uses, inst_defs] = ir_inst_uses_defs(inst);
+                (void)inst_defs;
+                for (const int value : inst_uses) {
+                    if (value >= 0 &&
+                        value < static_cast<int>(uses.size())) {
+                        ++uses[static_cast<std::size_t>(value)];
+                    }
+                }
+            }
+        }
+        std::unordered_set<int> removable;
+        for (auto& block : ir_blocks_) {
+            for (auto& inst : block.insts) {
+                if (inst.op != IrOp::Binary &&
+                    inst.op != IrOp::BranchCompare) {
+                    continue;
+                }
+                if (inst.rhs < 0 || !supports_immediate(inst.text) ||
+                    uses[static_cast<std::size_t>(inst.rhs)] != 1) {
+                    continue;
+                }
+                const IrInst* constant = find_const(inst.rhs);
+                if (constant == nullptr ||
+                    ((inst.text == "<<" || inst.text == ">>") &&
+                     (constant->imm < 0 || constant->imm > 15))) {
+                    continue;
+                }
+                inst.imm = constant->imm;
+                inst.immediate = true;
+                inst.rhs = -1;
+                removable.insert(constant->dst);
+            }
+        }
+        if (removable.empty()) {
+            return;
+        }
+        for (auto& block : ir_blocks_) {
+            block.insts.erase(
+                std::remove_if(
+                    block.insts.begin(), block.insts.end(),
+                    [&removable](const IrInst& inst) {
+                        return inst.op == IrOp::Const &&
+                               removable.count(inst.dst) != 0;
+                    }),
+                block.insts.end());
+        }
+    }
+
+    void ir_remove_fallthrough_jumps() {        for (std::size_t i = 0; i < ir_blocks_.size(); ++i) {
+            auto& block = ir_blocks_[i];
+            if (!block.insts.empty() &&
+                block.insts.back().op == IrOp::Jump &&
+                block.insts.back().target == static_cast<int>(i + 1)) {
+                block.insts.pop_back();
+            }
+        }
     }
 
     int ir_expr(const Expr* expr) {
@@ -2664,7 +2825,8 @@ private:
             const auto& last = block.insts.back();
             if (last.op == IrOp::Jump) {
                 block.succ.push_back(last.target);
-            } else if (last.op == IrOp::BranchZero) {
+            } else if (last.op == IrOp::BranchZero ||
+                       last.op == IrOp::BranchCompare) {
                 block.succ.push_back(last.target);
                 if (i + 1 < ir_blocks_.size()) {
                     block.succ.push_back(static_cast<int>(i + 1));
@@ -2695,11 +2857,19 @@ private:
             case IrOp::Binary:
                 defs.insert(inst.dst);
                 uses.insert(inst.lhs);
-                uses.insert(inst.rhs);
+                if (inst.rhs >= 0) {
+                    uses.insert(inst.rhs);
+                }
                 break;
             case IrOp::BranchZero:
             case IrOp::Return:
                 uses.insert(inst.lhs);
+                break;
+            case IrOp::BranchCompare:
+                uses.insert(inst.lhs);
+                if (inst.rhs >= 0) {
+                    uses.insert(inst.rhs);
+                }
                 break;
             case IrOp::Jump:
                 break;
@@ -2891,33 +3061,35 @@ private:
                     case IrOp::Binary: {
                         const int dst = reg_of(inst.dst);
                         const int lhs = reg_of(inst.lhs);
-                        const int rhs = reg_of(inst.rhs);
+                        const std::string rhs =
+                            inst.immediate
+                                ? "#" + std::to_string(inst.imm)
+                                : "R" + std::to_string(reg_of(inst.rhs));
                         if (dst != lhs) {
                             out << "  MOV R" << dst << ", R" << lhs << "\n";
                         }
                         if (inst.text == "+") {
-                            out << "  ADD R" << dst << ", R" << rhs << "\n";
+                            out << "  ADD R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == "-") {
-                            out << "  SUB R" << dst << ", R" << rhs << "\n";
+                            out << "  SUB R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == "*") {
-                            out << "  MUL R" << dst << ", R" << rhs << "\n";
+                            out << "  MUL R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == "/") {
-                            out << "  DIV R" << dst << ", R" << rhs << "\n";
+                            out << "  DIV R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == "%") {
-                            out << "  MOD R" << dst << ", R" << rhs << "\n";
+                            out << "  MOD R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == "&") {
-                            out << "  AND R" << dst << ", R" << rhs << "\n";
+                            out << "  AND R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == "|") {
-                            out << "  OR R" << dst << ", R" << rhs << "\n";
+                            out << "  OR R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == "^") {
-                            out << "  XOR R" << dst << ", R" << rhs << "\n";
+                            out << "  XOR R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == "<<") {
-                            out << "  SHL R" << dst << ", R" << rhs << "\n";
+                            out << "  SHL R" << dst << ", " << rhs << "\n";
                         } else if (inst.text == ">>") {
-                            out << "  SAR R" << dst << ", R" << rhs << "\n";
+                            out << "  SAR R" << dst << ", " << rhs << "\n";
                         } else {
-                            out << "  CMP R" << dst << ", R" << rhs
-                                << "\n";
+                            out << "  CMP R" << dst << ", " << rhs << "\n";
                             const std::string yes =
                                 new_label("ircmp");
                             const std::string end =
@@ -2948,6 +3120,31 @@ private:
                         out << "  BEQ .Lir_" << function_label_ << "_"
                             << inst.target << "\n";
                         break;
+                    case IrOp::BranchCompare: {
+                        const std::string rhs =
+                            inst.immediate
+                                ? "#" + std::to_string(inst.imm)
+                                : "R" + std::to_string(reg_of(inst.rhs));
+                        out << "  CMP R" << reg_of(inst.lhs) << ", " << rhs
+                            << "\n";
+                        std::string branch = "BEQ";
+                        if (inst.text == "==") {
+                            branch = "BNE";
+                        } else if (inst.text == "!=") {
+                            branch = "BEQ";
+                        } else if (inst.text == "<") {
+                            branch = "BGE";
+                        } else if (inst.text == ">") {
+                            branch = "BLE";
+                        } else if (inst.text == "<=") {
+                            branch = "BGT";
+                        } else if (inst.text == ">=") {
+                            branch = "BLT";
+                        }
+                        out << "  " << branch << " .Lir_" << function_label_
+                            << "_" << inst.target << "\n";
+                        break;
+                    }
                     case IrOp::Jump:
                         out << "  BRA .Lir_" << function_label_ << "_"
                             << inst.target << "\n";
@@ -3008,6 +3205,10 @@ private:
         if (ir_failed_) {
             return false;
         }
+        ir_coalesce_assignments();
+        ir_fuse_compare_branches();
+        ir_fold_immediates();
+        ir_remove_fallthrough_jumps();
         ir_successors();
         if (!ir_liveness_and_color()) {
             return false;

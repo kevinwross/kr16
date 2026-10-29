@@ -276,6 +276,17 @@ TEST_CASE("target-directed expressions preserve values") {
                 "else a = 9; return a; }\n") == 4);
 }
 
+TEST_CASE("IR peepholes fuse branches and fold immediates") {
+    const auto assembly = compile_text(
+        "int main(void) { int i = 0; int s = 0; "
+        "while (i < 10) { s = s + i; i++; } return s; }\n");
+    CHECK(assembly.find("CMP R") != std::string::npos);
+    CHECK(assembly.find(", #10") != std::string::npos);
+    CHECK(assembly.find("BGE ") != std::string::npos);
+    CHECK(assembly.find("ADD R") != std::string::npos);
+    CHECK(assembly.find("Lircmp") == std::string::npos);
+}
+
 TEST_CASE("IR allocator falls back safely") {
     CHECK(run_c("int main(void) { int a=1; int b=2; int c=3; int d=4; "
                 "int e=5; int f=6; return a+b+c+d+e+f; }\n") == 21);

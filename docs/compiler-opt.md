@@ -132,10 +132,11 @@ the default with M1/M2 plus the scalar IR backend.
 |---|---:|---:|---:|
 | `-O0` | 122 | 35,033 | 56,055 |
 | `-O1` (M1/M2) | 74 | 16,025 | 25,041 |
-| `-O1` (M3/M4 scalar IR) | 66 | 15,023 | 18,036 |
+| `-O1` (M3/M4 IR) | 66 | 15,023 | 18,036 |
+| `-O1` (M5 peephole) | 38 | 5,014 | 7,026 |
 
-Observed reduction versus `-O0`: **57% fewer instructions**, **68% fewer
-cycles**, and **46% smaller text** on that loop. These are a first data point,
+Observed reduction versus `-O0`: **86% fewer instructions**, **87% fewer
+cycles**, and **69% smaller text** on that loop. These are a first data point,
 not a guarantee across all programs.
 
 Reproduce the comparison with:
@@ -209,19 +210,25 @@ Test plan:
 - [x] Scalar loop benchmark improves without a code-size regression.
 - [x] Debug and DAP behavior remain valid (debug uses the fallback backend).
 
-### M5 — Peephole and loop polish — [ ]
+### M5 — Peephole and loop polish — [ ] (initial IR peepholes complete)
 
-- [ ] Run peepholes over the final instruction list, not raw text.
-- [ ] Remove redundant moves, dead pushes/pops, and branches to the next label.
+- [x] Run peepholes over the IR instruction list, not raw text.
+- [x] Fuse comparison results with their consuming branch (`CMP` + inverse
+  condition instead of materializing 0/1).
+- [x] Fold constant operands into immediate forms where the ISA supports them.
+- [x] Remove fallthrough jumps and coalesce adjacent definition/assignment
+  copies.
+- [ ] Remove remaining redundant moves and perform dead-code elimination.
 - [ ] Fold address calculations and strength-reduce constant operations.
 - [ ] Consider loop-invariant code motion and induction-variable strength
-  reduction after M3.
+  reduction.
 
 Test plan:
 
-- [ ] Pattern-level golden tests for each peephole.
-- [ ] Differential execution against `-O0`.
-- [ ] Branch relaxation still handles enlarged/shrunk functions.
+- [x] Differential execution against `-O0`.
+- [x] Branch relaxation still handles enlarged/shrunk functions.
+- [x] Pattern assertions for comparison fusion and immediate operands.
+- [ ] Loop-level benchmark suite across several shapes.
 
 ## Optimization levels
 
