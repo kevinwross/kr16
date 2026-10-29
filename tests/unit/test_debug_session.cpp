@@ -63,6 +63,12 @@ std::filesystem::path make_debug_fixture(std::string& error) {
                     ".text\n"
                     ".section .debug_frames\n"
                     ".asciz \"_start|1\"\n"
+                    ".text\n"
+                    ".bss\n"
+                    ".align 2\n"
+                    ".global global_value\n"
+                    "global_value:\n"
+                    "  .space 2\n"
                     ".text\n";
     }
 
@@ -208,6 +214,12 @@ TEST_CASE("debug session exposes source, functions, frames and locals") {
     const auto after = session.locals();
     REQUIRE(after.size() == 1);
     CHECK(after[0].value == 7);
+
+    const auto globals = session.globals();
+    REQUIRE_FALSE(globals.empty());
+    CHECK(globals[0].name == "global_value");
+    CHECK_FALSE(globals[0].local);
+    CHECK(globals[0].ok);
 
     std::filesystem::remove_all(image.parent_path());
 }

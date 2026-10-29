@@ -141,6 +141,9 @@ private:
     int hover_button_ = -1;
     int source_scroll_ = 0;
     int asm_scroll_ = 0;
+    int variables_scroll_ = 0;
+    int stack_scroll_ = 0;
+    int console_scroll_ = 0;
     std::uint16_t memory_address_ = 0x0100;
     bool memory_address_editing_ = false;
     int memory_byte_editing_ = -1;

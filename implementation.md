@@ -2307,9 +2307,21 @@ Entry format:
 - The embedded test program exercises recursion, calls, a local array, a loop,
   arithmetic, string data, and `printf`; generated output prints
   `sum=30 fact=120`.
-- Compiler image: 17,664 text bytes, 1,809 data bytes, 21,854 bss bytes
+- Compiler image: 18,428 text bytes, 1,992 data bytes, 21,854 bss bytes
   (including libc's 16 KiB heap); code-only budget is under 40 KiB.
 - Added `kr16.cc.cforu`, `kr16.vm.cforu`, and `kr16.cforu.generated` tests. The
   last test captures the emitted assembly, assembles/links it, runs it, and
   checks the output.
 - Full suite: 41/41 Windows CTest and 40/40 Linux CTest.
+
+### 2026-10-28 — scrollable debugger panels
+
+- Variables, call stack, and console panels now scroll independently with the
+  mouse wheel and draw a scrollbar when content overflows.
+- Variables panel scrolls through a combined locals/globals row list; global
+  symbols are shown before internal `__kr16_*` runtime symbols.
+- Console defaults to the bottom and scrolls upward when requested.
+- C-for-U `main` has no locals, so its `(none)` locals list is expected; its
+  compiler state (`source`, `tkind`, `ttext`, etc.) is global and now appears
+  before the libc heap symbols.
+- C-for-U's embedded test program also exercises `do`/`while` and `times++`.

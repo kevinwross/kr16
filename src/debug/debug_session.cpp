@@ -775,37 +775,48 @@ std::vector<SessionVariable> DebugSession::locals() {
 
 std::vector<SessionVariable> DebugSession::globals() {
     std::vector<SessionVariable> result;
-    for (const auto& symbol : container_.symbols) {
-        if (symbol.section == 0 ||
-            symbol.section > container_.sections.size()) {
-            continue;
+    const auto is_internal = [](const std::string& name) {
+        return name.rfind("__kr16_", 0) == 0 ||
+               name.rfind("__heap", 0) == 0;
+    };
+    const auto append = [&](bool internals) {
+        for (const auto& symbol : container_.symbols) {
+            if (symbol.section == 0 ||
+                symbol.section > container_.sections.size()) {
+                continue;
+            }
+            if (is_internal(symbol.name) != internals) {
+                continue;
+            }
+            const auto& section = container_.sections[symbol.section - 1];
+            if (section.name != ".data" && section.name != ".bss") {
+                continue;
+            }
+            if (symbol.value >= 0xF000) {
+                continue;
+            }
+            SessionVariable variable;
+            variable.name = symbol.name;
+            variable.local = false;
+            variable.address = symbol.value;
+            variable.size =
+                symbol.size > 0 ? static_cast<int>(symbol.size) : 2;
+            variable.ok = static_cast<std::uint32_t>(symbol.value) +
+                              static_cast<std::uint32_t>(variable.size) <=
+                          0xF000;
+            if (variable.ok) {
+                variable.value = variable.size == 1
+                                     ? machine_.read8(symbol.value)
+                                     : machine_.read16(symbol.value);
+            }
+            result.push_back(std::move(variable));
+            if (result.size() >= 12) {
+                return;
+            }
         }
-        const auto& section = container_.sections[symbol.section - 1];
-        if (section.name != ".data" && section.name != ".bss") {
-            continue;
-        }
-        if (symbol.value >= 0xF000) {
-            continue;
-        }
-        SessionVariable variable;
-        variable.name = symbol.name;
-        variable.local = false;
-        variable.address = symbol.value;
-        variable.size =
-            symbol.size > 0 ? static_cast<int>(symbol.size) : 2;
-        variable.ok = static_cast<std::uint32_t>(symbol.value) +
-                          static_cast<std::uint32_t>(variable.size) <=
-                      0xF000;
-        if (variable.ok) {
-            variable.value = variable.size == 1
-                                 ? machine_.read8(symbol.value)
-                                 : machine_.read16(symbol.value);
-        }
-        result.push_back(std::move(variable));
-        if (result.size() >= 12) {
-            break;
-        }
-    }
+    };
+    append(false);
+    append(true);
     return result;
 }
 

@@ -926,19 +926,60 @@ void App::draw_bottom(Canvas& canvas) {
     panel(stack_, "Call stack");
     panel(console_, "Console");
 
-    var_hits_.clear();
     const int line_height = 18;
+    const auto scrollbar = [&](const Rect& area, int offset, int total,
+                               int visible) {
+        if (total <= visible || visible <= 0) {
+            return;
+        }
+        const int top = area.top + 24;
+        const int bottom = area.bottom - 4;
+        const int track = std::max(1, bottom - top);
+        const int thumb = std::max(12, track * visible / total);
+        const int max_offset = std::max(1, total - visible);
+        const int y = top + (track - thumb) * offset / max_offset;
+        fill(canvas, Rect{area.right - 6, top, area.right - 1, bottom},
+             kPanelAlt);
+        fill(canvas, Rect{area.right - 5, y, area.right - 1, y + thumb},
+             kAccent);
+    };
+
+    var_hits_.clear();
+    const auto locals = session_.locals();
+    const auto globals = session_.globals();
+    struct VariableRow {
+        int kind;  // 0 header, 1 empty, 2 local, 3 spacer, 4 global
+        int index;
+    };
+    std::vector<VariableRow> rows;
+    rows.push_back(VariableRow{0, 0});
+    if (locals.empty()) {
+        rows.push_back(VariableRow{1, -1});
+    } else {
+        for (std::size_t i = 0; i < locals.size(); ++i) {
+            rows.push_back(VariableRow{2, static_cast<int>(i)});
+        }
+    }
+    rows.push_back(VariableRow{3, -1});
+    rows.push_back(VariableRow{0, 1});
+    for (std::size_t i = 0; i < globals.size(); ++i) {
+        rows.push_back(VariableRow{4, static_cast<int>(i)});
+    }
+
     int y = variables_.top + 26;
-    text(canvas, variables_.left + 8, y, "Locals", kTextDim,
-         FontRole::MonoSmall);
-    y += line_height;
+    const int variable_bottom = variables_.bottom - 4;
+    const int variable_visible =
+        std::max(0, (variable_bottom - y) / line_height);
+    variables_scroll_ = std::clamp(
+        variables_scroll_, 0,
+        std::max(0, static_cast<int>(rows.size()) - variable_visible));
 
     auto draw_variable = [&](const SessionVariable& variable) {
-        if (y + line_height > variables_.bottom - 4) {
+        if (y + line_height > variable_bottom) {
             return;
         }
         const int index = static_cast<int>(var_hits_.size());
-        const Rect row{variables_.left + 8, y - 2, variables_.right - 8,
+        const Rect row{variables_.left + 8, y - 2, variables_.right - 12,
                        y + 16};
         var_hits_.push_back(VarHit{row, variable.name, variable.address,
                                    variable.value, variable.size,
@@ -970,47 +1011,67 @@ void App::draw_bottom(Canvas& canvas) {
         } else {
             value = hex4(variable.value);
         }
-        text_right(canvas, variables_.right - 10, y, value,
+        text_right(canvas, variables_.right - 12, y, value,
                    editing ? kText : (variable.ok ? kText : kTextDim),
                    FontRole::MonoSmall);
         y += line_height;
     };
 
-    const auto locals = session_.locals();
-    if (locals.empty()) {
-        text(canvas, variables_.left + 16, y, "(none)", kTextDim,
-             FontRole::MonoSmall);
-        y += line_height;
-    } else {
-        for (const auto& local : locals) {
-            draw_variable(local);
+    for (std::size_t i = static_cast<std::size_t>(variables_scroll_);
+         i < rows.size(); ++i) {
+        if (y + line_height > variable_bottom) {
+            break;
+        }
+        const auto& row = rows[i];
+        if (row.kind == 0) {
+            text(canvas, variables_.left + 8, y,
+                 row.index == 0 ? "Locals" : "Globals", kTextDim,
+                 FontRole::MonoSmall);
+            y += line_height;
+        } else if (row.kind == 1) {
+            text(canvas, variables_.left + 16, y, "(none)", kTextDim,
+                 FontRole::MonoSmall);
+            y += line_height;
+        } else if (row.kind == 2) {
+            draw_variable(locals[static_cast<std::size_t>(row.index)]);
+        } else if (row.kind == 3) {
+            y += 4;
+        } else {
+            draw_variable(globals[static_cast<std::size_t>(row.index)]);
         }
     }
-    if (y + line_height < variables_.bottom - 4) {
-        y += 4;
-        text(canvas, variables_.left + 8, y, "Globals", kTextDim,
-             FontRole::MonoSmall);
-        y += line_height;
-        const auto globals = session_.globals();
-        for (const auto& global : globals) {
-            draw_variable(global);
-        }
-    }
+    scrollbar(variables_, variables_scroll_,
+              static_cast<int>(rows.size()), variable_visible);
 
     y = stack_.top + 26;
     const auto frames = session_.frames();
-    for (std::size_t i = 0; i < frames.size(); ++i) {
-        if (y + line_height > stack_.bottom - 4) {
-            break;
-        }
-        std::string label = "#" + std::to_string(i) + "  " + frames[i].name;
-        if (frames[i].line > 0) {
-            label += "  line " + std::to_string(frames[i].line);
-        }
-        text(canvas, stack_.left + 10, y, label, kText,
+    const int stack_bottom = stack_.bottom - 4;
+    const int stack_visible =
+        std::max(0, (stack_bottom - y) / line_height);
+    stack_scroll_ = std::clamp(
+        stack_scroll_, 0,
+        std::max(0, static_cast<int>(frames.size()) - stack_visible));
+    if (frames.empty()) {
+        text(canvas, stack_.left + 10, y, "(none)", kTextDim,
              FontRole::MonoSmall);
-        y += line_height;
+    } else {
+        for (std::size_t i = static_cast<std::size_t>(stack_scroll_);
+             i < frames.size(); ++i) {
+            if (y + line_height > stack_bottom) {
+                break;
+            }
+            std::string label =
+                "#" + std::to_string(i) + "  " + frames[i].name;
+            if (frames[i].line > 0) {
+                label += "  line " + std::to_string(frames[i].line);
+            }
+            text(canvas, stack_.left + 10, y, label, kText,
+                 FontRole::MonoSmall);
+            y += line_height;
+        }
     }
+    scrollbar(stack_, stack_scroll_, static_cast<int>(frames.size()),
+              stack_visible);
 
     y = console_.top + 26;
     const std::string& output = session_.console();
@@ -1027,17 +1088,28 @@ void App::draw_bottom(Canvas& canvas) {
     if (!current.empty()) {
         lines.push_back(current);
     }
-    const int max_lines = std::max(0, (console_.height() - 30) / line_height);
-    const int start =
-        std::max(0, static_cast<int>(lines.size()) - max_lines);
-    for (int i = start; i < static_cast<int>(lines.size()); ++i) {
-        if (y + line_height > console_.bottom - 4) {
-            break;
-        }
-        text(canvas, console_.left + 10, y, lines[i], kText,
+    const int console_bottom = console_.bottom - 4;
+    const int console_visible =
+        std::max(0, (console_bottom - y) / line_height);
+    const int console_max =
+        std::max(0, static_cast<int>(lines.size()) - console_visible);
+    console_scroll_ = std::clamp(console_scroll_, 0, console_max);
+    const int start = console_max - console_scroll_;
+    if (lines.empty()) {
+        text(canvas, console_.left + 10, y, "(no output)", kTextDim,
              FontRole::MonoSmall);
-        y += line_height;
+    } else {
+        for (int i = start; i < static_cast<int>(lines.size()); ++i) {
+            if (y + line_height > console_bottom) {
+                break;
+            }
+            text(canvas, console_.left + 10, y, lines[i], kText,
+                 FontRole::MonoSmall);
+            y += line_height;
+        }
     }
+    scrollbar(console_, start, static_cast<int>(lines.size()),
+              console_visible);
 }
 
 void App::draw_status(Canvas& canvas) {
@@ -1255,6 +1327,24 @@ void App::event(const Event& event) {
             return;
         }
         const int steps = wheel->delta > 0 ? -3 : 3;
+        if (variables_.contains(wheel->position)) {
+            variables_scroll_ += steps;
+            variables_scroll_ = std::max(0, variables_scroll_);
+            window_.invalidate();
+            return;
+        }
+        if (stack_.contains(wheel->position)) {
+            stack_scroll_ += steps;
+            stack_scroll_ = std::max(0, stack_scroll_);
+            window_.invalidate();
+            return;
+        }
+        if (console_.contains(wheel->position)) {
+            console_scroll_ -= steps;
+            console_scroll_ = std::max(0, console_scroll_);
+            window_.invalidate();
+            return;
+        }
         if (source_text_.contains(wheel->position)) {
             source_scroll_ += steps;
             source_scroll_ = std::max(0, source_scroll_);
@@ -1852,6 +1942,9 @@ void App::open(const std::filesystem::path& path) {
     }
     source_scroll_ = 0;
     asm_scroll_ = 0;
+    variables_scroll_ = 0;
+    stack_scroll_ = 0;
+    console_scroll_ = 0;
     memory_address_ = 0x0100;
     memory_address_editing_ = false;
     memory_byte_editing_ = -1;
