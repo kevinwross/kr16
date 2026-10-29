@@ -15,6 +15,7 @@ struct CompileOptions {
     std::string source_name = "<input>";
     std::vector<std::string> include_paths;
     bool debug = false;
+    bool optimize = true;  ///< M1/M2 folds and register-friendly codegen
 };
 
 struct CompileResult {

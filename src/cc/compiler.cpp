@@ -838,8 +838,11 @@ struct Program {
 
 class Parser {
 public:
-    Parser(std::vector<Token> tokens, std::string source_name)
-        : tokens_(std::move(tokens)), source_name_(std::move(source_name)) {}
+    Parser(std::vector<Token> tokens, std::string source_name,
+           bool optimize = true)
+        : tokens_(std::move(tokens)),
+          source_name_(std::move(source_name)),
+          optimize_(optimize) {}
 
     Program parse() {
         Program program;
@@ -1410,8 +1413,105 @@ private:
 
     std::unique_ptr<Expr> parse_expression() { return parse_assignment(); }
 
+    std::unique_ptr<Expr> make_number(std::int64_t value, int line) {
+        auto expr = std::make_unique<Expr>();
+        expr->kind = Expr::Kind::Number;
+        expr->value = value;
+        expr->line = line;
+        return expr;
+    }
+
+    static bool fold_binary_values(const std::string& op, std::int64_t left,
+                                   std::int64_t right,
+                                   std::int64_t& result) {
+        const auto a = static_cast<std::uint16_t>(left);
+        const auto b = static_cast<std::uint16_t>(right);
+        const auto sa = static_cast<std::int16_t>(a);
+        const auto sb = static_cast<std::int16_t>(b);
+        if (op == "+") {
+            result = static_cast<std::uint16_t>(a + b);
+        } else if (op == "-") {
+            result = static_cast<std::uint16_t>(a - b);
+        } else if (op == "*") {
+            result = static_cast<std::uint16_t>(
+                static_cast<std::uint32_t>(a) *
+                static_cast<std::uint32_t>(b));
+        } else if (op == "/") {
+            if (b == 0) {
+                return false;
+            }
+            result = static_cast<std::uint16_t>(
+                static_cast<std::int32_t>(sa) /
+                static_cast<std::int32_t>(sb));
+        } else if (op == "%") {
+            if (b == 0) {
+                return false;
+            }
+            result = static_cast<std::uint16_t>(
+                static_cast<std::int32_t>(sa) %
+                static_cast<std::int32_t>(sb));
+        } else if (op == "&") {
+            result = static_cast<std::uint16_t>(a & b);
+        } else if (op == "|") {
+            result = static_cast<std::uint16_t>(a | b);
+        } else if (op == "^") {
+            result = static_cast<std::uint16_t>(a ^ b);
+        } else if (op == "<<") {
+            result = static_cast<std::uint16_t>(
+                static_cast<std::uint16_t>(a << (b & 0x0F)));
+        } else if (op == ">>") {
+            result = static_cast<std::uint16_t>(sa >> (b & 0x0F));
+        } else if (op == "==") {
+            result = a == b ? 1 : 0;
+        } else if (op == "!=") {
+            result = a != b ? 1 : 0;
+        } else if (op == "<") {
+            result = sa < sb ? 1 : 0;
+        } else if (op == ">") {
+            result = sa > sb ? 1 : 0;
+        } else if (op == "<=") {
+            result = sa <= sb ? 1 : 0;
+        } else if (op == ">=") {
+            result = sa >= sb ? 1 : 0;
+        } else if (op == "&&") {
+            result = a != 0 && b != 0 ? 1 : 0;
+        } else if (op == "||") {
+            result = a != 0 || b != 0 ? 1 : 0;
+        } else {
+            return false;
+        }
+        return true;
+    }
+
     std::unique_ptr<Expr> make_binary(std::string op, std::unique_ptr<Expr> left,
                                       std::unique_ptr<Expr> right, int line) {
+        if (optimize_ && left && right &&
+            left->kind == Expr::Kind::Number &&
+            right->kind == Expr::Kind::Number) {
+            std::int64_t value = 0;
+            if (fold_binary_values(op, left->value, right->value, value)) {
+                return make_number(value, line);
+            }
+        }
+        if (optimize_ && right && right->kind == Expr::Kind::Number &&
+            right->value == 0) {
+            if (op == "+" || op == "-" || op == "|" || op == "^" ||
+                op == "<<" || op == ">>") {
+                return left;
+            }
+        }
+        if (optimize_ && left && left->kind == Expr::Kind::Number &&
+            left->value == 0 && (op == "+" || op == "|" || op == "^")) {
+            return right;
+        }
+        if (optimize_ && right && right->kind == Expr::Kind::Number &&
+            right->value == 1 && (op == "*" || op == "/")) {
+            return left;
+        }
+        if (optimize_ && left && left->kind == Expr::Kind::Number &&
+            left->value == 1 && op == "*") {
+            return right;
+        }
         auto expr = std::make_unique<Expr>();
         expr->kind = Expr::Kind::Binary;
         expr->op = std::move(op);
@@ -1479,6 +1579,9 @@ private:
             auto yes = parse_expression();
             expect(":");
             auto no = parse_conditional();
+            if (optimize_ && condition->kind == Expr::Kind::Number) {
+                return condition->value != 0 ? std::move(yes) : std::move(no);
+            }
             auto expr = std::make_unique<Expr>();
             expr->kind = Expr::Kind::Conditional;
             expr->line = condition->line;
@@ -1607,6 +1710,13 @@ private:
             expr->type = std::move(type);
             expr->line = line;
             expr->children.push_back(parse_unary());
+            if (optimize_ && expr->children[0]->kind == Expr::Kind::Number &&
+                expr->type && expr->type->kind == TypeKind::Char) {
+                return make_number(
+                    static_cast<std::uint16_t>(expr->children[0]->value) &
+                        0xFF,
+                    line);
+            }
             return expr;
         }
         if (check("+") || check("-") || check("!") || check("~") ||
@@ -1629,11 +1739,29 @@ private:
                 }
                 return expr;
             }
+            auto operand = parse_unary();
+            if (optimize_ && operand->kind == Expr::Kind::Number) {
+                const auto value = static_cast<std::uint16_t>(operand->value);
+                if (op == "+") {
+                    return operand;
+                }
+                if (op == "-") {
+                    return make_number(
+                        static_cast<std::uint16_t>(0u - value), line);
+                }
+                if (op == "~") {
+                    return make_number(
+                        static_cast<std::uint16_t>(~value), line);
+                }
+                if (op == "!") {
+                    return make_number(value == 0 ? 1 : 0, line);
+                }
+            }
             auto expr = std::make_unique<Expr>();
             expr->kind = Expr::Kind::Unary;
             expr->op = op;
             expr->line = line;
-            expr->children.push_back(parse_unary());
+            expr->children.push_back(std::move(operand));
             return expr;
         }
         return parse_postfix();
@@ -1744,6 +1872,7 @@ private:
     std::vector<Token> tokens_;
     std::size_t position_ = 0;
     std::string source_name_;
+    bool optimize_ = true;
     bool pending_static_ = false;
     std::unordered_map<std::string, std::int64_t> enum_constants_;
     std::unordered_map<std::string, std::shared_ptr<Type>> typedefs_;
@@ -1753,10 +1882,12 @@ private:
 
 class Codegen {
 public:
-    Codegen(Program program, std::string source_name, bool debug)
+    Codegen(Program program, std::string source_name, bool debug,
+            bool optimize = true)
         : program_(std::move(program)),
           source_name_(std::move(source_name)),
-          debug_(debug) {}
+          debug_(debug),
+          optimize_(optimize) {}
 
     std::string run() {
         collect_globals();
@@ -2252,8 +2383,25 @@ private:
                 out << "  BRA " << return_label_ << "\n";
                 return;
             case Stmt::Kind::Compound:
-                for (const auto& child : stmt->statements) {
-                    gen_stmt(child.get(), out);
+                {
+                    bool reachable = true;
+                    for (const auto& child : stmt->statements) {
+                        if (optimize_ && !reachable &&
+                            child->kind != Stmt::Kind::Label) {
+                            continue;
+                        }
+                        gen_stmt(child.get(), out);
+                        if (optimize_ &&
+                            (child->kind == Stmt::Kind::Return ||
+                             child->kind == Stmt::Kind::Break ||
+                             child->kind == Stmt::Kind::Continue ||
+                             child->kind == Stmt::Kind::Goto)) {
+                            reachable = false;
+                        } else if (optimize_ &&
+                                   child->kind == Stmt::Kind::Label) {
+                            reachable = true;
+                        }
+                    }
                 }
                 return;
             case Stmt::Kind::Decl:
@@ -2355,13 +2503,29 @@ private:
                             continue;
                         }
                         gen_expr(decl.init.get(), out);
-                        out << "  LEA R1, [R4-" << it->second.offset << "]\n";
-                        out << (decl.type->is_char() ? "  STB [R1], R0\n"
-                                                    : "  ST [R1], R0\n");
+                        if (optimize_) {
+                            out << (decl.type->is_char() ? "  STB [R4-"
+                                                         : "  ST [R4-")
+                                << it->second.offset << "], R0\n";
+                        } else {
+                            out << "  LEA R1, [R4-" << it->second.offset
+                                << "]\n";
+                            out << (decl.type->is_char() ? "  STB [R1], R0\n"
+                                                        : "  ST [R1], R0\n");
+                        }
                     }
                 }
                 return;
             case Stmt::Kind::If: {
+                if (optimize_ && stmt->expr &&
+                    stmt->expr->kind == Expr::Kind::Number) {
+                    if (stmt->expr->value != 0) {
+                        gen_stmt(stmt->body.get(), out);
+                    } else if (stmt->else_body) {
+                        gen_stmt(stmt->else_body.get(), out);
+                    }
+                    return;
+                }
                 const auto else_label = new_label("else");
                 const auto end_label = new_label("endif");
                 gen_expr(stmt->expr.get(), out);
@@ -2406,14 +2570,22 @@ private:
                 return;
             }
             case Stmt::Kind::While: {
+                if (optimize_ && stmt->expr &&
+                    stmt->expr->kind == Expr::Kind::Number &&
+                    stmt->expr->value == 0) {
+                    return;
+                }
                 const auto start = new_label("while");
                 const auto end = new_label("endwhile");
                 break_labels_.push_back(end);
                 continue_labels_.push_back(start);
                 out << start << ":\n";
-                gen_expr(stmt->expr.get(), out);
-                out << "  CMP R0, #0\n";
-                out << "  BEQ " << end << "\n";
+                if (!optimize_ || !stmt->expr ||
+                    stmt->expr->kind != Expr::Kind::Number) {
+                    gen_expr(stmt->expr.get(), out);
+                    out << "  CMP R0, #0\n";
+                    out << "  BEQ " << end << "\n";
+                }
                 gen_stmt(stmt->body.get(), out);
                 out << "  BRA " << start << "\n";
                 out << end << ":\n";
@@ -2439,6 +2611,14 @@ private:
                 return;
             }
             case Stmt::Kind::For: {
+                if (optimize_ && stmt->expr &&
+                    stmt->expr->kind == Expr::Kind::Number &&
+                    stmt->expr->value == 0) {
+                    if (stmt->init) {
+                        gen_stmt(stmt->init.get(), out);
+                    }
+                    return;
+                }
                 const auto start = new_label("for");
                 const auto next = new_label("fornext");
                 const auto end = new_label("endfor");
@@ -2448,7 +2628,8 @@ private:
                 break_labels_.push_back(end);
                 continue_labels_.push_back(next);
                 out << start << ":\n";
-                if (stmt->expr) {
+                if (!optimize_ || (stmt->expr &&
+                    stmt->expr->kind != Expr::Kind::Number)) {
                     gen_expr(stmt->expr.get(), out);
                     out << "  CMP R0, #0\n";
                     out << "  BEQ " << end << "\n";
@@ -2486,9 +2667,212 @@ private:
         }
     }
 
+    bool is_simple_leaf(const Expr* expr) const {
+        if (expr == nullptr) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Number ||
+            expr->kind == Expr::Kind::String ||
+            expr->kind == Expr::Kind::Identifier ||
+            expr->kind == Expr::Kind::Sizeof) {
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Cast) {
+            return expr->children.size() == 1 &&
+                   is_simple_leaf(expr->children[0].get());
+        }
+        if (expr->kind == Expr::Kind::Unary &&
+            (expr->op == "+" || expr->op == "-" || expr->op == "~")) {
+            return expr->children.size() == 1 &&
+                   is_simple_leaf(expr->children[0].get());
+        }
+        return false;
+    }
+
+    bool is_simple_binary(const Expr* expr) const {
+        if (expr == nullptr || expr->kind != Expr::Kind::Binary ||
+            expr->children.size() != 2) {
+            return false;
+        }
+        if (expr->op == "&&" || expr->op == "||") {
+            return false;
+        }
+        return is_simple_leaf(expr->children[0].get()) &&
+               is_simple_leaf(expr->children[1].get());
+    }
+
+    bool emit_simple_leaf(const Expr* expr, int target,
+                          std::ostringstream& out) {
+        if (expr == nullptr) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Number) {
+            out << "  MOV R" << target << ", #" << expr->value << "\n";
+            return true;
+        }
+        if (expr->kind == Expr::Kind::String) {
+            out << "  MOV R" << target << ", #" << string_label(expr->text)
+                << "\n";
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Sizeof) {
+            const int size = expr->children.empty()
+                                 ? static_cast<int>(expr->value)
+                                 : expression_type(expr->children[0].get())
+                                       ->size();
+            out << "  MOV R" << target << ", #" << size << "\n";
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Identifier) {
+            gen_load_identifier(expr->text, out, target);
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Cast && expr->children.size() == 1) {
+            if (!emit_simple_leaf(expr->children[0].get(), target, out)) {
+                return false;
+            }
+            if (expr->type && expr->type->kind == TypeKind::Char) {
+                out << "  AND R" << target << ", #0xFF\n";
+            }
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Unary && expr->children.size() == 1) {
+            if (!emit_simple_leaf(expr->children[0].get(), target, out)) {
+                return false;
+            }
+            if (expr->op == "-") {
+                out << "  NEG R" << target << "\n";
+            } else if (expr->op == "~") {
+                out << "  NOT R" << target << "\n";
+            } else if (expr->op != "+") {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    bool emit_simple_expr(const Expr* expr, std::ostringstream& out) {
+        if (is_simple_leaf(expr)) {
+            return emit_simple_leaf(expr, 0, out);
+        }
+        if (!is_simple_binary(expr)) {
+            return false;
+        }
+        if (!emit_simple_leaf(expr->children[0].get(), 0, out) ||
+            !emit_simple_leaf(expr->children[1].get(), 1, out)) {
+            return false;
+        }
+        const std::string& op = expr->op;
+        if (op == "+") {
+            out << "  ADD R0, R1\n";
+        } else if (op == "-") {
+            out << "  SUB R0, R1\n";
+        } else if (op == "*") {
+            out << "  MUL R0, R1\n";
+        } else if (op == "/") {
+            out << "  DIV R0, R1\n";
+        } else if (op == "%") {
+            out << "  MOD R0, R1\n";
+        } else if (op == "&") {
+            out << "  AND R0, R1\n";
+        } else if (op == "|") {
+            out << "  OR R0, R1\n";
+        } else if (op == "^") {
+            out << "  XOR R0, R1\n";
+        } else if (op == "<<") {
+            out << "  SHL R0, R1\n";
+        } else if (op == ">>") {
+            out << "  SAR R0, R1\n";
+        } else if (op == "==" || op == "!=" || op == "<" || op == ">" ||
+                   op == "<=" || op == ">=") {
+            out << "  CMP R0, R1\n";
+            const auto yes = new_label("fastcmp");
+            const auto end = new_label("fastcmpend");
+            std::string branch = "BEQ";
+            if (op == "!=") {
+                branch = "BNE";
+            } else if (op == "<") {
+                branch = "BLT";
+            } else if (op == ">") {
+                branch = "BGT";
+            } else if (op == "<=") {
+                branch = "BLE";
+            } else if (op == ">=") {
+                branch = "BGE";
+            }
+            out << "  " << branch << " " << yes << "\n";
+            out << "  MOV R0, #0\n";
+            out << "  BRA " << end << "\n";
+            out << yes << ":\n";
+            out << "  MOV R0, #1\n";
+            out << end << ":\n";
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+    bool simple_assignment_target(const Expr* expr, std::string& address,
+                                  bool& character) const {
+        if (expr == nullptr || expr->kind != Expr::Kind::Identifier) {
+            return false;
+        }
+        const auto local = locals_.find(expr->text);
+        if (local != locals_.end()) {
+            if (local->second.indirect || local->second.type->is_array() ||
+                local->second.type->kind == TypeKind::Struct ||
+                local->second.type->kind == TypeKind::Union) {
+                return false;
+            }
+            character = local->second.type->is_char();
+            if (!local->second.symbol.empty()) {
+                address = local->second.symbol;
+            } else {
+                address = "R4-" + std::to_string(local->second.offset);
+            }
+            return true;
+        }
+        const auto global = global_map_.find(expr->text);
+        if (global != global_map_.end()) {
+            if (global->second->type->is_array() ||
+                global->second->type->kind == TypeKind::Struct ||
+                global->second->type->kind == TypeKind::Union) {
+                return false;
+            }
+            character = global->second->type->is_char();
+            address = expr->text;
+            return true;
+        }
+        return false;
+    }
+
+    bool emit_simple_assignment(const Expr* expr, std::ostringstream& out) {
+        if (expr == nullptr || expr->kind != Expr::Kind::Assign ||
+            expr->children.size() != 2) {
+            return false;
+        }
+        std::string address;
+        bool character = false;
+        if (!simple_assignment_target(expr->children[0].get(), address,
+                                      character)) {
+            return false;
+        }
+        gen_expr(expr->children[1].get(), out);
+        const std::string bracketed = "[" + address + "]";
+        out << (character ? "  STB " : "  ST ") << bracketed << ", R0\n";
+        return true;
+    }
+
     void gen_expr(const Expr* expr, std::ostringstream& out) {
         if (expr == nullptr) {
             out << "  MOV R0, #0\n";
+            return;
+        }
+        if (optimize_ && emit_simple_assignment(expr, out)) {
+            return;
+        }
+        if (optimize_ && emit_simple_expr(expr, out)) {
             return;
         }
         switch (expr->kind) {
@@ -2594,41 +2978,43 @@ private:
         }
     }
 
-    void gen_load_identifier(const std::string& name, std::ostringstream& out) {
+    void gen_load_identifier(const std::string& name, std::ostringstream& out,
+                             int target = 0) {
         const auto local = locals_.find(name);
         if (local != locals_.end()) {
             if (!local->second.symbol.empty()) {
                 if (local->second.type->is_array()) {
-                    out << "  MOV R0, #" << local->second.symbol << "\n";
+                    out << "  MOV R" << target << ", #" << local->second.symbol
+                        << "\n";
                 } else {
-                    out << (local->second.type->is_char() ? "  LDB R0, ["
-                                                          : "  LD R0, [")
-                        << local->second.symbol << "]\n";
+                    out << (local->second.type->is_char() ? "  LDB R"
+                                                          : "  LD R")
+                        << target << ", [" << local->second.symbol << "]\n";
                 }
                 return;
             }
             if (local->second.type->is_array()) {
-                out << "  LEA R0, [R4-" << local->second.offset << "]\n";
+                out << "  LEA R" << target << ", [R4-" << local->second.offset
+                    << "]\n";
             } else {
-                out << (local->second.type->is_char()
-                            ? "  LDB R0, [R4-"
-                            : "  LD R0, [R4-")
-                    << local->second.offset << "]\n";
+                out << (local->second.type->is_char() ? "  LDB R"
+                                                      : "  LD R")
+                    << target << ", [R4-" << local->second.offset << "]\n";
             }
             return;
         }
         const auto global = global_map_.find(name);
         if (global != global_map_.end()) {
             if (global->second->type->is_array()) {
-                out << "  MOV R0, #" << name << "\n";
+                out << "  MOV R" << target << ", #" << name << "\n";
             } else {
-                out << (global->second->type->is_char() ? "  LDB R0, ["
-                                                        : "  LD R0, [")
-                    << name << "]\n";
+                out << (global->second->type->is_char() ? "  LDB R"
+                                                        : "  LD R")
+                    << target << ", [" << name << "]\n";
             }
             return;
         }
-        out << "  MOV R0, #0\n";
+        out << "  MOV R" << target << ", #0\n";
     }
 
     void gen_addr(const Expr* expr, std::ostringstream& out) {
@@ -2914,6 +3300,7 @@ private:
     Program program_;
     std::string source_name_;
     bool debug_ = false;
+    bool optimize_ = true;
     std::unordered_map<std::string, Global*> global_map_;
     std::unordered_map<std::string, Function*> function_map_;
     std::unordered_map<std::string, Variable> locals_;
@@ -2946,9 +3333,11 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
             preprocess_source(source, base_dir, options.include_paths);
         Lexer lexer(preprocessed);
         auto tokens = lexer.run();
-        Parser parser(std::move(tokens), options.source_name);
+        Parser parser(std::move(tokens), options.source_name,
+                      options.optimize);
         auto program = parser.parse();
-        Codegen codegen(std::move(program), options.source_name, options.debug);
+        Codegen codegen(std::move(program), options.source_name,
+                        options.debug, options.optimize);
         result.assembly = codegen.run();
         result.ok = true;
     } catch (const CompileError& error) {
@@ -2962,7 +3351,3 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
-
-
-
-

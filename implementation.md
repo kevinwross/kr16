@@ -2245,3 +2245,19 @@ Entry format:
 - Added a unit test that runs every command with `--help`, checks exit status
   and usage text, plus checks for the assembler's key options.
 - CTest: 38/38; doctest: 118 cases / 3228 assertions.
+
+### 2026-10-28 — compiler optimization M1/M2
+
+- Added `docs/compiler-opt.md` with milestones M0–M5, test plans and notes.
+- M1: AST constant folding, constant `if`/`while`/`for` control flow, algebraic
+  identities, and unreachable-statement trimming.
+- M2: target-directed codegen for simple expressions (`R0`/`R1`), direct local
+  loads/stores, direct declaration stores, and simple assignment lowering.
+- Added `CompileOptions.optimize` (`-O1` default, `-O0` fallback) and updated
+  `kr16 cc --help`.
+- Benchmark on a 1000-iteration loop: 35,033 → 16,025 instructions, 56,055 →
+  25,041 cycles, 122 → 74 text bytes (`-O0` → `-O1`).
+- Doctest: 121 cases / 3307 assertions; CTest 38/38 on Windows and 37/37 on
+  Linux.
+- M3–M5 (IR/CFG, graph coloring, peephole) remain planned in
+  `docs/compiler-opt.md`.

@@ -15,8 +15,11 @@
 namespace {
 
 int run_c(const std::string& source,
-          const std::vector<std::string>& arguments = {}) {
-    const auto compiled = kr16::compile_c(source, kr16::CompileOptions{});
+          const std::vector<std::string>& arguments = {},
+          bool optimize = true) {
+    kr16::CompileOptions options;
+    options.optimize = optimize;
+    const auto compiled = kr16::compile_c(source, options);
     REQUIRE(compiled.ok);
     const auto assembled =
         kr16::assemble_text(compiled.assembly, kr16::AsmOptions{});
@@ -40,6 +43,14 @@ int run_c(const std::string& source,
     std::filesystem::remove(path);
     REQUIRE(result.ok);
     return result.exit_code;
+}
+
+std::string compile_text(const std::string& source, bool optimize = true) {
+    kr16::CompileOptions options;
+    options.optimize = optimize;
+    const auto compiled = kr16::compile_c(source, options);
+    REQUIRE(compiled.ok);
+    return compiled.assembly;
 }
 
 std::string run_c_with_libc(const std::string& source,
@@ -209,6 +220,52 @@ TEST_CASE("compiled casts work") {
               "#include <stdlib.h>\n"
               "int main(void) { int *p = (int *)malloc(4); p[0] = 42; "
               "int v = p[0]; free(p); return v; }\n") == 42);
+}
+
+TEST_CASE("constant folding and constant control flow") {
+    CHECK(run_c("int main(void) { return 2 + 3 * 4; }\n") == 14);
+    CHECK(run_c("int main(void) { return (1 << 4) | 3; }\n") == 19);
+    CHECK(run_c("int main(void) { return (7 / 2) + (7 % 3); }\n") == 4);
+    CHECK(run_c("int main(void) { int s = 1; if (0) { s = 9; } "
+                "return s + 7; }\n") == 8);
+    CHECK(run_c("int main(void) { int s = 1; if (1) { s = 9; } "
+                "return s + 7; }\n") == 16);
+    CHECK(run_c("int main(void) { int s = 4; while (0) { s = 9; } "
+                "return s; }\n") == 4);
+    CHECK(run_c("int main(void) { int i = 0; while (1) { i = i + 1; "
+                "if (i == 3) break; } return i; }\n") == 3);
+    CHECK(run_c("int main(void) { int s = 1; for (s = 2; 0;) { s = 9; } "
+                "return s; }\n") == 2);
+    CHECK(run_c("int main(void) { return 1 ? 7 : 9; }\n") == 7);
+    CHECK(run_c("int main(void) { return 0 ? 7 : 9; }\n") == 9);
+}
+
+TEST_CASE("optimized codegen removes simple expression spills") {
+    const auto optimized = compile_text(
+        "int main(void) { int a = 2; int b = 3; return a + b; }\n");
+    CHECK(optimized.find("PUSH R0") == std::string::npos);
+    CHECK(optimized.find("POP R0") == std::string::npos);
+    CHECK(optimized.find("ADD R0, R1") != std::string::npos);
+
+    const auto plain = compile_text(
+        "int main(void) { int a = 2; int b = 3; return a + b; }\n", false);
+    CHECK(plain.find("PUSH R0") != std::string::npos);
+
+    const auto assigned = compile_text(
+        "int main(void) { int s = 1; s = s + 1; return s; }\n");
+    CHECK(assigned.find("ST [R4-2], R0") != std::string::npos);
+    CHECK(assigned.find("PUSH R0") == std::string::npos);
+}
+
+TEST_CASE("target-directed expressions preserve values") {
+    CHECK(run_c("int main(void) { int a = 4; int b = 3; "
+                "return (a + b) * 2 + (a - b); }\n") == 15);
+    CHECK(run_c("int main(void) { int a = 4; int b = 3; "
+                "return (a > b) + (a == 4); }\n") == 2);
+    CHECK(run_c("int main(void) { int s = 1; s = s + 1; s += 3; "
+                "return s; }\n") == 5);
+    CHECK(run_c("int main(void) { int s = 1; s = s + 1; s += 3; "
+                "return s; }\n", {}, false) == 5);
 }
 
 TEST_CASE("compiled functions can exceed the short branch range") {

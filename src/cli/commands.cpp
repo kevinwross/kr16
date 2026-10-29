@@ -98,7 +98,8 @@ Options:
   -I<dir>              attached form of -I
   -D <name[=value]>    accepted for compatibility; macro is not applied
   -U <name>            accepted for compatibility; macro is not undefined
-  -O0                  accepted; the compiler is fixed at -O0
+  -O0                   disable constant folding and simple-expression codegen
+  -O1                   enable optimization (default)
   -std=c99             accepted; the compiler is C99-like
   -std=c11             accepted; the compiler is C99-like
   -E                   unavailable in this subset compiler
@@ -809,9 +810,12 @@ int run_cc_command(int argc, char** argv) {
             output = argv[i];
         } else if (argument == "-g") {
             options.debug = true;
-        } else if (argument == "-O0" || argument == "-std=c99" ||
-                   argument == "-std=c11") {
-            // Accepted; this compiler is always -O0 and C99-like.
+        } else if (argument == "-O0") {
+            options.optimize = false;
+        } else if (argument == "-O1") {
+            options.optimize = true;
+        } else if (argument == "-std=c99" || argument == "-std=c11") {
+            // Accepted; this compiler is C99-like.
         } else if (argument == "-I") {
             if (++i >= argc) {
                 std::cerr << "kr16 cc: -I needs a path\n";
