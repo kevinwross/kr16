@@ -45,8 +45,10 @@ provides `putchar`, `puts`, `getchar`, `printf` (`%d`, `%x`, `%s`, `%c`,
 
 `long` is a **16-bit alias** for `int`; see
 [`docs/decisions/0001-16-bit-long.md`](docs/decisions/0001-16-bit-long.md).
-`kr16 cc` uses `-O1` by default (constant folding, simple-expression codegen);
-`-O0` keeps the straightforward stack-based codegen for stepping and teaching.
+`kr16 cc` uses `-O1` by default (constant folding, simple-expression codegen,
+and a scalar IR/graph-coloring backend where supported); `-O0` keeps the
+straightforward stack-based codegen for stepping and teaching. Debug builds
+(`-g`) use the simpler backend so frame-based debug variables stay valid.
 Strict C99 conformance, the full preprocessor (`#line`, pragmas), and the full
 `printf` family are deferred beyond 1.0.
 

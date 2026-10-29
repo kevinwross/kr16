@@ -2261,3 +2261,21 @@ Entry format:
   Linux.
 - M3–M5 (IR/CFG, graph coloring, peephole) remain planned in
   `docs/compiler-opt.md`.
+
+### 2026-10-28 — scalar IR, CFG liveness, and graph coloring
+
+- Added a three-address IR backend for scalar, call-free functions.
+- Added basic blocks, CFG successors, liveness, interference graphs, and
+  five-register graph coloring (`R0`–`R4`; `R4` is saved/restored).
+- Unsupported functions (calls, aggregates, pointers, globals, static locals,
+  more than three parameters) and graphs needing more than five registers fall
+  back to the M1/M2 emitter.
+- Debug builds (`-g`) keep the existing backend so frame-based debug variables
+  and line mapping remain valid.
+- Added `-O1` IR tests for loops, `if`/`else`, `do`/`while`, `break`,
+  `continue`, `for`, fallback pressure, and function calls.
+- Scalar loop benchmark: `-O1` now 66 text bytes, 15,023 instructions, 18,036
+  cycles (from 122 / 35,033 / 56,055 at `-O0`).
+- Doctest: 122 cases / 3333 assertions; CTest 38/38 Windows and 37/37 Linux.
+- Remaining work recorded in `docs/compiler-opt.md`: stack spilling, full copy
+  coalescing, and broader IR coverage.

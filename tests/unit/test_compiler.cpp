@@ -245,7 +245,8 @@ TEST_CASE("optimized codegen removes simple expression spills") {
         "int main(void) { int a = 2; int b = 3; return a + b; }\n");
     CHECK(optimized.find("PUSH R0") == std::string::npos);
     CHECK(optimized.find("POP R0") == std::string::npos);
-    CHECK(optimized.find("ADD R0, R1") != std::string::npos);
+    CHECK(optimized.find("ADD R") != std::string::npos);
+    CHECK(optimized.find("ST [R4-") == std::string::npos);
 
     const auto plain = compile_text(
         "int main(void) { int a = 2; int b = 3; return a + b; }\n", false);
@@ -253,8 +254,8 @@ TEST_CASE("optimized codegen removes simple expression spills") {
 
     const auto assigned = compile_text(
         "int main(void) { int s = 1; s = s + 1; return s; }\n");
-    CHECK(assigned.find("ST [R4-2], R0") != std::string::npos);
     CHECK(assigned.find("PUSH R0") == std::string::npos);
+    CHECK(assigned.find("ST [R4-") == std::string::npos);
 }
 
 TEST_CASE("target-directed expressions preserve values") {
@@ -266,6 +267,20 @@ TEST_CASE("target-directed expressions preserve values") {
                 "return s; }\n") == 5);
     CHECK(run_c("int main(void) { int s = 1; s = s + 1; s += 3; "
                 "return s; }\n", {}, false) == 5);
+    CHECK(run_c("int main(void) { int i = 0; int s = 0; "
+                "for (i = 0; i < 5; i++) { if (i == 2) continue; "
+                "s += i; } return s; }\n") == 8);
+    CHECK(run_c("int main(void) { int i = 0; int s = 0; "
+                "do { s++; i++; } while (i < 3); return s; }\n") == 3);
+    CHECK(run_c("int main(void) { int a = 0; if (1) a = 4; "
+                "else a = 9; return a; }\n") == 4);
+}
+
+TEST_CASE("IR allocator falls back safely") {
+    CHECK(run_c("int main(void) { int a=1; int b=2; int c=3; int d=4; "
+                "int e=5; int f=6; return a+b+c+d+e+f; }\n") == 21);
+    CHECK(run_c("int add(int a, int b) { return a + b; }\n"
+                "int main(void) { return add(2, 3); }\n") == 5);
 }
 
 TEST_CASE("compiled functions can exceed the short branch range") {

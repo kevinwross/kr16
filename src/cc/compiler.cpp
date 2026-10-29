@@ -15,6 +15,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -2136,6 +2137,885 @@ private:
         collect_locals(stmt->init.get(), declarations);
     }
 
+    enum class IrOp {
+        Const, Move, Binary, Unary, Char, Assign, Param, BranchZero, Jump,
+        Return
+    };
+
+    struct IrValue {
+        bool variable = false;
+        bool character = false;
+        std::string name;
+        int reg = -1;
+    };
+
+    struct IrInst {
+        IrOp op = IrOp::Move;
+        int dst = -1;
+        int lhs = -1;
+        int rhs = -1;
+        std::int64_t imm = 0;
+        std::string text;
+        int target = -1;
+        int line = 0;
+    };
+
+    struct IrBlock {
+        std::vector<IrInst> insts;
+        std::vector<int> succ;
+        std::set<int> use;
+        std::set<int> def;
+        std::set<int> live_in;
+        std::set<int> live_out;
+    };
+
+    static bool ir_scalar_type(const std::shared_ptr<Type>& type) {
+        return type && (type->kind == TypeKind::Void ||
+                        type->kind == TypeKind::Char ||
+                        type->kind == TypeKind::Int);
+    }
+
+    int ir_new_value(bool variable, std::string name, bool character) {
+        IrValue value;
+        value.variable = variable;
+        value.character = character;
+        value.name = std::move(name);
+        ir_values_.push_back(std::move(value));
+        return static_cast<int>(ir_values_.size()) - 1;
+    }
+
+    int ir_temp(bool character = false) {
+        return ir_new_value(false, {}, character);
+    }
+
+    int ir_value_for_name(const std::string& name) {
+        const auto it = ir_vars_.find(name);
+        return it == ir_vars_.end() ? -1 : it->second;
+    }
+
+    int ir_const(std::int64_t value, int line) {
+        const int dst = ir_temp();
+        IrInst inst;
+        inst.op = IrOp::Const;
+        inst.dst = dst;
+        inst.imm = value;
+        inst.line = line;
+        ir_inst(inst);
+        return dst;
+    }
+
+    void ir_inst(IrInst inst) {
+        ir_blocks_[static_cast<std::size_t>(ir_current_)].insts.push_back(
+            std::move(inst));
+    }
+
+    int ir_add_block() {
+        ir_blocks_.push_back(IrBlock{});
+        return static_cast<int>(ir_blocks_.size()) - 1;
+    }
+
+    void ir_switch_block(int block) {
+        ir_current_ = block;
+        ir_terminated_ = false;
+    }
+
+    void ir_jump(int target) {
+        IrInst inst;
+        inst.op = IrOp::Jump;
+        inst.target = target;
+        ir_inst(std::move(inst));
+        ir_terminated_ = true;
+    }
+
+    bool can_ir_expr(const Expr* expr) const {
+        if (expr == nullptr) {
+            return false;
+        }
+        switch (expr->kind) {
+            case Expr::Kind::Number:
+                return true;
+            case Expr::Kind::Sizeof:
+                return true;
+            case Expr::Kind::Identifier: {
+                const auto it = locals_.find(expr->text);
+                return it != locals_.end() && ir_scalar_type(it->second.type) &&
+                       !it->second.global && !it->second.indirect &&
+                       it->second.symbol.empty();
+            }
+            case Expr::Kind::Cast:
+                return expr->children.size() == 1 &&
+                       ir_scalar_type(expr->type) &&
+                       can_ir_expr(expr->children[0].get());
+            case Expr::Kind::Unary:
+                return expr->children.size() == 1 &&
+                       (expr->op == "+" || expr->op == "-" || expr->op == "~") &&
+                       can_ir_expr(expr->children[0].get());
+            case Expr::Kind::Binary:
+                return expr->children.size() == 2 &&
+                       expr->op != "&&" && expr->op != "||" &&
+                       can_ir_expr(expr->children[0].get()) &&
+                       can_ir_expr(expr->children[1].get());
+            default:
+                return false;
+        }
+    }
+
+    bool can_ir_stmt(const Stmt* stmt) const {
+        if (stmt == nullptr) {
+            return true;
+        }
+        switch (stmt->kind) {
+            case Stmt::Kind::Empty:
+                return true;
+            case Stmt::Kind::Compound:
+                for (const auto& child : stmt->statements) {
+                    if (!can_ir_stmt(child.get())) {
+                        return false;
+                    }
+                }
+                return true;
+            case Stmt::Kind::Decl:
+                for (const auto& decl : stmt->declarations) {
+                    if (decl.is_static || !ir_scalar_type(decl.type)) {
+                        return false;
+                    }
+                    if (decl.init && !can_ir_expr(decl.init.get())) {
+                        return false;
+                    }
+                }
+                return true;
+            case Stmt::Kind::Expr: {
+                if (stmt->expr == nullptr) {
+                    return false;
+                }
+                if (stmt->expr->kind == Expr::Kind::Assign) {
+                    if (stmt->expr->children.size() != 2 ||
+                        stmt->expr->children[0]->kind !=
+                            Expr::Kind::Identifier) {
+                        return false;
+                    }
+                    const auto it =
+                        locals_.find(stmt->expr->children[0]->text);
+                    return it != locals_.end() &&
+                           ir_scalar_type(it->second.type) &&
+                           !it->second.global && !it->second.indirect &&
+                           it->second.symbol.empty() &&
+                           can_ir_expr(stmt->expr->children[1].get());
+                }
+                if (stmt->expr->kind == Expr::Kind::Unary &&
+                    (stmt->expr->op == "++" || stmt->expr->op == "--") &&
+                    stmt->expr->children.size() == 1 &&
+                    stmt->expr->children[0]->kind ==
+                        Expr::Kind::Identifier) {
+                    const auto it =
+                        locals_.find(stmt->expr->children[0]->text);
+                    return it != locals_.end() &&
+                           ir_scalar_type(it->second.type) &&
+                           !it->second.global && !it->second.indirect &&
+                           it->second.symbol.empty();
+                }
+                return false;
+            }
+            case Stmt::Kind::Return:
+                return stmt->expr == nullptr || can_ir_expr(stmt->expr.get());
+            case Stmt::Kind::If:
+                return can_ir_expr(stmt->expr.get()) &&
+                       can_ir_stmt(stmt->body.get()) &&
+                       can_ir_stmt(stmt->else_body.get());
+            case Stmt::Kind::While:
+                return can_ir_expr(stmt->expr.get()) &&
+                       can_ir_stmt(stmt->body.get());
+            case Stmt::Kind::DoWhile:
+                return can_ir_expr(stmt->expr.get()) &&
+                       can_ir_stmt(stmt->body.get());
+            case Stmt::Kind::For:
+                return can_ir_stmt(stmt->init.get()) &&
+                       (stmt->expr == nullptr ||
+                        can_ir_expr(stmt->expr.get())) &&
+                       (stmt->expr2 == nullptr ||
+                        can_ir_stmt_expr(stmt->expr2.get())) &&
+                       can_ir_stmt(stmt->body.get());
+            case Stmt::Kind::Break:
+            case Stmt::Kind::Continue:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    bool can_ir_stmt_expr(const Expr* expr) const {
+        if (expr == nullptr) {
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Assign) {
+            if (expr->children.size() != 2 ||
+                expr->children[0]->kind != Expr::Kind::Identifier) {
+                return false;
+            }
+            const auto it = locals_.find(expr->children[0]->text);
+            return it != locals_.end() &&
+                   ir_scalar_type(it->second.type) && !it->second.global &&
+                   !it->second.indirect && it->second.symbol.empty() &&
+                   can_ir_expr(expr->children[1].get());
+        }
+        if (expr->kind == Expr::Kind::Unary &&
+            (expr->op == "++" || expr->op == "--") &&
+            expr->children.size() == 1 &&
+            expr->children[0]->kind == Expr::Kind::Identifier) {
+            const auto it = locals_.find(expr->children[0]->text);
+            return it != locals_.end() &&
+                   ir_scalar_type(it->second.type) && !it->second.global &&
+                   !it->second.indirect && it->second.symbol.empty();
+        }
+        return false;
+    }
+
+    bool can_ir_function(const Function& function) const {
+        if (debug_ || function.variadic || function.parameters.size() > 3 ||
+            !ir_scalar_type(function.return_type)) {
+            return false;
+        }
+        for (const auto& parameter : function.parameters) {
+            if (!ir_scalar_type(parameter.type)) {
+                return false;
+            }
+        }
+        for (const auto& [name, variable] : locals_) {
+            (void)name;
+            if (!ir_scalar_type(variable.type) || variable.global ||
+                variable.indirect || !variable.symbol.empty()) {
+                return false;
+            }
+        }
+        return can_ir_stmt(function.body.get());
+    }
+
+    int ir_expr(const Expr* expr) {
+        if (expr == nullptr) {
+            return ir_const(0, 0);
+        }
+        switch (expr->kind) {
+            case Expr::Kind::Number:
+                return ir_const(expr->value, expr->line);
+            case Expr::Kind::Sizeof: {
+                const int size = expr->children.empty()
+                                     ? static_cast<int>(expr->value)
+                                     : expression_type(expr->children[0].get())
+                                           ->size();
+                return ir_const(size, expr->line);
+            }
+            case Expr::Kind::Identifier:
+                return ir_value_for_name(expr->text);
+            case Expr::Kind::Cast: {
+                const int value = ir_expr(expr->children[0].get());
+                if (expr->type && expr->type->kind == TypeKind::Char) {
+                    const int dst = ir_temp(true);
+                    IrInst inst;
+                    inst.op = IrOp::Char;
+                    inst.dst = dst;
+                    inst.lhs = value;
+                    inst.line = expr->line;
+                    ir_inst(std::move(inst));
+                    return dst;
+                }
+                return value;
+            }
+            case Expr::Kind::Unary: {
+                const int value = ir_expr(expr->children[0].get());
+                if (expr->op == "+") {
+                    return value;
+                }
+                const int dst = ir_temp();
+                IrInst inst;
+                inst.op = IrOp::Unary;
+                inst.dst = dst;
+                inst.lhs = value;
+                inst.text = expr->op;
+                inst.line = expr->line;
+                ir_inst(std::move(inst));
+                return dst;
+            }
+            case Expr::Kind::Binary: {
+                const int lhs = ir_expr(expr->children[0].get());
+                const int rhs = ir_expr(expr->children[1].get());
+                const int dst = ir_temp();
+                IrInst inst;
+                inst.op = IrOp::Binary;
+                inst.dst = dst;
+                inst.lhs = lhs;
+                inst.rhs = rhs;
+                inst.text = expr->op;
+                inst.line = expr->line;
+                ir_inst(std::move(inst));
+                return dst;
+            }
+            default:
+                return ir_const(0, expr->line);
+        }
+    }
+
+    void ir_assign(int var, int value, int line) {
+        IrInst inst;
+        inst.op = IrOp::Assign;
+        inst.dst = var;
+        inst.lhs = value;
+        inst.line = line;
+        ir_inst(std::move(inst));
+    }
+
+    void ir_lower_expr_statement(const Expr* expr) {
+        if (expr->kind == Expr::Kind::Assign) {
+            const int var = ir_value_for_name(expr->children[0]->text);
+            const int value = ir_expr(expr->children[1].get());
+            ir_assign(var, value, expr->line);
+            return;
+        }
+        if (expr->kind == Expr::Kind::Unary &&
+            (expr->op == "++" || expr->op == "--")) {
+            const int var = ir_value_for_name(expr->children[0]->text);
+            const int one = ir_const(1, expr->line);
+            const int value = ir_temp();
+            IrInst inst;
+            inst.op = IrOp::Binary;
+            inst.dst = value;
+            inst.lhs = var;
+            inst.rhs = one;
+            inst.text = expr->op == "++" ? "+" : "-";
+            inst.line = expr->line;
+            ir_inst(std::move(inst));
+            ir_assign(var, value, expr->line);
+        }
+    }
+
+    void ir_lower_stmt(const Stmt* stmt) {
+        if (stmt == nullptr || ir_terminated_ || ir_failed_) {
+            return;
+        }
+        switch (stmt->kind) {
+            case Stmt::Kind::Empty:
+                return;
+            case Stmt::Kind::Compound:
+                for (const auto& child : stmt->statements) {
+                    if (ir_terminated_) {
+                        break;
+                    }
+                    ir_lower_stmt(child.get());
+                }
+                return;
+            case Stmt::Kind::Decl:
+                for (const auto& decl : stmt->declarations) {
+                    if (!decl.init) {
+                        continue;
+                    }
+                    const int var = ir_value_for_name(decl.name);
+                    ir_assign(var, ir_expr(decl.init.get()), decl.line);
+                }
+                return;
+            case Stmt::Kind::Expr:
+                ir_lower_expr_statement(stmt->expr.get());
+                return;
+            case Stmt::Kind::Return: {
+                const int value =
+                    stmt->expr ? ir_expr(stmt->expr.get())
+                               : ir_const(0, stmt->line);
+                IrInst inst;
+                inst.op = IrOp::Return;
+                inst.lhs = value;
+                inst.line = stmt->line;
+                ir_inst(std::move(inst));
+                ir_terminated_ = true;
+                return;
+            }
+            case Stmt::Kind::If: {
+                const int condition = ir_expr(stmt->expr.get());
+                const int then_block = ir_add_block();
+                const int else_block =
+                    stmt->else_body ? ir_add_block() : -1;
+                const int end_block = ir_add_block();
+                IrInst branch;
+                branch.op = IrOp::BranchZero;
+                branch.lhs = condition;
+                branch.target = else_block >= 0 ? else_block : end_block;
+                branch.line = stmt->line;
+                ir_inst(std::move(branch));
+                ir_switch_block(then_block);
+                ir_lower_stmt(stmt->body.get());
+                ir_jump(end_block);
+                if (else_block >= 0) {
+                    ir_switch_block(else_block);
+                    ir_lower_stmt(stmt->else_body.get());
+                    ir_jump(end_block);
+                }
+                ir_switch_block(end_block);
+                return;
+            }
+            case Stmt::Kind::While: {
+                const int cond_block = ir_add_block();
+                const int body_block = ir_add_block();
+                const int end_block = ir_add_block();
+                ir_jump(cond_block);
+                ir_switch_block(cond_block);
+                const int condition = ir_expr(stmt->expr.get());
+                IrInst branch;
+                branch.op = IrOp::BranchZero;
+                branch.lhs = condition;
+                branch.target = end_block;
+                branch.line = stmt->line;
+                ir_inst(std::move(branch));
+                ir_switch_block(body_block);
+                ir_break_.push_back(end_block);
+                ir_continue_.push_back(cond_block);
+                ir_lower_stmt(stmt->body.get());
+                ir_break_.pop_back();
+                ir_continue_.pop_back();
+                ir_jump(cond_block);
+                ir_switch_block(end_block);
+                return;
+            }
+            case Stmt::Kind::DoWhile: {
+                const int body_block = ir_add_block();
+                const int cond_block = ir_add_block();
+                const int end_block = ir_add_block();
+                ir_jump(body_block);
+                ir_switch_block(body_block);
+                ir_break_.push_back(end_block);
+                ir_continue_.push_back(cond_block);
+                ir_lower_stmt(stmt->body.get());
+                ir_break_.pop_back();
+                ir_continue_.pop_back();
+                ir_jump(cond_block);
+                ir_switch_block(cond_block);
+                const int condition = ir_expr(stmt->expr.get());
+                IrInst branch;
+                branch.op = IrOp::BranchZero;
+                branch.lhs = condition;
+                branch.target = end_block;
+                branch.line = stmt->line;
+                ir_inst(std::move(branch));
+                ir_jump(body_block);
+                ir_switch_block(end_block);
+                return;
+            }
+            case Stmt::Kind::For: {
+                ir_lower_stmt(stmt->init.get());
+                if (ir_terminated_) {
+                    return;
+                }
+                const int cond_block = ir_add_block();
+                const int body_block = ir_add_block();
+                const int next_block = ir_add_block();
+                const int end_block = ir_add_block();
+                ir_jump(cond_block);
+                ir_switch_block(cond_block);
+                if (stmt->expr) {
+                    const int condition = ir_expr(stmt->expr.get());
+                    IrInst branch;
+                    branch.op = IrOp::BranchZero;
+                    branch.lhs = condition;
+                    branch.target = end_block;
+                    branch.line = stmt->line;
+                    ir_inst(std::move(branch));
+                }
+                ir_switch_block(body_block);
+                ir_break_.push_back(end_block);
+                ir_continue_.push_back(next_block);
+                ir_lower_stmt(stmt->body.get());
+                ir_break_.pop_back();
+                ir_continue_.pop_back();
+                ir_jump(next_block);
+                ir_switch_block(next_block);
+                if (stmt->expr2) {
+                    ir_lower_expr_statement(stmt->expr2.get());
+                }
+                ir_jump(cond_block);
+                ir_switch_block(end_block);
+                return;
+            }
+            case Stmt::Kind::Break:
+                if (ir_break_.empty()) {
+                    ir_failed_ = true;
+                } else {
+                    ir_jump(ir_break_.back());
+                }
+                return;
+            case Stmt::Kind::Continue:
+                if (ir_continue_.empty()) {
+                    ir_failed_ = true;
+                } else {
+                    ir_jump(ir_continue_.back());
+                }
+                return;
+            default:
+                ir_failed_ = true;
+                return;
+        }
+    }
+
+    void ir_successors() {
+        for (std::size_t i = 0; i < ir_blocks_.size(); ++i) {
+            auto& block = ir_blocks_[i];
+            block.succ.clear();
+            if (block.insts.empty()) {
+                if (i + 1 < ir_blocks_.size()) {
+                    block.succ.push_back(static_cast<int>(i + 1));
+                }
+                continue;
+            }
+            const auto& last = block.insts.back();
+            if (last.op == IrOp::Jump) {
+                block.succ.push_back(last.target);
+            } else if (last.op == IrOp::BranchZero) {
+                block.succ.push_back(last.target);
+                if (i + 1 < ir_blocks_.size()) {
+                    block.succ.push_back(static_cast<int>(i + 1));
+                }
+            } else if (last.op != IrOp::Return &&
+                       i + 1 < ir_blocks_.size()) {
+                block.succ.push_back(static_cast<int>(i + 1));
+            }
+        }
+    }
+
+    std::pair<std::set<int>, std::set<int>> ir_inst_uses_defs(
+        const IrInst& inst) const {
+        std::set<int> uses;
+        std::set<int> defs;
+        switch (inst.op) {
+            case IrOp::Const:
+            case IrOp::Param:
+                defs.insert(inst.dst);
+                break;
+            case IrOp::Move:
+            case IrOp::Unary:
+            case IrOp::Char:
+            case IrOp::Assign:
+                defs.insert(inst.dst);
+                uses.insert(inst.lhs);
+                break;
+            case IrOp::Binary:
+                defs.insert(inst.dst);
+                uses.insert(inst.lhs);
+                uses.insert(inst.rhs);
+                break;
+            case IrOp::BranchZero:
+            case IrOp::Return:
+                uses.insert(inst.lhs);
+                break;
+            case IrOp::Jump:
+                break;
+        }
+        return {uses, defs};
+    }
+
+    bool ir_liveness_and_color() {
+        const int count = static_cast<int>(ir_values_.size());
+        for (auto& block : ir_blocks_) {
+            block.use.clear();
+            block.def.clear();
+            block.live_in.clear();
+            block.live_out.clear();
+            for (const auto& inst : block.insts) {
+                auto [uses, defs] = ir_inst_uses_defs(inst);
+                for (const int value : uses) {
+                    if (block.def.count(value) == 0) {
+                        block.use.insert(value);
+                    }
+                }
+                for (const int value : defs) {
+                    block.def.insert(value);
+                }
+            }
+        }
+        bool changed = true;
+        int rounds = 0;
+        while (changed && rounds++ < 10000) {
+            changed = false;
+            for (std::size_t index = ir_blocks_.size(); index-- > 0;) {
+                auto& block = ir_blocks_[index];
+                std::set<int> out;
+                for (const int successor : block.succ) {
+                    for (const int value : ir_blocks_[successor].live_in) {
+                        out.insert(value);
+                    }
+                }
+                std::set<int> in = block.use;
+                for (const int value : out) {
+                    if (block.def.count(value) == 0) {
+                        in.insert(value);
+                    }
+                }
+                if (out != block.live_out || in != block.live_in) {
+                    block.live_out = std::move(out);
+                    block.live_in = std::move(in);
+                    changed = true;
+                }
+            }
+        }
+        std::vector<std::unordered_set<int>> graph(
+            static_cast<std::size_t>(count));
+        auto add_edge = [&graph](int a, int b) {
+            if (a >= 0 && b >= 0 && a != b) {
+                graph[static_cast<std::size_t>(a)].insert(b);
+                graph[static_cast<std::size_t>(b)].insert(a);
+            }
+        };
+        for (const auto& block : ir_blocks_) {
+            std::set<int> live = block.live_out;
+            for (std::size_t i = block.insts.size(); i-- > 0;) {
+                const auto& inst = block.insts[i];
+                auto [uses, defs] = ir_inst_uses_defs(inst);
+                for (const int def : defs) {
+                    for (const int value : live) {
+                        add_edge(def, value);
+                    }
+                    // Assignment and masks can safely use the source register
+                    // when the source is dead after the instruction.
+                    const bool can_overlap =
+                        inst.op == IrOp::Assign ||
+                        inst.op == IrOp::Move ||
+                        inst.op == IrOp::Unary ||
+                        inst.op == IrOp::Char;
+                    if (!can_overlap) {
+                        for (const int use : uses) {
+                            add_edge(def, use);
+                        }
+                    }
+                }
+                for (const int def : defs) {
+                    live.erase(def);
+                }
+                for (const int use : uses) {
+                    live.insert(use);
+                }
+            }
+        }
+        std::vector<int> order(static_cast<std::size_t>(count));
+        for (int i = 0; i < count; ++i) {
+            order[static_cast<std::size_t>(i)] = i;
+        }
+        std::sort(order.begin(), order.end(), [&](int a, int b) {
+            return graph[static_cast<std::size_t>(a)].size() >
+                   graph[static_cast<std::size_t>(b)].size();
+        });
+        for (const int value : order) {
+            bool used[5] = {false, false, false, false, false};
+            for (const int neighbor : graph[static_cast<std::size_t>(value)]) {
+                if (neighbor >= 0 &&
+                    neighbor < static_cast<int>(ir_values_.size()) &&
+                    ir_values_[static_cast<std::size_t>(neighbor)].reg >= 0) {
+                    used[ir_values_[static_cast<std::size_t>(neighbor)].reg] =
+                        true;
+                }
+            }
+            int color = -1;
+            for (int candidate = 0; candidate < 5; ++candidate) {
+                if (!used[candidate]) {
+                    color = candidate;
+                    break;
+                }
+            }
+            if (color < 0) {
+                return false;
+            }
+            ir_values_[static_cast<std::size_t>(value)].reg = color;
+        }
+        return true;
+    }
+
+    void ir_emit_block_label(std::ostringstream& out, int block) const {
+        out << ".Lir_" << function_label_ << "_" << block << ":\n";
+    }
+
+    void ir_emit(const Function& function, std::ostringstream& out) {
+        out << ".global " << function.name << "\n";
+        out << function.name << ":\n";
+        out << "  PUSH R4\n";
+        for (std::size_t block = 0; block < ir_blocks_.size(); ++block) {
+            ir_emit_block_label(out, static_cast<int>(block));
+            for (const auto& inst : ir_blocks_[block].insts) {
+                const auto reg_of = [&](int value) {
+                    return value >= 0
+                               ? ir_values_[static_cast<std::size_t>(value)].reg
+                               : -1;
+                };
+                switch (inst.op) {
+                    case IrOp::Const:
+                        out << "  MOV R" << reg_of(inst.dst) << ", #"
+                            << inst.imm << "\n";
+                        break;
+                    case IrOp::Param: {
+                        const int dst = reg_of(inst.dst);
+                        const int source = static_cast<int>(inst.imm) + 1;
+                        if (dst != source) {
+                            out << "  MOV R" << dst << ", R" << source
+                                << "\n";
+                        }
+                        if (ir_values_[static_cast<std::size_t>(inst.dst)]
+                                .character) {
+                            out << "  AND R" << dst << ", #0xFF\n";
+                        }
+                        break;
+                    }
+                    case IrOp::Move:
+                        if (reg_of(inst.dst) != reg_of(inst.lhs)) {
+                            out << "  MOV R" << reg_of(inst.dst) << ", R"
+                                << reg_of(inst.lhs) << "\n";
+                        }
+                        break;
+                    case IrOp::Char:
+                        if (reg_of(inst.dst) != reg_of(inst.lhs)) {
+                            out << "  MOV R" << reg_of(inst.dst) << ", R"
+                                << reg_of(inst.lhs) << "\n";
+                        }
+                        out << "  AND R" << reg_of(inst.dst) << ", #0xFF\n";
+                        break;
+                    case IrOp::Unary:
+                        if (reg_of(inst.dst) != reg_of(inst.lhs)) {
+                            out << "  MOV R" << reg_of(inst.dst) << ", R"
+                                << reg_of(inst.lhs) << "\n";
+                        }
+                        out << (inst.text == "-" ? "  NEG R" : "  NOT R")
+                            << reg_of(inst.dst) << "\n";
+                        break;
+                    case IrOp::Assign:
+                        if (reg_of(inst.dst) != reg_of(inst.lhs)) {
+                            out << "  MOV R" << reg_of(inst.dst) << ", R"
+                                << reg_of(inst.lhs) << "\n";
+                        }
+                        if (ir_values_[static_cast<std::size_t>(inst.dst)]
+                                .character) {
+                            out << "  AND R" << reg_of(inst.dst)
+                                << ", #0xFF\n";
+                        }
+                        break;
+                    case IrOp::Binary: {
+                        const int dst = reg_of(inst.dst);
+                        const int lhs = reg_of(inst.lhs);
+                        const int rhs = reg_of(inst.rhs);
+                        if (dst != lhs) {
+                            out << "  MOV R" << dst << ", R" << lhs << "\n";
+                        }
+                        if (inst.text == "+") {
+                            out << "  ADD R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == "-") {
+                            out << "  SUB R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == "*") {
+                            out << "  MUL R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == "/") {
+                            out << "  DIV R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == "%") {
+                            out << "  MOD R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == "&") {
+                            out << "  AND R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == "|") {
+                            out << "  OR R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == "^") {
+                            out << "  XOR R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == "<<") {
+                            out << "  SHL R" << dst << ", R" << rhs << "\n";
+                        } else if (inst.text == ">>") {
+                            out << "  SAR R" << dst << ", R" << rhs << "\n";
+                        } else {
+                            out << "  CMP R" << dst << ", R" << rhs
+                                << "\n";
+                            const std::string yes =
+                                new_label("ircmp");
+                            const std::string end =
+                                new_label("ircmpend");
+                            std::string branch = "BEQ";
+                            if (inst.text == "!=") {
+                                branch = "BNE";
+                            } else if (inst.text == "<") {
+                                branch = "BLT";
+                            } else if (inst.text == ">") {
+                                branch = "BGT";
+                            } else if (inst.text == "<=") {
+                                branch = "BLE";
+                            } else if (inst.text == ">=") {
+                                branch = "BGE";
+                            }
+                            out << "  " << branch << " " << yes << "\n";
+                            out << "  MOV R" << dst << ", #0\n";
+                            out << "  BRA " << end << "\n";
+                            out << yes << ":\n";
+                            out << "  MOV R" << dst << ", #1\n";
+                            out << end << ":\n";
+                        }
+                        break;
+                    }
+                    case IrOp::BranchZero:
+                        out << "  CMP R" << reg_of(inst.lhs) << ", #0\n";
+                        out << "  BEQ .Lir_" << function_label_ << "_"
+                            << inst.target << "\n";
+                        break;
+                    case IrOp::Jump:
+                        out << "  BRA .Lir_" << function_label_ << "_"
+                            << inst.target << "\n";
+                        break;
+                    case IrOp::Return:
+                        if (reg_of(inst.lhs) != 0) {
+                            out << "  MOV R0, R" << reg_of(inst.lhs)
+                                << "\n";
+                        }
+                        out << "  BRA .Lir_ret_" << function_label_ << "\n";
+                        break;
+                }
+            }
+        }
+        out << ".Lir_ret_" << function_label_ << ":\n";
+        out << "  POP R4\n";
+        out << "  RET\n";
+    }
+
+    bool try_compile_ir(const Function& function, std::ostringstream& out) {
+        if (!optimize_ || !can_ir_function(function)) {
+            return false;
+        }
+        ir_values_.clear();
+        ir_vars_.clear();
+        ir_blocks_.clear();
+        ir_break_.clear();
+        ir_continue_.clear();
+        ir_failed_ = false;
+        ir_terminated_ = false;
+        ir_current_ = 0;
+        ir_add_block();
+        for (const auto& [name, variable] : locals_) {
+            if (!variable.type ||
+                (variable.type->kind != TypeKind::Char &&
+                 variable.type->kind != TypeKind::Int)) {
+                return false;
+            }
+            const int value =
+                ir_new_value(true, name, variable.type->is_char());
+            ir_vars_[name] = value;
+        }
+        for (std::size_t i = 0; i < function.parameters.size(); ++i) {
+            const int value = ir_value_for_name(function.parameters[i].name);
+            IrInst inst;
+            inst.op = IrOp::Param;
+            inst.dst = value;
+            inst.imm = static_cast<std::int64_t>(i);
+            ir_inst(std::move(inst));
+        }
+        ir_lower_stmt(function.body.get());
+        if (!ir_terminated_) {
+            IrInst inst;
+            inst.op = IrOp::Return;
+            inst.lhs = ir_const(0, 0);
+            ir_inst(std::move(inst));
+        }
+        if (ir_failed_) {
+            return false;
+        }
+        ir_successors();
+        if (!ir_liveness_and_color()) {
+            return false;
+        }
+        ir_emit(function, out);
+        return true;
+    }
+
     void compile_function(Function& function, std::ostringstream& out) {
         locals_.clear();
         frame_size_ = 0;
@@ -2224,6 +3104,10 @@ private:
                         variable.type ? variable.type->size() : 2});
                 }
             }
+        }
+
+        if (try_compile_ir(function, out)) {
+            return;
         }
 
         out << ".global " << function.name << "\n";
@@ -3301,6 +4185,14 @@ private:
     std::string source_name_;
     bool debug_ = false;
     bool optimize_ = true;
+    std::vector<IrValue> ir_values_;
+    std::unordered_map<std::string, int> ir_vars_;
+    std::vector<IrBlock> ir_blocks_;
+    std::vector<int> ir_break_;
+    std::vector<int> ir_continue_;
+    int ir_current_ = 0;
+    bool ir_terminated_ = false;
+    bool ir_failed_ = false;
     std::unordered_map<std::string, Global*> global_map_;
     std::unordered_map<std::string, Function*> function_map_;
     std::unordered_map<std::string, Variable> locals_;

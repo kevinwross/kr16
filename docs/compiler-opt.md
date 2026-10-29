@@ -126,16 +126,17 @@ Test plan:
 
 Benchmark source: a `while (i < 1000)` loop with `s = s + i; i = i + 1;`
 compiled and linked on Windows x64. `-O0` is the straight emitter; `-O1` is
-the default with M1/M2 enabled.
+the default with M1/M2 plus the scalar IR backend.
 
 | Build | text bytes | instructions | cycles |
 |---|---:|---:|---:|
 | `-O0` | 122 | 35,033 | 56,055 |
-| `-O1` | 74 | 16,025 | 25,041 |
+| `-O1` (M1/M2) | 74 | 16,025 | 25,041 |
+| `-O1` (M3/M4 scalar IR) | 66 | 15,023 | 18,036 |
 
-Observed reduction: **54% fewer instructions**, **55% fewer cycles**, and
-**39% smaller text** on that loop. These are a first data point, not a guarantee
-across all programs.
+Observed reduction versus `-O0`: **57% fewer instructions**, **68% fewer
+cycles**, and **46% smaller text** on that loop. These are a first data point,
+not a guarantee across all programs.
 
 Reproduce the comparison with:
 
@@ -159,7 +160,7 @@ ST   [R4-6], R0
 
 Instead of the old push/pop/`MOV R1,R0` sequence.
 
-Current M2 limits:
+Current M2 limits (used as the fallback outside the scalar IR subset):
 
 - simple trees only; nested arithmetic still uses the fallback
 - `a[i]`, `&x`, `*p`, calls, `&&`/`||`, and assignments through aggregates use
@@ -167,36 +168,46 @@ Current M2 limits:
 - comparison results still materialize 0/1 before a following `if`; a later
   pass can branch directly on the flags
 
-### M3 — IR, CFG and local register allocation — [ ]
+### M3 — IR, CFG and local register allocation — [ ] (scalar core complete)
 
-- [ ] Lower expressions/statements to a three-address IR.
-- [ ] Add basic blocks, liveness, and copy propagation.
-- [ ] Add local linear-scan allocation over `R0`–`R3`, reserving `R4`/`SP` as
-  appropriate.
-- [ ] Spill to stack when pressure exceeds the allocatable registers.
-- [ ] Run the existing test suite and differential tests against `-O0`.
+Implemented for scalar functions that do not use calls, aggregates, pointers,
+globals, statics, or more than three parameters. Other functions fall back to
+the M1/M2 emitter, so behavior is always preserved.
 
-Test plan:
-
-- [ ] IR golden tests for load, store, arithmetic, branch and call.
-- [ ] Liveness and interference unit tests.
-- [ ] Every compiler test produces identical output/exit status under the old
-  and new backend.
-- [ ] Debug line mapping still resolves at each breakpoint.
-
-### M4 — Graph coloring / global allocation — [ ]
-
-- [ ] Build interference graphs from CFG liveness.
-- [ ] Add simplify/spill/select coloring with fixed ABI constraints.
-- [ ] Coalesce copies where legal.
-- [ ] Keep local linear scan as a simpler fallback.
+- [x] Lower the supported scalar subset to a three-address IR.
+- [x] Add basic blocks, successors, and liveness.
+- [x] Allocate `R0`–`R4` with an interference graph (R4 is saved/restored).
+- [ ] Spill to stack when pressure exceeds five registers; currently such
+  functions fall back to the M2 emitter.
+- [x] Run the existing test suite and differential tests against `-O0`.
+- [ ] Copy propagation beyond copy-overlap coalescing.
 
 Test plan:
 
-- [ ] Coloring unit tests with known interference graphs.
-- [ ] Spill-heavy functions produce correct results.
-- [ ] Register pressure benchmarks improve without code-size regressions.
-- [ ] Debug and DAP behavior remain valid.
+- [x] IR tests for arithmetic, assignment, branches, loops, `break`, and
+  `continue`.
+- [x] Liveness/interference validation through deterministic execution tests.
+- [x] Every compiler test passes with the new backend; targeted `-O0`/`-O1`
+  differential tests also pass.
+- [x] Debug builds and `-g` keep the existing backend and line mapping.
+
+### M4 — Graph coloring / global allocation — [ ] (core complete)
+
+- [x] Build interference graphs from CFG liveness.
+- [x] Greedy color selection with fixed ABI constraints (`R0`–`R4`, `R4`
+  preserved).
+- [x] Coalesce assignment copies by allowing non-interfering definitions to
+  share a register; full move coalescing is still pending.
+- [x] Keep the existing emitter as a safe fallback for unsupported functions
+  and uncolorable graphs.
+- [ ] Spill/select coloring for pressure above five registers.
+
+Test plan:
+
+- [x] Coloring exercised by the scalar IR tests and benchmark.
+- [x] High-pressure and unsupported functions fall back safely.
+- [x] Scalar loop benchmark improves without a code-size regression.
+- [x] Debug and DAP behavior remain valid (debug uses the fallback backend).
 
 ### M5 — Peephole and loop polish — [ ]
 
@@ -214,11 +225,26 @@ Test plan:
 
 ## Optimization levels
 
-- `-O0` — current straightforward emitter; best for stepping and teaching.
-- `-O1` — M1 + M2 (and later M3+ when stable).
+- `-O0` — straightforward emitter; best for stepping and teaching.
+- `-O1` — default: M1/M2 plus the scalar IR/graph-coloring backend where
+  supported.
+- `-g` keeps the M1/M2 backend so local-variable debug records stay valid.
 - Keep the same C semantics and diagnostics at every level.
 
 ## Notes and decisions
+
+### 2026-10-28 — scalar IR and graph coloring
+
+- The first IR backend deliberately targets scalar, call-free functions. This
+  covers loops, arithmetic, `if`, `for`, `while`, `do`, `break`, and `continue`
+  without changing aggregate/pointer ABI behavior.
+- Unsupported functions and graphs that need more than five registers fall back
+  to the M1/M2 emitter. That is a correctness-preserving spill policy for now;
+  real stack spilling and full move coalescing are follow-up work.
+- Debug builds keep the existing backend so `DebugVar` frame offsets and line
+  mapping remain valid. `-O1` without `-g` uses the IR backend.
+- `R4` is saved and restored around IR functions and can be colored because IR
+  functions make no calls and have no stack arguments.
 
 ### 2026-10-28 — initial plan
 
