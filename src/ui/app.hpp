@@ -103,6 +103,17 @@ private:
         bool local = true;
     };
 
+    struct GutterMenu {
+        bool open = false;
+        Rect rect;
+        Rect toggle_rect;
+        Rect run_rect;
+        bool source = true;
+        int line = 0;
+        std::uint16_t address = 0;
+        int hover = -1;
+    };
+
     struct ScrollBarState {
         Rect track;
         Rect thumb;
@@ -130,6 +141,10 @@ private:
     void draw_scrollbar(Canvas& canvas, ScrollBarState& bar,
                         const Rect& track, int offset, int total,
                         int visible);
+    bool open_gutter_menu(Point point);
+    void draw_gutter_menu(Canvas& canvas);
+    void activate_gutter_menu(bool run_to);
+    void cleanup_temporary_breakpoint();
     void open_settings();
     void close_settings();
     void apply_settings();
@@ -214,6 +229,10 @@ private:
     bool settings_open_ = false;
     bool hover_settings_ = false;
     int hover_settings_control_ = -1;
+    GutterMenu gutter_menu_;
+    int temporary_breakpoint_line_ = 0;
+    std::uint16_t temporary_breakpoint_address_ = 0;
+    bool temporary_breakpoint_owned_ = false;
 
     std::vector<Button> buttons_;
     std::vector<AsmRow> asm_rows_;

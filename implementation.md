@@ -2430,3 +2430,11 @@ Entry format:
   follow mode; `PTR` toggles tracking while the pointer value changes.
 - Memory now cycles through `HEX`, `ASC`, and `STR` views.
 - Array and struct values get type-aware summaries in the Variables list.
+
+### 2026-10-28 — gutter context menu and character values
+
+- Right-clicking the source or disassembly gutter opens a context menu with
+  **Toggle breakpoint** and **Run to line/address**.
+- Run-to uses a temporary breakpoint and removes it when execution stops.
+- One-byte variables display a printable character alongside the numeric value;
+  space is shown as `' '` and non-printable bytes are omitted.

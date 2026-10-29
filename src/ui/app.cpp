@@ -242,6 +242,13 @@ std::string watch_key(const std::string& name, bool local) {
     return (local ? "L:" : "G:") + name;
 }
 
+std::string printable_char(unsigned value) {
+    if (value < 32 || value > 126) {
+        return {};
+    }
+    return std::string(" '") + static_cast<char>(value) + "'";
+}
+
 int hex_digit(char ch) {
     if (ch >= '0' && ch <= '9') {
         return ch - '0';
@@ -450,6 +457,9 @@ void App::paint(Canvas& canvas) {
     draw_asm_tooltip(canvas);
     if (settings_open_) {
         draw_settings(canvas);
+    }
+    if (gutter_menu_.open) {
+        draw_gutter_menu(canvas);
     }
 }
 
@@ -704,6 +714,9 @@ void App::draw_var_tooltip(Canvas& canvas) {
         const int signed_value = static_cast<std::int16_t>(value);
         if (signed_value < 0) {
             decimal += "  (" + std::to_string(signed_value) + ")";
+        }
+        if (hit.size == 1) {
+            decimal += printable_char(value & 0xFF);
         }
         lines.push_back(decimal);
     }
@@ -1578,6 +1591,10 @@ void App::draw_bottom(Canvas& canvas) {
         } else {
             value = hex4(variable.value);
         }
+        if (!editing && variable.ok && variable.size == 1 &&
+            !type_is_array(variable.type) && !type_is_struct(variable.type)) {
+            value += printable_char(variable.value & 0xFF);
+        }
         text_right(canvas, value_right, y, value,
                    editing ? kText : (variable.ok ? kText : kTextDim),
                    FontRole::MonoSmall);
@@ -1808,6 +1825,7 @@ void App::reload_current() {
     if (session_.running()) {
         stop_run("paused");
     }
+    cleanup_temporary_breakpoint();
     std::string error;
     if (!session_.build_and_load(current_path_, libc_source_, settings_,
                                  error)) {
@@ -1830,6 +1848,151 @@ void App::reload_current() {
         apply_reset_entry();
     }
     message_ = "settings applied; rebuilt";
+    window_.invalidate();
+}
+
+bool App::open_gutter_menu(Point point) {
+    if (!session_.loaded() || session_.running()) {
+        return false;
+    }
+    bool source = false;
+    int line = 0;
+    std::uint16_t address = 0;
+    if (source_text_.contains(point) &&
+        point.x < source_text_.left + kGutter) {
+        const int row = (point.y - source_text_.top - 2) / 20;
+        line = source_scroll_ + row + 1;
+        if (line < 1 ||
+            line > static_cast<int>(session_.source_lines().size())) {
+            return false;
+        }
+        source = true;
+    } else if (asm_text_.contains(point) &&
+               point.x < asm_text_.left + kAsmGutter) {
+        const int row = (point.y - asm_text_.top) / 20;
+        const int index = asm_scroll_ + row;
+        if (index < 0 ||
+            index >= static_cast<int>(session_.disassembly().size())) {
+            return false;
+        }
+        address = session_.disassembly()[static_cast<std::size_t>(index)]
+                      .address;
+    } else {
+        return false;
+    }
+
+    const int width = 220;
+    const int height = 58;
+    int x = std::clamp(point.x, 4, std::max(4, size_.width - width - 4));
+    int y = std::clamp(point.y, 4, std::max(4, size_.height - height - 4));
+    gutter_menu_ = GutterMenu{};
+    gutter_menu_.open = true;
+    gutter_menu_.source = source;
+    gutter_menu_.line = line;
+    gutter_menu_.address = address;
+    gutter_menu_.rect = Rect{x, y, x + width, y + height};
+    gutter_menu_.toggle_rect =
+        Rect{x + 1, y + 2, x + width - 1, y + 27};
+    gutter_menu_.run_rect =
+        Rect{x + 1, y + 29, x + width - 1, y + height - 1};
+    window_.invalidate();
+    return true;
+}
+
+void App::draw_gutter_menu(Canvas& canvas) {
+    if (!gutter_menu_.open) {
+        return;
+    }
+    fill(canvas, gutter_menu_.rect, kPanelAlt);
+    frame(canvas, gutter_menu_.rect, kAccent);
+    fill(canvas, gutter_menu_.toggle_rect,
+         gutter_menu_.hover == 0 ? kHighlight : kPanelAlt);
+    fill(canvas, gutter_menu_.run_rect,
+         gutter_menu_.hover == 1 ? kHighlight : kPanelAlt);
+    text(canvas, gutter_menu_.rect.left + 10,
+         gutter_menu_.toggle_rect.top + 4, "Toggle breakpoint", kText,
+         FontRole::MonoSmall);
+    const std::string run_label =
+        gutter_menu_.source
+            ? "Run to line " + std::to_string(gutter_menu_.line)
+            : "Run to " + hex4(gutter_menu_.address);
+    text(canvas, gutter_menu_.rect.left + 10,
+         gutter_menu_.run_rect.top + 4, run_label, kText,
+         FontRole::MonoSmall);
+}
+
+void App::cleanup_temporary_breakpoint() {
+    if (!temporary_breakpoint_owned_) {
+        return;
+    }
+    if (temporary_breakpoint_line_ > 0) {
+        session_.toggle_line_breakpoint(temporary_breakpoint_line_);
+    } else if (temporary_breakpoint_address_ != 0) {
+        session_.toggle_address_breakpoint(temporary_breakpoint_address_);
+    }
+    temporary_breakpoint_line_ = 0;
+    temporary_breakpoint_address_ = 0;
+    temporary_breakpoint_owned_ = false;
+}
+
+void App::activate_gutter_menu(bool run_to) {
+    if (!gutter_menu_.open) {
+        return;
+    }
+    const bool source = gutter_menu_.source;
+    const int line = gutter_menu_.line;
+    const std::uint16_t address = gutter_menu_.address;
+    gutter_menu_.open = false;
+    if (!run_to) {
+        if (source) {
+            session_.toggle_line_breakpoint(line);
+        } else {
+            session_.toggle_address_breakpoint(address);
+        }
+        message_ = "breakpoint toggled";
+        window_.invalidate();
+        return;
+    }
+    if (session_.running()) {
+        stop_run("paused");
+    }
+    cleanup_temporary_breakpoint();
+    if (source) {
+        int target = line;
+        if (session_.executable_lines().count(target) == 0) {
+            const auto next = session_.executable_lines().lower_bound(line);
+            if (next == session_.executable_lines().end()) {
+                message_ = "no executable line after this point";
+                window_.invalidate();
+                return;
+            }
+            target = *next;
+        }
+        if (session_.line_at(session_.pc()) == target) {
+            message_ = "already at line " + std::to_string(target);
+            window_.invalidate();
+            return;
+        }
+        if (!session_.has_line_breakpoint(target)) {
+            session_.toggle_line_breakpoint(target);
+            temporary_breakpoint_line_ = target;
+            temporary_breakpoint_owned_ = true;
+        }
+        start_run();
+    } else {
+        if (session_.pc() == address) {
+            message_ = "already at " + hex4(address);
+            window_.invalidate();
+            return;
+        }
+        if (!session_.has_breakpoint(address)) {
+            session_.toggle_address_breakpoint(address);
+            temporary_breakpoint_address_ = address;
+            temporary_breakpoint_owned_ = true;
+        }
+        start_run();
+    }
+    message_ = "run to target";
     window_.invalidate();
 }
 
@@ -1866,6 +2029,58 @@ void App::resize(Size size) {
 }
 
 void App::event(const Event& event) {
+    if (gutter_menu_.open) {
+        if (const auto* move = std::get_if<MouseMove>(&event);
+            move != nullptr) {
+            const int hover = gutter_menu_.toggle_rect.contains(move->position)
+                                  ? 0
+                                  : gutter_menu_.run_rect.contains(
+                                        move->position)
+                                        ? 1
+                                        : -1;
+            if (hover != gutter_menu_.hover) {
+                gutter_menu_.hover = hover;
+                window_.invalidate();
+            }
+            return;
+        }
+        if (const auto* down = std::get_if<MouseDown>(&event);
+            down != nullptr) {
+            if (down->button == MouseButton::Left) {
+                if (gutter_menu_.toggle_rect.contains(down->position)) {
+                    activate_gutter_menu(false);
+                } else if (gutter_menu_.run_rect.contains(down->position)) {
+                    activate_gutter_menu(true);
+                } else {
+                    gutter_menu_.open = false;
+                    window_.invalidate();
+                }
+            } else {
+                gutter_menu_.open = false;
+                window_.invalidate();
+            }
+            return;
+        }
+        if (const auto* key = std::get_if<KeyDown>(&event); key != nullptr) {
+            if (key->key == Key::Escape) {
+                gutter_menu_.open = false;
+                window_.invalidate();
+            }
+            return;
+        }
+        if (std::holds_alternative<MouseWheel>(event) ||
+            std::holds_alternative<TextInput>(event)) {
+            return;
+        }
+        if (const auto* leave = std::get_if<MouseLeave>(&event);
+            leave != nullptr) {
+            (void)leave;
+            gutter_menu_.hover = -1;
+            window_.invalidate();
+            return;
+        }
+        return;
+    }
     if (settings_open_) {
         if (const auto* move = std::get_if<MouseMove>(&event);
             move != nullptr) {
@@ -2039,6 +2254,9 @@ void App::event(const Event& event) {
     }
     if (const auto* down = std::get_if<MouseDown>(&event); down != nullptr) {
         if (down->button == MouseButton::Right) {
+            if (open_gutter_menu(down->position)) {
+                return;
+            }
             for (const auto& hit : var_hits_) {
                 if (hit.rect.contains(down->position)) {
                     if (hit.indent > 0) {
@@ -2359,6 +2577,7 @@ void App::stop_run(const std::string& reason) {
         return;
     }
     session_.stop_run(reason);
+    cleanup_temporary_breakpoint();
     layout();
     window_.set_timer(8, false);
     message_ = reason;
@@ -2373,6 +2592,7 @@ void App::on_timer() {
     }
     const SessionRunStop stop = session_.run_slice(200000);
     if (stop != SessionRunStop::Budget) {
+        cleanup_temporary_breakpoint();
         layout();
         window_.set_timer(8, false);
         message_ = stop == SessionRunStop::Halted ? "halted" : "paused";
@@ -2957,6 +3177,7 @@ void App::open(const std::filesystem::path& path) {
     if (session_.running()) {
         stop_run("paused");
     }
+    cleanup_temporary_breakpoint();
     std::string error;
     if (!session_.build_and_load(path, libc_source_, settings_, error)) {
         message_ = "load failed";
