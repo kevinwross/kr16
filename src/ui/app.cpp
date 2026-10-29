@@ -37,7 +37,7 @@ constexpr int kTopBar = 36;
 constexpr int kHeader = 30;
 constexpr int kBottom = 150;
 constexpr int kStatus = 24;
-constexpr int kGutter = 50;
+constexpr int kGutter = 90;
 constexpr int kAsmGutter = 90;
 constexpr int kAsmBytes = 128;
 constexpr int kRegH = 74;
@@ -695,7 +695,7 @@ void App::draw_source(Canvas& canvas) {
                               y + line_height},
                  kAccent);
         }
-        text_right(canvas, source_text_.left + kGutter - 2, y + 1,
+        text_right(canvas, source_text_.left + kGutter - 8, y + 1,
                    std::to_string(index + 1),
                    current ? kAccent : kTextDim, FontRole::Mono);
         if (session_.has_line_breakpoint(index + 1)) {

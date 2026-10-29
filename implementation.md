@@ -2354,3 +2354,10 @@ Entry format:
 - Added matching 18 px gutter, separator, and 6x6 breakpoint marker to the
   disassembly pane.
 - Variable rows now include their address, for example `source (&0x90CA)`.
+
+### 2026-10-28 — source gutter column alignment
+
+- Widened the source gutter to match the disassembly address column (90 px)
+  and right-aligned line numbers at the same position as disassembly addresses.
+- Source code now starts after the shared gutter width, with the breakpoint
+  marker still in the left 18 px slice.
