@@ -2438,3 +2438,9 @@ Entry format:
 - Run-to uses a temporary breakpoint and removes it when execution stops.
 - One-byte variables display a printable character alongside the numeric value;
   space is shown as `' '` and non-printable bytes are omitted.
+
+### 2026-10-28 — pane height adjustment
+
+- Memory now shows four 16-byte rows (hex and alternate views).
+- The bottom Variables/Call stack/Console area gained four text rows.
+- C source and disassembly panes shrink by the same amount to make room.

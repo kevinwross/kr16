@@ -35,12 +35,13 @@ constexpr Color kButtonOff{38, 41, 50, 255};
 constexpr int kPad = 8;
 constexpr int kTopBar = 36;
 constexpr int kHeader = 30;
-constexpr int kBottom = 150;
+constexpr int kBottom = 222;
 constexpr int kStatus = 24;
 constexpr int kGutter = 90;
 constexpr int kAsmGutter = 90;
 constexpr int kAsmBytes = 128;
-constexpr int kRegH = 74;
+constexpr int kRegH = 104;
+constexpr int kMemoryRows = 4;
 constexpr int kColumnHeader = 18;
 
 // 24x24 monochrome mask derived from the supplied settings gear icon.
@@ -1029,7 +1030,7 @@ void App::draw_memory(Canvas& canvas) {
     const int byte_x = memory_.left + 10 + 8 * char_width;
     if (memory_view_ != MemoryView::Hex) {
         const int row_chars = memory_view_ == MemoryView::Ascii ? 16 : 32;
-        for (int row = 0; row < 2; ++row) {
+        for (int row = 0; row < kMemoryRows; ++row) {
             const std::uint16_t base = static_cast<std::uint16_t>(
                 memory_address_ + static_cast<std::uint16_t>(row * row_chars));
             std::ostringstream prefix;
@@ -1054,7 +1055,7 @@ void App::draw_memory(Canvas& canvas) {
         return;
     }
     const int ascii_x = byte_x + 16 * 3 * char_width + 2 * char_width;
-    for (int row = 0; row < 2; ++row) {
+    for (int row = 0; row < kMemoryRows; ++row) {
         const std::uint16_t base = static_cast<std::uint16_t>(
             memory_address_ + static_cast<std::uint16_t>(row * 16));
         const int y = memory_.top + 26 + row * 18;
