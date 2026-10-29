@@ -72,6 +72,25 @@ private:
         bool ok = false;
     };
 
+    enum class ScrollPane {
+        None,
+        Source,
+        Asm,
+        Variables,
+        Stack,
+        Console,
+    };
+
+    struct ScrollBarState {
+        Rect track;
+        Rect thumb;
+        int offset = 0;
+        int max_offset = 0;
+        int total = 0;
+        int visible = 0;
+        bool active = false;
+    };
+
     void layout();
     void draw_top(Canvas& canvas);
     void draw_source(Canvas& canvas);
@@ -86,6 +105,9 @@ private:
     void draw_asm_tooltip(Canvas& canvas);
     void draw_settings(Canvas& canvas);
     void draw_button(Canvas& canvas, const Button& button);
+    void draw_scrollbar(Canvas& canvas, ScrollBarState& bar,
+                        const Rect& track, int offset, int total,
+                        int visible);
     void open_settings();
     void close_settings();
     void apply_settings();
@@ -103,6 +125,10 @@ private:
     void step_c(StepMode mode);
     void step_asm(int mode);
     void scroll_memory(int bytes);
+    bool begin_scroll_drag(Point point);
+    void update_scroll_drag(int y);
+    void set_scroll_offset(ScrollPane pane, int offset);
+    ScrollBarState& scroll_bar(ScrollPane pane);
     void start_memory_address_edit();
     void start_memory_byte_edit(int index);
     void finish_memory_edit(bool commit);
@@ -165,6 +191,14 @@ private:
     int variables_scroll_ = 0;
     int stack_scroll_ = 0;
     int console_scroll_ = 0;
+    ScrollBarState source_scroll_bar_;
+    ScrollBarState asm_scroll_bar_;
+    ScrollBarState variables_scroll_bar_;
+    ScrollBarState stack_scroll_bar_;
+    ScrollBarState console_scroll_bar_;
+    ScrollPane scroll_drag_ = ScrollPane::None;
+    int scroll_drag_origin_ = 0;
+    int scroll_drag_start_ = 0;
     std::uint64_t last_follow_instructions_ = ~std::uint64_t{0};
     std::uint16_t last_follow_pc_ = 0;
     bool have_last_follow_pc_ = false;

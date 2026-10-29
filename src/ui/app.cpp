@@ -644,6 +644,33 @@ void App::draw_button(Canvas& canvas, const Button& button) {
          button.label, button.enabled ? kText : kTextDim, FontRole::Ui);
 }
 
+void App::draw_scrollbar(Canvas& canvas, ScrollBarState& bar,
+                         const Rect& track, int offset, int total,
+                         int visible) {
+    bar.track = track;
+    bar.total = total;
+    bar.visible = visible;
+    bar.max_offset = std::max(0, total - visible);
+    bar.active = bar.max_offset > 0 && track.height() > 0;
+    if (!bar.active) {
+        bar.thumb = Rect{};
+        bar.offset = 0;
+        return;
+    }
+    bar.offset = std::clamp(offset, 0, bar.max_offset);
+    const int track_height = track.height();
+    const int thumb_height = std::min(
+        track_height, std::max(12, track_height * visible / total));
+    const int thumb_y = track.top +
+                        (track_height - thumb_height) * bar.offset /
+                            bar.max_offset;
+    bar.thumb = Rect{track.left, thumb_y, track.right,
+                     thumb_y + thumb_height};
+    fill(canvas, track, kPanelAlt);
+    frame(canvas, track, kBorder);
+    fill(canvas, bar.thumb, kAccent);
+}
+
 void App::draw_source(Canvas& canvas) {
     fill(canvas, source_pane_, kPanel);
     frame(canvas, source_pane_, kBorder);
@@ -728,6 +755,11 @@ void App::draw_source(Canvas& canvas) {
               source_text_.bottom},
          kBorder);
     canvas.pop_clip();
+    draw_scrollbar(
+        canvas, source_scroll_bar_,
+        Rect{source_text_.right - 8, source_text_.top + 2,
+             source_text_.right - 2, source_text_.bottom - 2},
+        source_scroll_, static_cast<int>(lines.size()), visible);
 }
 
 void App::draw_memory(Canvas& canvas) {
@@ -1011,6 +1043,11 @@ void App::draw_asm(Canvas& canvas) {
               asm_text_.bottom},
          kBorder);
     canvas.pop_clip();
+    draw_scrollbar(
+        canvas, asm_scroll_bar_,
+        Rect{asm_text_.right - 8, asm_text_.top + 2,
+             asm_text_.right - 2, asm_text_.bottom - 2},
+        asm_scroll_, static_cast<int>(instructions.size()), visible);
 }
 
 void App::draw_registers(Canvas& canvas) {
@@ -1077,22 +1114,6 @@ void App::draw_bottom(Canvas& canvas) {
     panel(console_, "Console");
 
     const int line_height = 18;
-    const auto scrollbar = [&](const Rect& area, int offset, int total,
-                               int visible) {
-        if (total <= visible || visible <= 0) {
-            return;
-        }
-        const int top = area.top + 24;
-        const int bottom = area.bottom - 4;
-        const int track = std::max(1, bottom - top);
-        const int thumb = std::max(12, track * visible / total);
-        const int max_offset = std::max(1, total - visible);
-        const int y = top + (track - thumb) * offset / max_offset;
-        fill(canvas, Rect{area.right - 6, top, area.right - 1, bottom},
-             kPanelAlt);
-        fill(canvas, Rect{area.right - 5, y, area.right - 1, y + thumb},
-             kAccent);
-    };
 
     var_hits_.clear();
     const int value_right = variables_.right - 12;
@@ -1202,8 +1223,11 @@ void App::draw_bottom(Canvas& canvas) {
             draw_variable(globals[static_cast<std::size_t>(row.index)]);
         }
     }
-    scrollbar(variables_, variables_scroll_,
-              static_cast<int>(rows.size()), variable_visible);
+    draw_scrollbar(
+        canvas, variables_scroll_bar_,
+        Rect{variables_.right - 7, variables_.top + 24,
+             variables_.right - 2, variables_.bottom - 4},
+        variables_scroll_, static_cast<int>(rows.size()), variable_visible);
 
     y = stack_.top + 26;
     const auto frames = session_.frames();
@@ -1232,8 +1256,11 @@ void App::draw_bottom(Canvas& canvas) {
             y += line_height;
         }
     }
-    scrollbar(stack_, stack_scroll_, static_cast<int>(frames.size()),
-              stack_visible);
+    draw_scrollbar(
+        canvas, stack_scroll_bar_,
+        Rect{stack_.right - 7, stack_.top + 24, stack_.right - 2,
+             stack_.bottom - 4},
+        stack_scroll_, static_cast<int>(frames.size()), stack_visible);
 
     y = console_.top + 26;
     const std::string& output = session_.console();
@@ -1270,8 +1297,11 @@ void App::draw_bottom(Canvas& canvas) {
             y += line_height;
         }
     }
-    scrollbar(console_, start, static_cast<int>(lines.size()),
-              console_visible);
+    draw_scrollbar(
+        canvas, console_scroll_bar_,
+        Rect{console_.right - 7, console_.top + 24, console_.right - 2,
+             console_.bottom - 4},
+        start, static_cast<int>(lines.size()), console_visible);
 }
 
 void App::draw_settings(Canvas& canvas) {
@@ -1506,8 +1536,18 @@ void App::event(const Event& event) {
         }
         return;
     }
+    if (const auto* up = std::get_if<MouseUp>(&event); up != nullptr) {
+        if (up->button == MouseButton::Left) {
+            scroll_drag_ = ScrollPane::None;
+        }
+        return;
+    }
     if (const auto* move = std::get_if<MouseMove>(&event); move != nullptr) {
         mouse_ = move->position;
+        if (scroll_drag_ != ScrollPane::None) {
+            update_scroll_drag(move->position.y);
+            return;
+        }
         const bool gear_hover = settings_rect_.contains(move->position);
         if (gear_hover != hover_settings_) {
             hover_settings_ = gear_hover;
@@ -1594,6 +1634,7 @@ void App::event(const Event& event) {
         hover_memory_byte_ = -1;
         hover_step_reset_ = false;
         hover_settings_ = false;
+        scroll_drag_ = ScrollPane::None;
         window_.invalidate();
         return;
     }
@@ -1603,6 +1644,9 @@ void App::event(const Event& event) {
         }
         if (settings_rect_.contains(down->position)) {
             open_settings();
+            return;
+        }
+        if (begin_scroll_drag(down->position)) {
             return;
         }
         if (editing_memory()) {
@@ -1999,6 +2043,108 @@ void App::scroll_memory(int bytes) {
     memory_address_ = static_cast<std::uint16_t>(next);
     hover_memory_byte_ = -1;
     window_.invalidate();
+}
+
+App::ScrollBarState& App::scroll_bar(ScrollPane pane) {
+    switch (pane) {
+        case ScrollPane::Source:
+            return source_scroll_bar_;
+        case ScrollPane::Asm:
+            return asm_scroll_bar_;
+        case ScrollPane::Variables:
+            return variables_scroll_bar_;
+        case ScrollPane::Stack:
+            return stack_scroll_bar_;
+        case ScrollPane::Console:
+        case ScrollPane::None:
+            break;
+    }
+    return console_scroll_bar_;
+}
+
+void App::set_scroll_offset(ScrollPane pane, int offset) {
+    ScrollBarState& bar = scroll_bar(pane);
+    const int value = std::clamp(offset, 0, bar.max_offset);
+    switch (pane) {
+        case ScrollPane::Source:
+            source_scroll_ = value;
+            break;
+        case ScrollPane::Asm:
+            asm_scroll_ = value;
+            break;
+        case ScrollPane::Variables:
+            variables_scroll_ = value;
+            break;
+        case ScrollPane::Stack:
+            stack_scroll_ = value;
+            break;
+        case ScrollPane::Console:
+            console_scroll_ = bar.max_offset - value;
+            break;
+        case ScrollPane::None:
+            return;
+    }
+    window_.invalidate();
+}
+
+bool App::begin_scroll_drag(Point point) {
+    const auto scaled = [](int pixels, int travel, int maximum) {
+        const long long numerator =
+            static_cast<long long>(pixels) * maximum;
+        if (numerator >= 0) {
+            return static_cast<int>((numerator + travel / 2) / travel);
+        }
+        return static_cast<int>((numerator - travel / 2) / travel);
+    };
+    const ScrollPane panes[] = {
+        ScrollPane::Source, ScrollPane::Asm, ScrollPane::Variables,
+        ScrollPane::Stack, ScrollPane::Console};
+    for (const ScrollPane pane : panes) {
+        ScrollBarState& bar = scroll_bar(pane);
+        if (!bar.active || !bar.track.contains(point)) {
+            continue;
+        }
+        const int travel = bar.track.height() - bar.thumb.height();
+        if (travel <= 0) {
+            return false;
+        }
+        int offset = bar.offset;
+        if (!bar.thumb.contains(point)) {
+            const int pixels = std::clamp(
+                point.y - bar.track.top - bar.thumb.height() / 2, 0,
+                travel);
+            offset = std::clamp(
+                scaled(pixels, travel, bar.max_offset), 0,
+                bar.max_offset);
+            set_scroll_offset(pane, offset);
+        }
+        scroll_drag_ = pane;
+        scroll_drag_origin_ = point.y;
+        scroll_drag_start_ = offset;
+        return true;
+    }
+    return false;
+}
+
+void App::update_scroll_drag(int y) {
+    if (scroll_drag_ == ScrollPane::None) {
+        return;
+    }
+    ScrollBarState& bar = scroll_bar(scroll_drag_);
+    const int travel = bar.track.height() - bar.thumb.height();
+    if (travel <= 0 || bar.max_offset <= 0) {
+        return;
+    }
+    const int delta = y - scroll_drag_origin_;
+    const long long numerator =
+        static_cast<long long>(delta) * bar.max_offset;
+    const int amount =
+        delta >= 0
+            ? static_cast<int>((numerator + travel / 2) / travel)
+            : static_cast<int>((numerator - travel / 2) / travel);
+    set_scroll_offset(scroll_drag_,
+                      std::clamp(scroll_drag_start_ + amount, 0,
+                                 bar.max_offset));
 }
 
 void App::start_memory_address_edit() {

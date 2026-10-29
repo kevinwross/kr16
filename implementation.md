@@ -2391,3 +2391,11 @@ Entry format:
   decodes a 128-byte window at PC and inserts it into the disassembly list.
 - Disassembly highlighting treats a PC inside a multi-byte instruction as that
   instruction's current row.
+
+### 2026-10-28 — draggable vertical scrollbars
+
+- Added vertical scrollbars to the C source and disassembly panes.
+- Replaced the bottom-panel indicator-only scrollbars with shared draggable
+  scrollbars for Variables, Call stack, and Console.
+- Thumb dragging and track paging update the corresponding scroll offset
+  immediately; wheel scrolling and step-follow behavior are unchanged.
