@@ -15,9 +15,10 @@ KR16 is a 16-bit teaching computer with a single-binary toolchain:
 Every tool has detailed option help: `kr16 <command> --help` (or
 `kr16 help <command>`).
 
-The design specification is [kr16-plan.md](kr16-plan.md). The implementation
-plan, milestones, test gates, and work log are in
-[implementation.md](implementation.md).
+The design specification is [kr16-plan.md](kr16-plan.md); the planned
+[system services C interface](systemservices.md) defines the `SYS` ABI and
+service structures. The implementation plan, milestones, test gates, and work
+log are in [implementation.md](implementation.md).
 
 ## Status
 

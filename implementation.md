@@ -2444,3 +2444,11 @@ Entry format:
 - Memory now shows four 16-byte rows (hex and alternate views).
 - The bottom Variables/Call stack/Console area gained four text rows.
 - C source and disassembly panes shrink by the same amount to make room.
+
+### 2026-10-28 — system-services C interface specification
+
+- Added `systemservices.md` defining the per-service C argument/result
+  structures, `SYS` block mapping, service numbers, errors, limits, sandbox
+  policy, and examples.
+- Added the reference `include/kr16/systemservices.h` header. Its `sys_*`
+  wrappers will ship as the corresponding host services are implemented.
