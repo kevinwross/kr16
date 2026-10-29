@@ -2361,3 +2361,11 @@ Entry format:
   and right-aligned line numbers at the same position as disassembly addresses.
 - Source code now starts after the shared gutter width, with the breakpoint
   marker still in the left 18 px slice.
+
+### 2026-10-28 — independent code scrolling and step follow
+
+- Source and disassembly panes no longer snap back to the current line on every
+  repaint. Wheel scrolling remains where the user left it so breakpoints can be
+  set elsewhere.
+- When execution advances (step, run-to-breakpoint, restart, reload), both panes
+  scroll only if needed to bring the current line/instruction back into view.

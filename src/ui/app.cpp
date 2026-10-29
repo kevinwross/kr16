@@ -331,6 +331,9 @@ void App::layout() {
 }
 
 void App::paint(Canvas& canvas) {
+    const std::uint64_t instructions = session_.instructions_executed();
+    follow_current_ = last_follow_instructions_ != instructions;
+    last_follow_instructions_ = instructions;
     fill(canvas, Rect{0, 0, size_.width, size_.height}, kBg);
     draw_top(canvas);
     draw_source(canvas);
@@ -668,7 +671,7 @@ void App::draw_source(Canvas& canvas) {
     const int visible =
         std::max(1, (source_text_.height() - 4) / line_height);
     const int current_line = session_.line_at(session_.pc());
-    if (current_line > 0) {
+    if (follow_current_ && current_line > 0) {
         if (current_line - 1 < source_scroll_) {
             source_scroll_ = std::max(0, current_line - 4);
         } else if (current_line - 1 >= source_scroll_ + visible) {
@@ -902,7 +905,7 @@ void App::draw_asm(Canvas& canvas) {
             break;
         }
     }
-    if (pc_index >= 0) {
+    if (follow_current_ && pc_index >= 0) {
         if (pc_index < asm_scroll_) {
             asm_scroll_ = std::max(0, pc_index - 3);
         } else if (pc_index >= asm_scroll_ + visible) {
@@ -1364,6 +1367,7 @@ void App::reload_current() {
     variables_scroll_ = 0;
     stack_scroll_ = 0;
     console_scroll_ = 0;
+    last_follow_instructions_ = ~std::uint64_t{0};
     window_.set_title("KR16 - " + current_path_.filename().string());
     layout();
     if (step_at_reset_) {
@@ -1756,6 +1760,7 @@ void App::activate(Action action) {
                 window_.show_error("KR16", error);
             } else {
                 message_ = "restarted";
+                last_follow_instructions_ = ~std::uint64_t{0};
                 if (step_at_reset_) {
                     apply_reset_entry();
                 }
@@ -1774,6 +1779,7 @@ void App::activate(Action action) {
                 window_.show_error("KR16", error);
             } else {
                 message_ = "image reloaded";
+                last_follow_instructions_ = ~std::uint64_t{0};
                 if (step_at_reset_) {
                     apply_reset_entry();
                 }
@@ -2290,6 +2296,7 @@ void App::open(const std::filesystem::path& path) {
     variables_scroll_ = 0;
     stack_scroll_ = 0;
     console_scroll_ = 0;
+    last_follow_instructions_ = ~std::uint64_t{0};
     memory_address_ = 0x0100;
     memory_address_editing_ = false;
     memory_byte_editing_ = -1;

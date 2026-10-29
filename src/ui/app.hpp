@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -164,6 +165,8 @@ private:
     int variables_scroll_ = 0;
     int stack_scroll_ = 0;
     int console_scroll_ = 0;
+    std::uint64_t last_follow_instructions_ = ~std::uint64_t{0};
+    bool follow_current_ = true;
     std::uint16_t memory_address_ = 0x0100;
     bool memory_address_editing_ = false;
     int memory_byte_editing_ = -1;
