@@ -215,7 +215,8 @@ Test plan:
 - [x] Run peepholes over the IR instruction list, not raw text.
 - [x] Fuse comparison results with their consuming branch (`CMP` + inverse
   condition instead of materializing 0/1).
-- [x] Fold constant operands into immediate forms where the ISA supports them.
+- [x] Fold constant operands into immediate forms in both the IR and fallback
+  simple-expression paths.
 - [x] Remove fallthrough jumps and coalesce adjacent definition/assignment
   copies.
 - [x] Remove dead pure IR instructions and unused variable assignments.
@@ -223,7 +224,8 @@ Test plan:
 - [x] Fold casts/`sizeof` and constant branches, including IR constant
   conditions.
 - [x] Branch directly on simple comparison conditions in the fallback emitter.
-- [x] Avoid `PUSH`/`POP` shuffling for simple one-to-three-argument calls.
+- [x] Avoid `PUSH`/`POP` shuffling for simple one-to-three-argument calls,
+  including simple binary argument expressions.
 - [ ] Fold remaining address calculations.
 - [ ] Consider loop-invariant code motion and induction-variable strength
   reduction.

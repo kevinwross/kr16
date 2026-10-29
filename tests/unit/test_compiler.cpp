@@ -297,6 +297,14 @@ TEST_CASE("constant casts and sizeof conditions are folded") {
     CHECK(assembly.find("CMP R0, #0") == std::string::npos);
 }
 
+TEST_CASE("fallback constant arithmetic uses immediates") {
+    const auto assembly = compile_text(
+        "int f(int n) { int a[2]; return n - 1; }\n"
+        "int main(void) { return f(5); }\n");
+    CHECK(assembly.find("SUB R0, #1") != std::string::npos);
+    CHECK(assembly.find("MOV R1, #1") == std::string::npos);
+}
+
 TEST_CASE("simple multi-argument calls use argument registers directly") {
     const auto assembly = compile_text(
         "int printf(const char *, ...);\n"

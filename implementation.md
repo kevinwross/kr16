@@ -2279,11 +2279,15 @@ Entry format:
   power-of-two multiplies, constant-branch folding, and fallthrough-jump
   removal.
 - Optimized simple one-to-three-argument call marshalling to load argument
-  registers directly and avoid stack shuffling for `printf`-style calls.
+  registers directly and avoid stack shuffling for `printf`-style calls,
+  including simple binary argument expressions like `n - 1`.
 - Fallback `if`/`while`/`for`/`do` conditions now branch directly on simple
   comparisons instead of materializing a 0/1 value.
+- Fallback simple expressions now use immediate forms (`SUB R0, #1`,
+  `AND R0, #0xFF`, power-of-two shifts) and target a caller-selected register
+  for direct call arguments.
 - Scalar loop benchmark: `-O1` now 38 text bytes, 5,014 instructions, 7,026
   cycles (from 122 / 35,033 / 56,055 at `-O0`).
-- Doctest: 128 cases / 3369 assertions; CTest 38/38 Windows and 37/37 Linux.
+- Doctest: 129 cases / 3372 assertions; CTest 38/38 Windows and 37/37 Linux.
 - Remaining work recorded in `docs/compiler-opt.md`: stack spilling, full copy
   coalescing, and broader IR coverage.

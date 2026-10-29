@@ -3980,65 +3980,100 @@ private:
         return false;
     }
 
-    bool emit_simple_expr(const Expr* expr, std::ostringstream& out) {
+    bool emit_simple_expr_into(const Expr* expr, int target,
+                               std::ostringstream& out) {
         if (is_simple_leaf(expr)) {
-            return emit_simple_leaf(expr, 0, out);
+            return emit_simple_leaf(expr, target, out);
         }
         if (!is_simple_binary(expr)) {
             return false;
         }
-        if (!emit_simple_leaf(expr->children[0].get(), 0, out) ||
-            !emit_simple_leaf(expr->children[1].get(), 1, out)) {
+        if (!emit_simple_leaf(expr->children[0].get(), target, out)) {
             return false;
         }
+        const auto right_constant =
+            constant_expr_value(expr->children[1].get());
         const std::string& op = expr->op;
-        if (op == "+") {
-            out << "  ADD R0, R1\n";
+        bool immediate = false;
+        std::int64_t immediate_value = 0;
+        bool strength_shift = false;
+        if (right_constant) {
+            immediate_value = *right_constant;
+            if (op == "+" || op == "-" || op == "&" || op == "|" ||
+                op == "^") {
+                immediate = true;
+            } else if ((op == "<<" || op == ">>") &&
+                       immediate_value >= 0 && immediate_value <= 15) {
+                immediate = true;
+            } else if (op == "*" && immediate_value > 0 &&
+                       immediate_value <= 32768 &&
+                       (immediate_value & (immediate_value - 1)) == 0) {
+                int shift = 0;
+                while ((std::int64_t{1} << shift) < immediate_value) {
+                    ++shift;
+                }
+                immediate_value = shift;
+                immediate = true;
+                strength_shift = true;
+            }
+        }
+        int scratch = target == 0 ? 1 : 0;
+        std::string rhs;
+        if (immediate) {
+            rhs = "#" + std::to_string(immediate_value);
+        } else {
+            if (!emit_simple_leaf(expr->children[1].get(), scratch, out)) {
+                return false;
+            }
+            rhs = "R" + std::to_string(scratch);
+        }
+        if (strength_shift) {
+            out << "  SHL R" << target << ", " << rhs << "\n";
+        } else if (op == "+") {
+            out << "  ADD R" << target << ", " << rhs << "\n";
         } else if (op == "-") {
-            out << "  SUB R0, R1\n";
+            out << "  SUB R" << target << ", " << rhs << "\n";
         } else if (op == "*") {
-            out << "  MUL R0, R1\n";
+            out << "  MUL R" << target << ", " << rhs << "\n";
         } else if (op == "/") {
-            out << "  DIV R0, R1\n";
+            out << "  DIV R" << target << ", " << rhs << "\n";
         } else if (op == "%") {
-            out << "  MOD R0, R1\n";
+            out << "  MOD R" << target << ", " << rhs << "\n";
         } else if (op == "&") {
-            out << "  AND R0, R1\n";
+            out << "  AND R" << target << ", " << rhs << "\n";
         } else if (op == "|") {
-            out << "  OR R0, R1\n";
+            out << "  OR R" << target << ", " << rhs << "\n";
         } else if (op == "^") {
-            out << "  XOR R0, R1\n";
+            out << "  XOR R" << target << ", " << rhs << "\n";
         } else if (op == "<<") {
-            out << "  SHL R0, R1\n";
+            out << "  SHL R" << target << ", " << rhs << "\n";
         } else if (op == ">>") {
-            out << "  SAR R0, R1\n";
+            out << "  SAR R" << target << ", " << rhs << "\n";
         } else if (op == "==" || op == "!=" || op == "<" || op == ">" ||
                    op == "<=" || op == ">=") {
-            out << "  CMP R0, R1\n";
+            out << "  CMP R" << target << ", " << rhs << "\n";
             const auto yes = new_label("fastcmp");
             const auto end = new_label("fastcmpend");
             std::string branch = "BEQ";
-            if (op == "!=") {
-                branch = "BNE";
-            } else if (op == "<") {
-                branch = "BLT";
-            } else if (op == ">") {
-                branch = "BGT";
-            } else if (op == "<=") {
-                branch = "BLE";
-            } else if (op == ">=") {
-                branch = "BGE";
-            }
+            if (op == "!=") branch = "BNE";
+            if (op == "<") branch = "BLT";
+            if (op == ">") branch = "BGT";
+            if (op == "<=") branch = "BLE";
+            if (op == ">=") branch = "BGE";
             out << "  " << branch << " " << yes << "\n";
-            out << "  MOV R0, #0\n";
+            out << "  MOV R" << target << ", #0\n";
             out << "  BRA " << end << "\n";
             out << yes << ":\n";
-            out << "  MOV R0, #1\n";
+            out << "  MOV R" << target << ", #1\n";
             out << end << ":\n";
         } else {
             return false;
         }
         return true;
+    }
+
+    bool emit_simple_expr(const Expr* expr, std::ostringstream& out) {
+        return emit_simple_expr_into(expr, 0, out);
     }
 
     bool emit_simple_condition(const Expr* expr, const std::string& target,
@@ -4633,15 +4668,17 @@ private:
         if (!expr->children.empty() && expr->children.size() <= 3) {
             bool all_simple = true;
             for (std::size_t i = 0; i < expr->children.size(); ++i) {
+                const auto* argument = expr->children[i].get();
                 if (struct_args[i] ||
-                    !is_simple_leaf(expr->children[i].get())) {
+                    (!is_simple_leaf(argument) &&
+                     !is_simple_binary(argument))) {
                     all_simple = false;
                     break;
                 }
             }
             if (all_simple) {
                 for (std::size_t i = 0; i < expr->children.size(); ++i) {
-                    if (!emit_simple_leaf(
+                    if (!emit_simple_expr_into(
                             expr->children[i].get(),
                             static_cast<int>(i) + 1, out)) {
                         all_simple = false;
