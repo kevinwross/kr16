@@ -287,6 +287,14 @@ TEST_CASE("IR peepholes fuse branches and fold immediates") {
     CHECK(assembly.find("Lircmp") == std::string::npos);
 }
 
+TEST_CASE("IR dead code and strength reduction") {
+    const auto assembly = compile_text(
+        "int main(void) { int dead = 123; int x = 5; return x * 4; }\n");
+    CHECK(assembly.find("#123") == std::string::npos);
+    CHECK(assembly.find("SHL R") != std::string::npos);
+    CHECK(assembly.find("MUL R") == std::string::npos);
+}
+
 TEST_CASE("IR allocator falls back safely") {
     CHECK(run_c("int main(void) { int a=1; int b=2; int c=3; int d=4; "
                 "int e=5; int f=6; return a+b+c+d+e+f; }\n") == 21);

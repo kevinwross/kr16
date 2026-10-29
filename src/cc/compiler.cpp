@@ -2510,20 +2510,42 @@ private:
                     inst.op != IrOp::BranchCompare) {
                     continue;
                 }
-                if (inst.rhs < 0 || !supports_immediate(inst.text) ||
-                    uses[static_cast<std::size_t>(inst.rhs)] != 1) {
+                if (inst.rhs < 0 || uses[static_cast<std::size_t>(inst.rhs)] !=
+                                         1) {
                     continue;
                 }
                 const IrInst* constant = find_const(inst.rhs);
-                if (constant == nullptr ||
-                    ((inst.text == "<<" || inst.text == ">>") &&
-                     (constant->imm < 0 || constant->imm > 15))) {
+                if (constant == nullptr) {
                     continue;
                 }
-                inst.imm = constant->imm;
-                inst.immediate = true;
-                inst.rhs = -1;
-                removable.insert(constant->dst);
+                bool strength_reduced = false;
+                if (inst.op == IrOp::Binary && inst.text == "*" &&
+                    constant->imm > 0 && constant->imm <= 32768 &&
+                    (constant->imm & (constant->imm - 1)) == 0) {
+                    int shift = 0;
+                    std::int64_t value = constant->imm;
+                    while (value > 1) {
+                        value >>= 1;
+                        ++shift;
+                    }
+                    inst.text = "<<";
+                    inst.imm = shift;
+                    inst.immediate = true;
+                    inst.rhs = -1;
+                    removable.insert(constant->dst);
+                    strength_reduced = true;
+                }
+                if (!strength_reduced) {
+                    if (!supports_immediate(inst.text) ||
+                        ((inst.text == "<<" || inst.text == ">>") &&
+                         (constant->imm < 0 || constant->imm > 15))) {
+                        continue;
+                    }
+                    inst.imm = constant->imm;
+                    inst.immediate = true;
+                    inst.rhs = -1;
+                    removable.insert(constant->dst);
+                }
             }
         }
         if (removable.empty()) {
@@ -2538,6 +2560,68 @@ private:
                                removable.count(inst.dst) != 0;
                     }),
                 block.insts.end());
+        }
+    }
+
+    void ir_dead_code_elimination() {
+        const auto is_pure = [](const IrInst& inst) {
+            if (inst.op == IrOp::Const || inst.op == IrOp::Move ||
+                inst.op == IrOp::Unary || inst.op == IrOp::Char ||
+                inst.op == IrOp::Assign) {
+                return true;
+            }
+            if (inst.op == IrOp::Binary) {
+                return inst.text != "/" && inst.text != "%";
+            }
+            return false;
+        };
+        bool changed = true;
+        int rounds = 0;
+        while (changed && rounds++ < 10000) {
+            changed = false;
+            std::vector<int> uses(ir_values_.size(), 0);
+            for (const auto& block : ir_blocks_) {
+                for (const auto& inst : block.insts) {
+                    auto [inst_uses, inst_defs] = ir_inst_uses_defs(inst);
+                    (void)inst_defs;
+                    for (const int value : inst_uses) {
+                        if (value >= 0 &&
+                            value < static_cast<int>(uses.size())) {
+                            ++uses[static_cast<std::size_t>(value)];
+                        }
+                    }
+                }
+            }
+            for (auto& block : ir_blocks_) {
+                for (std::size_t i = 0; i < block.insts.size();) {
+                    const auto& inst = block.insts[i];
+                    auto [inst_uses, inst_defs] = ir_inst_uses_defs(inst);
+                    bool dead = inst_defs.size() == 1 && is_pure(inst);
+                    if (dead) {
+                        for (const int def : inst_defs) {
+                            if (def >= 0 &&
+                                def < static_cast<int>(uses.size()) &&
+                                uses[static_cast<std::size_t>(def)] != 0) {
+                                dead = false;
+                            }
+                        }
+                    }
+                    if (!dead) {
+                        ++i;
+                        continue;
+                    }
+                    for (const int use : inst_uses) {
+                        if (use >= 0 &&
+                            use < static_cast<int>(uses.size()) &&
+                            uses[static_cast<std::size_t>(use)] > 0) {
+                            --uses[static_cast<std::size_t>(use)];
+                        }
+                    }
+                    block.insts.erase(block.insts.begin() +
+                                      static_cast<std::ptrdiff_t>(i));
+                    changed = true;
+                }
+            }
         }
     }
 
@@ -3208,6 +3292,7 @@ private:
         ir_coalesce_assignments();
         ir_fuse_compare_branches();
         ir_fold_immediates();
+        ir_dead_code_elimination();
         ir_remove_fallthrough_jumps();
         ir_successors();
         if (!ir_liveness_and_color()) {

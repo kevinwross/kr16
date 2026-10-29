@@ -2275,9 +2275,10 @@ Entry format:
 - Added `-O1` IR tests for loops, `if`/`else`, `do`/`while`, `break`,
   `continue`, `for`, fallback pressure, and function calls.
 - Added M5 IR peepholes: adjacent copy coalescing, comparison/branch fusion,
-  immediate-operand folding, and fallthrough-jump removal.
+  immediate-operand folding, dead-code elimination, strength reduction for
+  power-of-two multiplies, and fallthrough-jump removal.
 - Scalar loop benchmark: `-O1` now 38 text bytes, 5,014 instructions, 7,026
   cycles (from 122 / 35,033 / 56,055 at `-O0`).
-- Doctest: 123 cases / 3339 assertions; CTest 38/38 Windows and 37/37 Linux.
+- Doctest: 124 cases / 3343 assertions; CTest 38/38 Windows and 37/37 Linux.
 - Remaining work recorded in `docs/compiler-opt.md`: stack spilling, full copy
   coalescing, and broader IR coverage.
