@@ -2369,3 +2369,10 @@ Entry format:
   set elsewhere.
 - When execution advances (step, run-to-breakpoint, restart, reload), both panes
   scroll only if needed to bring the current line/instruction back into view.
+
+### 2026-10-28 — variable address/value columns
+
+- Centered the red breakpoint marker in the 18 px source and disassembly gutters.
+- Removed the address suffix from variable names and added separate `Addr` and
+  `Value` columns, with headers level with the `Variables` title.
+- Variable addresses are shown as `&0x....` in their own column.

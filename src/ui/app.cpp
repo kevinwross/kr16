@@ -702,8 +702,8 @@ void App::draw_source(Canvas& canvas) {
                    std::to_string(index + 1),
                    current ? kAccent : kTextDim, FontRole::Mono);
         if (session_.has_line_breakpoint(index + 1)) {
-            fill(canvas, Rect{source_text_.left + 3, y + 7,
-                              source_text_.left + 9, y + 13},
+            fill(canvas, Rect{source_text_.left + 6, y + 7,
+                              source_text_.left + 12, y + 13},
                  kRed);
         }
         text(canvas, source_text_.left + kGutter + 4, y + 1, lines[index].text,
@@ -983,8 +983,8 @@ void App::draw_asm(Canvas& canvas) {
         text(canvas, text_x, y + 1, instruction.text,
              current ? kText : kTextDim, FontRole::Mono);
         if (session_.has_breakpoint(instruction.address)) {
-            fill(canvas, Rect{asm_text_.left + 3, y + 7,
-                              asm_text_.left + 9, y + 13},
+            fill(canvas, Rect{asm_text_.left + 6, y + 7,
+                              asm_text_.left + 12, y + 13},
                  kRed);
         }
     }
@@ -1077,6 +1077,12 @@ void App::draw_bottom(Canvas& canvas) {
     };
 
     var_hits_.clear();
+    const int value_right = variables_.right - 12;
+    const int addr_right = value_right - 56;
+    text_right(canvas, addr_right, variables_.top + 5, "Addr", kTextDim,
+               FontRole::MonoSmall);
+    text_right(canvas, value_right, variables_.top + 5, "Value", kTextDim,
+               FontRole::MonoSmall);
     const auto locals = session_.locals();
     const auto globals = session_.globals();
     struct VariableRow {
@@ -1125,10 +1131,12 @@ void App::draw_bottom(Canvas& canvas) {
             fill(canvas, row, kStmt);
             frame(canvas, row, kAccent);
         }
-        std::string label = variable.name + " (&" + hex4(variable.address) +
-                            ")";
+        std::string label = variable.name;
         text(canvas, variables_.left + 16, y, label, kText,
              FontRole::MonoSmall);
+        text_right(canvas, addr_right, y,
+                   "&" + hex4(variable.address), kTextDim,
+                   FontRole::MonoSmall);
         std::string value;
         if (editing) {
             value = "0x" + edit_text_;
@@ -1145,7 +1153,7 @@ void App::draw_bottom(Canvas& canvas) {
         } else {
             value = hex4(variable.value);
         }
-        text_right(canvas, variables_.right - 12, y, value,
+        text_right(canvas, value_right, y, value,
                    editing ? kText : (variable.ok ? kText : kTextDim),
                    FontRole::MonoSmall);
         y += line_height;
