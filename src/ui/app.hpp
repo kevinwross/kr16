@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -66,6 +67,7 @@ private:
     struct VarHit {
         Rect rect;
         Rect value_rect;
+        Rect expand_rect;
         std::string name;
         std::string type;
         std::uint16_t address = 0;
@@ -75,6 +77,10 @@ private:
         bool ok = false;
         bool pointer = false;
         bool char_pointer = false;
+        bool watch = false;
+        bool expandable = false;
+        bool expanded = false;
+        int indent = 0;
     };
 
     enum class ScrollPane {
@@ -84,6 +90,17 @@ private:
         Variables,
         Stack,
         Console,
+    };
+
+    enum class MemoryView {
+        Hex,
+        Ascii,
+        String,
+    };
+
+    struct WatchEntry {
+        std::string name;
+        bool local = true;
     };
 
     struct ScrollBarState {
@@ -130,6 +147,10 @@ private:
     void step_c(StepMode mode);
     void step_asm(int mode);
     void scroll_memory(int bytes);
+    void toggle_watch(const VarHit& hit);
+    bool is_watched(const std::string& name, bool local) const;
+    void toggle_watch_expanded(const VarHit& hit);
+    bool watch_expanded(const std::string& name, bool local) const;
     bool begin_scroll_drag(Point point);
     void update_scroll_drag(int y);
     void set_scroll_offset(ScrollPane pane, int offset);
@@ -167,6 +188,14 @@ private:
     Rect memory_address_rect_{};
     Rect memory_up_rect_{};
     Rect memory_down_rect_{};
+    Rect memory_view_rect_{};
+    Rect memory_follow_rect_{};
+    MemoryView memory_view_ = MemoryView::Hex;
+    bool follow_pointer_active_ = false;
+    std::string follow_pointer_name_;
+    bool follow_pointer_local_ = true;
+    std::vector<WatchEntry> watches_;
+    std::set<std::string> expanded_watches_;
     Rect bottom_{};
     Rect variables_{};
     Rect stack_{};

@@ -51,6 +51,13 @@ struct SessionVariable {
     bool ok = false;
 };
 
+struct SessionField {
+    std::string name;
+    std::string type;
+    int offset = 0;
+    int size = 2;
+};
+
 enum class StepMode {
     Instruction,
     LineOver,
@@ -135,6 +142,8 @@ public:
     std::vector<SessionFrame> frames();
     std::vector<SessionVariable> locals();
     std::vector<SessionVariable> globals();
+    const std::vector<SessionField>* fields_for(
+        const std::string& type) const;
 
     bool step_instruction();
     bool step_instruction_over();
@@ -207,6 +216,7 @@ private:
     std::set<int> executable_lines_;
     std::vector<LocalDefinition> local_definitions_;
     std::map<std::string, std::string> global_types_;
+    std::map<std::string, std::vector<SessionField>> type_fields_;
     std::set<std::uint16_t> address_breakpoints_;
     std::set<int> line_breakpoints_;
     std::string console_;

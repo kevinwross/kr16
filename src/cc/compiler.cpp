@@ -1946,7 +1946,8 @@ public:
         if (debug_ && !debug_types_.empty()) {
             out << ".section .debug_types\n";
             for (const auto& type : debug_types_) {
-                out << ".asciz \"" << type.name << "|" << type.size << "\"\n";
+                out << ".asciz \"" << type.name << "|" << type.size << "|"
+                    << type.fields << "\"\n";
             }
             out << ".text\n";
         }
@@ -1976,6 +1977,7 @@ private:
     struct DebugType {
         std::string name;
         int size = 0;
+        std::string fields;
     };
 
     std::string type_text(const std::shared_ptr<Type>& type) const {
@@ -1995,9 +1997,15 @@ private:
                 return type_text(type->base) + "[" +
                        std::to_string(type->count) + "]";
             case TypeKind::Struct:
+                if (type->name.rfind("struct ", 0) == 0) {
+                    return type->name;
+                }
                 return "struct " +
                        (type->name.empty() ? std::string("?") : type->name);
             case TypeKind::Union:
+                if (type->name.rfind("union ", 0) == 0) {
+                    return type->name;
+                }
                 return "union " +
                        (type->name.empty() ? std::string("?") : type->name);
         }
@@ -2005,7 +2013,15 @@ private:
     }
 
     void record_type(const std::shared_ptr<Type>& type) {
-        if (!type || type->name.empty()) {
+        if (!type) {
+            return;
+        }
+        if (type->kind == TypeKind::Pointer ||
+            type->kind == TypeKind::Array) {
+            record_type(type->base);
+            return;
+        }
+        if (type->name.empty()) {
             return;
         }
         for (const auto& existing : debug_types_) {
@@ -2013,7 +2029,23 @@ private:
                 return;
             }
         }
-        debug_types_.push_back(DebugType{type->name, type->size()});
+        std::string fields;
+        if (type->kind == TypeKind::Struct ||
+            type->kind == TypeKind::Union) {
+            for (const auto& member : type->members) {
+                if (!member.type) {
+                    continue;
+                }
+                fields += member.name + "@" + std::to_string(member.offset) +
+                          ":" + type_text(member.type) + ":" +
+                          std::to_string(member.type->size()) + ";";
+            }
+        }
+        debug_types_.push_back(
+            DebugType{type->name, type->size(), std::move(fields)});
+        for (const auto& member : type->members) {
+            record_type(member.type);
+        }
     }
 
     void collect_globals() {

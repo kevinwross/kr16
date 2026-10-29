@@ -2416,3 +2416,17 @@ Entry format:
   completely different instruction.
 - Rows now carry their full disassembly index; hover highlighting and help use
   that index. Scrolling also clears the stale hover.
+
+### 2026-10-28 — watch pane, pointer following, and memory views
+
+- Added a Watches section to the Variables pane. Right-click a variable to pin
+  or unpin it; watches re-resolve on every paint and survive stepping.
+- Watch rows show `+`/`-` expanders for arrays, pointers, and structs. Array
+  elements and struct fields become child rows; struct field metadata is emitted
+  in `.debug_types`.
+- Pointer values now support dereference previews for scalar pointees as well
+  as `char *` strings.
+- Clicking a pointer value selects it for the Memory pane and enables `PTR`
+  follow mode; `PTR` toggles tracking while the pointer value changes.
+- Memory now cycles through `HEX`, `ASC`, and `STR` views.
+- Array and struct values get type-aware summaries in the Variables list.

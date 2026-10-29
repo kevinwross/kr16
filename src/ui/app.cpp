@@ -184,6 +184,64 @@ bool type_is_char_pointer(const std::string& type) {
     return compact == "char*";
 }
 
+bool type_is_array(const std::string& type) {
+    return !type.empty() && type.back() == ']' &&
+           type.find('[') != std::string::npos;
+}
+
+std::string type_array_base(const std::string& type) {
+    const auto bracket = type.find('[');
+    return bracket == std::string::npos ? type : type.substr(0, bracket);
+}
+
+int type_array_count(const std::string& type) {
+    const auto open = type.find('[');
+    const auto close = type.rfind(']');
+    if (open == std::string::npos || close == std::string::npos ||
+        close <= open + 1) {
+        return 0;
+    }
+    try {
+        return std::stoi(type.substr(open + 1, close - open - 1));
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
+std::string type_pointer_base(const std::string& type) {
+    std::string result = type;
+    while (!result.empty() &&
+           std::isspace(static_cast<unsigned char>(result.back()))) {
+        result.pop_back();
+    }
+    if (!result.empty() && result.back() == '*') {
+        result.pop_back();
+        while (!result.empty() &&
+               std::isspace(static_cast<unsigned char>(result.back()))) {
+            result.pop_back();
+        }
+    }
+    return result;
+}
+
+bool type_is_struct(const std::string& type) {
+    return type.rfind("struct ", 0) == 0 || type.rfind("union ", 0) == 0;
+}
+
+int type_scalar_size(const std::string& type) {
+    if (type == "char") {
+        return 1;
+    }
+    if (type_is_array(type)) {
+        return type_array_count(type) * type_scalar_size(type_array_base(type));
+    }
+    return 2;
+}
+
+std::string watch_key(const std::string& name, bool local) {
+    return (local ? "L:" : "G:") + name;
+}
+
 int hex_digit(char ch) {
     if (ch >= '0' && ch <= '9') {
         return ch - '0';
@@ -231,6 +289,10 @@ void App::layout() {
                            memory_.right - 34, memory_.top + 21};
     memory_down_rect_ = Rect{memory_.right - 30, memory_.top + 3,
                              memory_.right - 10, memory_.top + 21};
+    memory_follow_rect_ = Rect{memory_.right - 152, memory_.top + 3,
+                               memory_.right - 106, memory_.top + 21};
+    memory_view_rect_ = Rect{memory_.right - 102, memory_.top + 3,
+                             memory_.right - 58, memory_.top + 21};
     asm_text_ = Rect{asm_pane_.left + 1,
                      asm_pane_.top + kHeader + kColumnHeader,
                      asm_pane_.right - 1, asm_pane_.bottom - kRegH};
@@ -361,6 +423,18 @@ void App::paint(Canvas& canvas) {
     have_last_follow_pc_ = true;
     if (session_.loaded()) {
         session_.ensure_disassembly_at(pc);
+        if (follow_pointer_active_ && !follow_pointer_name_.empty()) {
+            const auto variables = follow_pointer_local_
+                                       ? session_.locals()
+                                       : session_.globals();
+            for (const auto& variable : variables) {
+                if (variable.name == follow_pointer_name_ && variable.ok &&
+                    type_is_pointer(variable.type) && variable.size <= 2) {
+                    memory_address_ = variable.value;
+                    break;
+                }
+            }
+        }
     }
     fill(canvas, Rect{0, 0, size_.width, size_.height}, kBg);
     draw_top(canvas);
@@ -541,6 +615,74 @@ void App::draw_var_tooltip(Canvas& canvas) {
                 preview += "...";
             }
             lines.push_back("\"" + preview + "\"");
+        }
+    }
+    if (hit.ok && type_is_array(hit.type)) {
+        const std::string base = type_array_base(hit.type);
+        const int count = type_array_count(hit.type);
+        if (base == "char") {
+            std::string preview;
+            bool ended = false;
+            for (int i = 0; i < 16; ++i) {
+                const unsigned char ch =
+                    session_.read8(static_cast<std::uint16_t>(
+                        hit.address + static_cast<std::uint16_t>(i)));
+                if (ch == 0) {
+                    ended = true;
+                    break;
+                }
+                preview.push_back(ch >= 32 && ch < 127
+                                      ? static_cast<char>(ch)
+                                      : '.');
+            }
+            if (!ended &&
+                session_.read8(static_cast<std::uint16_t>(hit.address + 16)) !=
+                    0) {
+                preview += "...";
+            }
+            lines.push_back("\"" + preview + "\"");
+        } else {
+            lines.push_back("array[" + std::to_string(count) + "]");
+            for (int i = 0; i < std::min(4, count); ++i) {
+                std::ostringstream element;
+                const auto address = static_cast<std::uint16_t>(
+                    hit.address + static_cast<std::uint16_t>(
+                                      i * type_scalar_size(base)));
+                element << "[" << i << "] = 0x" << std::hex
+                        << std::uppercase << std::setfill('0') << std::setw(4)
+                        << session_.read16(address);
+                lines.push_back(element.str());
+            }
+        }
+    } else if (hit.ok && hit.pointer && hit.size <= 2 &&
+               !hit.char_pointer) {
+        if (hit.value == 0) {
+            lines.push_back("<null>");
+        } else {
+            const std::string base = type_pointer_base(hit.type);
+            if (base == "char") {
+                std::string preview;
+                for (int i = 0; i < 16; ++i) {
+                    const unsigned char ch =
+                        session_.read8(static_cast<std::uint16_t>(
+                            hit.value + static_cast<std::uint16_t>(i)));
+                    if (ch == 0) {
+                        break;
+                    }
+                    preview.push_back(ch >= 32 && ch < 127
+                                          ? static_cast<char>(ch)
+                                          : '.');
+                }
+                lines.push_back("\"" + preview + "\"");
+            } else if (base == "int") {
+                std::ostringstream deref;
+                deref << "*ptr = 0x" << std::hex << std::uppercase
+                      << std::setfill('0') << std::setw(4)
+                      << session_.read16(hit.value);
+                lines.push_back(deref.str());
+            } else {
+                lines.push_back("*ptr -> " + base);
+            }
         }
     }
     if (!hit.ok) {
@@ -846,6 +988,25 @@ void App::draw_memory(Canvas& canvas) {
              arrow_labels[i], kText, FontRole::MonoSmall);
     }
 
+    fill(canvas, memory_follow_rect_,
+         follow_pointer_active_ ? kAccentDim : kButton);
+    frame(canvas, memory_follow_rect_,
+          follow_pointer_active_ ? kAccent : kBorder);
+    text_center(canvas, memory_follow_rect_.left +
+                            memory_follow_rect_.width() / 2,
+                memory_follow_rect_.top + 2, "PTR", kText,
+                FontRole::MonoSmall);
+    const char* view_label = memory_view_ == MemoryView::Hex
+                                 ? "HEX"
+                                 : memory_view_ == MemoryView::Ascii ? "ASC"
+                                                                    : "STR";
+    fill(canvas, memory_view_rect_, kButton);
+    frame(canvas, memory_view_rect_, kBorder);
+    text_center(canvas,
+                memory_view_rect_.left + memory_view_rect_.width() / 2,
+                memory_view_rect_.top + 2, view_label, kText,
+                FontRole::MonoSmall);
+
     memory_bytes_.clear();
     if (!session_.loaded()) {
         return;
@@ -853,6 +1014,32 @@ void App::draw_memory(Canvas& canvas) {
     const Size digit = canvas.measure("0", FontRole::MonoSmall);
     const int char_width = std::max(4, digit.width);
     const int byte_x = memory_.left + 10 + 8 * char_width;
+    if (memory_view_ != MemoryView::Hex) {
+        const int row_chars = memory_view_ == MemoryView::Ascii ? 16 : 32;
+        for (int row = 0; row < 2; ++row) {
+            const std::uint16_t base = static_cast<std::uint16_t>(
+                memory_address_ + static_cast<std::uint16_t>(row * row_chars));
+            std::ostringstream prefix;
+            prefix << "0x" << std::hex << std::uppercase << std::setfill('0')
+                   << std::setw(4) << base << ':';
+            const int y = memory_.top + 26 + row * 18;
+            text(canvas, memory_.left + 10, y, prefix.str(), kTextDim,
+                 FontRole::MonoSmall);
+            std::string chars;
+            for (int i = 0; i < row_chars; ++i) {
+                const unsigned char value = session_.read8(
+                    static_cast<std::uint16_t>(base + i));
+                if (memory_view_ == MemoryView::String && value == 0) {
+                    break;
+                }
+                chars.push_back(value >= 32 && value < 127
+                                   ? static_cast<char>(value)
+                                   : '.');
+            }
+            text(canvas, byte_x, y, chars, kText, FontRole::MonoSmall);
+        }
+        return;
+    }
     const int ascii_x = byte_x + 16 * 3 * char_width + 2 * char_width;
     for (int row = 0; row < 2; ++row) {
         const std::uint16_t base = static_cast<std::uint16_t>(
@@ -1167,11 +1354,113 @@ void App::draw_bottom(Canvas& canvas) {
                 variables_.top + 5, "Value", kAccent, FontRole::UiBold);
     const auto locals = session_.locals();
     const auto globals = session_.globals();
+    std::vector<SessionVariable> watched;
+    watched.reserve(watches_.size());
+    for (const auto& entry : watches_) {
+        SessionVariable variable;
+        variable.name = entry.name;
+        variable.local = entry.local;
+        variable.type = "?";
+        variable.ok = false;
+        const auto& source = entry.local ? locals : globals;
+        for (const auto& candidate : source) {
+            if (candidate.name == entry.name) {
+                variable = candidate;
+                break;
+            }
+        }
+        watched.push_back(std::move(variable));
+    }
     struct VariableRow {
-        int kind;  // 0 header, 1 empty, 2 local, 3 spacer, 4 global
+        int kind;  // 0 header, 1 empty, 2 local, 3 spacer, 4 global, 5 watch, 6 child
         int index;
     };
+    std::vector<SessionVariable> watch_children;
+    std::vector<std::vector<int>> watch_child_indices(watched.size());
+    const auto read_child = [&](std::uint16_t address, int size) {
+        SessionVariable child;
+        child.address = address;
+        child.size = size;
+        child.local = true;
+        child.ok = static_cast<std::uint32_t>(address) +
+                       static_cast<std::uint32_t>(size) <=
+                   0xF000;
+        if (child.ok) {
+            child.value = size == 1 ? session_.read8(address)
+                                    : session_.read16(address);
+        }
+        return child;
+    };
+    for (std::size_t i = 0; i < watched.size(); ++i) {
+        const auto& parent = watched[i];
+        if (!watch_expanded(parent.name, parent.local) || !parent.ok) {
+            continue;
+        }
+        if (type_is_array(parent.type)) {
+            const std::string base = type_array_base(parent.type);
+            const int count = type_array_count(parent.type);
+            int element_size = type_scalar_size(base);
+            if (count > 0 && parent.size > 0 &&
+                parent.size / count > 0) {
+                element_size = parent.size / count;
+            }
+            for (int index = 0; index < std::min(8, count); ++index) {
+                SessionVariable child = read_child(
+                    static_cast<std::uint16_t>(
+                        parent.address + index * element_size),
+                    element_size);
+                child.name = "[" + std::to_string(index) + "]";
+                child.scope = parent.scope;
+                child.type = base;
+                child.local = parent.local;
+                watch_child_indices[i].push_back(
+                    static_cast<int>(watch_children.size()));
+                watch_children.push_back(std::move(child));
+            }
+        } else if (type_is_pointer(parent.type) && parent.size <= 2) {
+            const std::string base = type_pointer_base(parent.type);
+            SessionVariable child = read_child(
+                parent.value, type_scalar_size(base));
+            child.name = "*";
+            child.scope = parent.scope;
+            child.type = base;
+            child.local = parent.local;
+            child.ok = child.ok && parent.value != 0;
+            watch_child_indices[i].push_back(
+                static_cast<int>(watch_children.size()));
+            watch_children.push_back(std::move(child));
+        } else if (type_is_struct(parent.type)) {
+            if (const auto* fields = session_.fields_for(parent.type);
+                fields != nullptr) {
+                for (const auto& field : *fields) {
+                    SessionVariable child = read_child(
+                        static_cast<std::uint16_t>(
+                            parent.address + field.offset),
+                        field.size);
+                    child.name = field.name;
+                    child.scope = parent.scope;
+                    child.type = field.type;
+                    child.local = parent.local;
+                    watch_child_indices[i].push_back(
+                        static_cast<int>(watch_children.size()));
+                    watch_children.push_back(std::move(child));
+                }
+            }
+        }
+    }
     std::vector<VariableRow> rows;
+    rows.push_back(VariableRow{0, 2});
+    if (watched.empty()) {
+        rows.push_back(VariableRow{1, -1});
+    } else {
+        for (std::size_t i = 0; i < watched.size(); ++i) {
+            rows.push_back(VariableRow{5, static_cast<int>(i)});
+            for (const int child : watch_child_indices[i]) {
+                rows.push_back(VariableRow{6, child});
+            }
+        }
+    }
+    rows.push_back(VariableRow{3, -1});
     rows.push_back(VariableRow{0, 0});
     if (locals.empty()) {
         rows.push_back(VariableRow{1, -1});
@@ -1194,7 +1483,22 @@ void App::draw_bottom(Canvas& canvas) {
         variables_scroll_, 0,
         std::max(0, static_cast<int>(rows.size()) - variable_visible));
 
-    auto draw_variable = [&](const SessionVariable& variable) {
+    const auto expandable_variable = [&](const SessionVariable& variable) {
+        if (type_is_array(variable.type)) {
+            return type_array_count(variable.type) > 0;
+        }
+        if (type_is_pointer(variable.type) && variable.size <= 2) {
+            return true;
+        }
+        if (type_is_struct(variable.type)) {
+            const auto* fields = session_.fields_for(variable.type);
+            return fields != nullptr && !fields->empty();
+        }
+        return false;
+    };
+
+    auto draw_variable = [&](const SessionVariable& variable, bool watch,
+                             bool expandable, bool expanded, int indent) {
         if (y + line_height > variable_bottom) {
             return;
         }
@@ -1202,11 +1506,17 @@ void App::draw_bottom(Canvas& canvas) {
         const Rect row{variables_.left + 8, y - 2, variables_.right - 12,
                        y + 16};
         const Rect value_rect{value_left, y - 2, value_right, y + 16};
+        const Rect expand_rect =
+            watch && expandable
+                ? Rect{variables_.left + 8, y - 2, variables_.left + 20,
+                       y + 16}
+                : Rect{};
         var_hits_.push_back(VarHit{
-            row, value_rect, variable.name, variable.type, variable.address,
-            variable.value, variable.size, variable.local, variable.ok,
-            type_is_pointer(variable.type),
-            type_is_char_pointer(variable.type)});
+            row, value_rect, expand_rect, variable.name, variable.type,
+            variable.address, variable.value, variable.size, variable.local,
+            variable.ok, type_is_pointer(variable.type),
+            type_is_char_pointer(variable.type), watch, expandable, expanded,
+            indent});
         const bool editing = editing_var_ == index;
         const bool hovered = hover_var_ == index;
         if (editing) {
@@ -1217,18 +1527,48 @@ void App::draw_bottom(Canvas& canvas) {
             frame(canvas, row, kAccent);
         }
         std::string label = variable.name;
-        text(canvas, variables_.left + 16, y, label, kText,
-             FontRole::MonoSmall);
+        if (!watch && is_watched(variable.name, variable.local)) {
+            label = "* " + label;
+        }
+        int label_x = variables_.left + 16 + indent * 12;
+        if (watch && expandable) {
+            text(canvas, variables_.left + 10, y,
+                 expanded ? "-" : "+", kAccent, FontRole::MonoSmall);
+            label_x = variables_.left + 24;
+        }
+        text(canvas, label_x, y, label, kText, FontRole::MonoSmall);
         text_right(canvas, addr_right, y,
                    "&" + hex4(variable.address), kTextDim,
                    FontRole::MonoSmall);
         std::string value;
         if (editing) {
             value = "0x" + edit_text_;
-        } else if (variable.size > 2) {
-            value = std::to_string(variable.size) + " bytes";
         } else if (!variable.ok) {
             value = "?";
+        } else if (type_is_array(variable.type)) {
+            const std::string base = type_array_base(variable.type);
+            if (base == "char") {
+                std::string preview;
+                for (int i = 0; i < 8; ++i) {
+                    const unsigned char ch = session_.read8(
+                        static_cast<std::uint16_t>(variable.address + i));
+                    if (ch == 0) {
+                        break;
+                    }
+                    preview.push_back(ch >= 32 && ch < 127
+                                          ? static_cast<char>(ch)
+                                          : '.');
+                }
+                value = "\"" + preview + "\"";
+            } else {
+                value = "[" + std::to_string(
+                                  type_array_count(variable.type)) +
+                        "]";
+            }
+        } else if (type_is_struct(variable.type)) {
+            value = std::to_string(variable.size) + " bytes";
+        } else if (variable.size > 2) {
+            value = std::to_string(variable.size) + " bytes";
         } else if (variable.size == 1) {
             std::ostringstream byte;
             byte << "0x" << std::hex << std::uppercase << std::setfill('0')
@@ -1252,19 +1592,32 @@ void App::draw_bottom(Canvas& canvas) {
         const auto& row = rows[i];
         if (row.kind == 0) {
             text(canvas, variables_.left + 8, y,
-                 row.index == 0 ? "Locals" : "Globals", kTextDim,
-                 FontRole::MonoSmall);
+                 row.index == 0 ? "Locals"
+                                : row.index == 1 ? "Globals" : "Watches",
+                 kTextDim, FontRole::MonoSmall);
             y += line_height;
         } else if (row.kind == 1) {
             text(canvas, variables_.left + 16, y, "(none)", kTextDim,
                  FontRole::MonoSmall);
             y += line_height;
         } else if (row.kind == 2) {
-            draw_variable(locals[static_cast<std::size_t>(row.index)]);
+            draw_variable(locals[static_cast<std::size_t>(row.index)], false,
+                          false, false, 0);
         } else if (row.kind == 3) {
             y += 4;
+        } else if (row.kind == 5) {
+            const auto& variable =
+                watched[static_cast<std::size_t>(row.index)];
+            draw_variable(variable, true,
+                          expandable_variable(variable),
+                          watch_expanded(variable.name, variable.local), 0);
+        } else if (row.kind == 6) {
+            draw_variable(
+                watch_children[static_cast<std::size_t>(row.index)], false,
+                false, false, 1);
         } else {
-            draw_variable(globals[static_cast<std::size_t>(row.index)]);
+            draw_variable(globals[static_cast<std::size_t>(row.index)],
+                          false, false, false, 0);
         }
     }
     draw_scrollbar(
@@ -1685,6 +2038,18 @@ void App::event(const Event& event) {
         return;
     }
     if (const auto* down = std::get_if<MouseDown>(&event); down != nullptr) {
+        if (down->button == MouseButton::Right) {
+            for (const auto& hit : var_hits_) {
+                if (hit.rect.contains(down->position)) {
+                    if (hit.indent > 0) {
+                        return;
+                    }
+                    toggle_watch(hit);
+                    return;
+                }
+            }
+            return;
+        }
         if (down->button != MouseButton::Left) {
             return;
         }
@@ -1715,6 +2080,23 @@ void App::event(const Event& event) {
                 scroll_memory(16);
                 return;
             }
+            if (memory_follow_rect_.contains(down->position)) {
+                follow_pointer_active_ = !follow_pointer_active_;
+                if (follow_pointer_active_ && follow_pointer_name_.empty()) {
+                    message_ = "click a pointer value to follow it";
+                }
+                window_.invalidate();
+                return;
+            }
+            if (memory_view_rect_.contains(down->position)) {
+                memory_view_ = memory_view_ == MemoryView::Hex
+                                   ? MemoryView::Ascii
+                                   : memory_view_ == MemoryView::Ascii
+                                         ? MemoryView::String
+                                         : MemoryView::Hex;
+                window_.invalidate();
+                return;
+            }
             for (std::size_t i = 0; i < memory_bytes_.size(); ++i) {
                 if (memory_bytes_[i].rect.contains(down->position)) {
                     start_memory_byte_edit(static_cast<int>(i));
@@ -1733,11 +2115,19 @@ void App::event(const Event& event) {
         for (std::size_t i = 0; i < var_hits_.size(); ++i) {
             if (var_hits_[i].rect.contains(down->position)) {
                 const VarHit& hit = var_hits_[i];
+                if (hit.watch && hit.expandable &&
+                    hit.expand_rect.contains(down->position)) {
+                    toggle_watch_expanded(hit);
+                    return;
+                }
                 if (hit.pointer && hit.ok && hit.size <= 2 &&
                     hit.value_rect.contains(down->position)) {
                     memory_address_ =
                         static_cast<std::uint16_t>(
                             std::min<unsigned>(hit.value, 0xFFE0));
+                    follow_pointer_name_ = hit.name;
+                    follow_pointer_local_ = hit.local;
+                    follow_pointer_active_ = true;
                     memory_address_editing_ = false;
                     memory_byte_editing_ = -1;
                     hover_memory_byte_ = -1;
@@ -2100,6 +2490,7 @@ void App::scroll_memory(int bytes) {
     if (editing_memory()) {
         return;
     }
+    follow_pointer_active_ = false;
     const int next = std::clamp(
         static_cast<int>(memory_address_) + bytes, 0, 0xFFE0);
     memory_address_ = static_cast<std::uint16_t>(next);
@@ -2217,6 +2608,7 @@ void App::start_memory_address_edit() {
     if (!session_.loaded() || session_.running()) {
         return;
     }
+    follow_pointer_active_ = false;
     memory_address_editing_ = true;
     memory_byte_editing_ = -1;
     std::ostringstream text;
@@ -2420,6 +2812,44 @@ void App::toggle_flag(int index) {
     window_.invalidate();
 }
 
+bool App::is_watched(const std::string& name, bool local) const {
+    for (const auto& watch : watches_) {
+        if (watch.name == name && watch.local == local) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void App::toggle_watch(const VarHit& hit) {
+    for (auto it = watches_.begin(); it != watches_.end(); ++it) {
+        if (it->name == hit.name && it->local == hit.local) {
+            expanded_watches_.erase(watch_key(it->name, it->local));
+            watches_.erase(it);
+            message_ = "watch removed";
+            window_.invalidate();
+            return;
+        }
+    }
+    watches_.push_back(WatchEntry{hit.name, hit.local});
+    message_ = "watch added";
+    window_.invalidate();
+}
+
+bool App::watch_expanded(const std::string& name, bool local) const {
+    return expanded_watches_.count(watch_key(name, local)) != 0;
+}
+
+void App::toggle_watch_expanded(const VarHit& hit) {
+    const std::string key = watch_key(hit.name, hit.local);
+    if (expanded_watches_.count(key) != 0) {
+        expanded_watches_.erase(key);
+    } else {
+        expanded_watches_.insert(key);
+    }
+    window_.invalidate();
+}
+
 void App::start_variable_edit(int index) {
     if (!session_.loaded() || session_.running() || index < 0 ||
         index >= static_cast<int>(var_hits_.size())) {
@@ -2541,6 +2971,10 @@ void App::open(const std::filesystem::path& path) {
     console_scroll_ = 0;
     last_follow_instructions_ = ~std::uint64_t{0};
     have_last_follow_pc_ = false;
+    watches_.clear();
+    expanded_watches_.clear();
+    follow_pointer_active_ = false;
+    follow_pointer_name_.clear();
     memory_address_ = 0x0100;
     memory_address_editing_ = false;
     memory_byte_editing_ = -1;

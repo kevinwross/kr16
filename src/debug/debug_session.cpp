@@ -282,6 +282,7 @@ void DebugSession::clear_image_state() {
     executable_lines_.clear();
     local_definitions_.clear();
     global_types_.clear();
+    type_fields_.clear();
     address_breakpoints_.clear();
     line_breakpoints_.clear();
     console_.clear();
@@ -500,6 +501,7 @@ void DebugSession::load_debug_info() {
     executable_lines_.clear();
     local_definitions_.clear();
     global_types_.clear();
+    type_fields_.clear();
 
     std::vector<LineRow> decoded_rows;
     for (const auto& section : container_.sections) {
@@ -583,6 +585,61 @@ void DebugSession::load_debug_info() {
                 if (!name.empty() && !type.empty()) {
                     global_types_[name] = type;
                 }
+            }
+        } else if (section.name == ".debug_types") {
+            for (const auto& record : split_records(section.data)) {
+                const auto parts = split_pipe(record);
+                if (parts.size() < 2) {
+                    continue;
+                }
+                const std::string name = trim_copy(parts[0]);
+                if (name.empty()) {
+                    continue;
+                }
+                std::vector<SessionField> fields;
+                if (parts.size() >= 3) {
+                    const std::string& encoded = parts[2];
+                    std::size_t begin = 0;
+                    while (begin < encoded.size()) {
+                        const auto end = encoded.find(';', begin);
+                        const std::string item = encoded.substr(
+                            begin, end == std::string::npos
+                                       ? std::string::npos
+                                       : end - begin);
+                        begin = end == std::string::npos ? encoded.size()
+                                                         : end + 1;
+                        const auto at = item.find('@');
+                        const auto first_colon =
+                            at == std::string::npos
+                                ? std::string::npos
+                                : item.find(':', at + 1);
+                        const auto last_colon =
+                            first_colon == std::string::npos
+                                ? std::string::npos
+                                : item.rfind(':');
+                        if (at == std::string::npos ||
+                            first_colon == std::string::npos ||
+                            last_colon == first_colon) {
+                            continue;
+                        }
+                        SessionField field;
+                        field.name = trim_copy(item.substr(0, at));
+                        field.type = trim_copy(item.substr(
+                            first_colon + 1, last_colon - first_colon - 1));
+                        try {
+                            field.offset = std::stoi(
+                                item.substr(at + 1, first_colon - at - 1));
+                            field.size = std::stoi(
+                                item.substr(last_colon + 1));
+                        } catch (const std::exception&) {
+                            continue;
+                        }
+                        if (!field.name.empty()) {
+                            fields.push_back(std::move(field));
+                        }
+                    }
+                }
+                type_fields_[name] = std::move(fields);
             }
         }
     }
@@ -908,6 +965,22 @@ std::vector<SessionVariable> DebugSession::globals() {
     append(false);
     append(true);
     return result;
+}
+
+const std::vector<SessionField>* DebugSession::fields_for(
+    const std::string& type) const {
+    auto found = type_fields_.find(type);
+    if (found != type_fields_.end()) {
+        return &found->second;
+    }
+    std::string short_name = type;
+    if (short_name.rfind("struct ", 0) == 0) {
+        short_name = short_name.substr(7);
+    } else if (short_name.rfind("union ", 0) == 0) {
+        short_name = short_name.substr(6);
+    }
+    found = type_fields_.find(short_name);
+    return found == type_fields_.end() ? nullptr : &found->second;
 }
 
 bool DebugSession::step_one() {

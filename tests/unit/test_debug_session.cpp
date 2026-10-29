@@ -64,6 +64,9 @@ std::filesystem::path make_debug_fixture(std::string& error) {
                     ".section .debug_globals\n"
                     ".asciz \"global_value|int\"\n"
                     ".text\n"
+                    ".section .debug_types\n"
+                    ".asciz \"Point|4|x@0:int:2;y@2:int:2;\"\n"
+                    ".text\n"
                     ".section .debug_frames\n"
                     ".asciz \"_start|1\"\n"
                     ".text\n"
@@ -244,6 +247,14 @@ TEST_CASE("debug session exposes source, functions, frames and locals") {
     CHECK(globals[0].type == "int");
     CHECK_FALSE(globals[0].local);
     CHECK(globals[0].ok);
+
+    const auto* fields = session.fields_for("Point");
+    REQUIRE(fields != nullptr);
+    REQUIRE(fields->size() == 2);
+    CHECK((*fields)[0].name == "x");
+    CHECK((*fields)[0].offset == 0);
+    CHECK((*fields)[1].name == "y");
+    CHECK((*fields)[1].offset == 2);
 
     std::filesystem::remove_all(image.parent_path());
 }
