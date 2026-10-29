@@ -63,6 +63,14 @@ enum class SessionRunStop {
     NotRunning,  ///< run_slice() was called while stopped.
 };
 
+/// Build controls used by the windowed UI's load/compile/link settings.
+struct SessionBuildOptions {
+    bool debug = true;
+    bool optimize = true;
+    bool link_libc = true;
+    bool listing = false;
+};
+
 /// Product debug model used by the windowed UI and by tests. It owns the
 /// machine, CPU, container and breakpoints; callers never touch those
 /// objects directly.
@@ -73,6 +81,10 @@ public:
                         std::string& error);
     bool build_and_load(const std::filesystem::path& input,
                         const std::filesystem::path& libc_source,
+                        std::string& error);
+    bool build_and_load(const std::filesystem::path& input,
+                        const std::filesystem::path& libc_source,
+                        const SessionBuildOptions& options,
                         std::string& error);
     bool restart(std::string& error);
     void unload();

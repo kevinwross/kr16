@@ -20,7 +20,8 @@ struct BuildOptions {
     std::filesystem::path libc_source;  ///< explicit libc.s; empty means search
     std::vector<std::filesystem::path> include_paths;
     bool debug = true;              ///< record .debug_* sections
-    bool link_libc = false;         ///< link libc; always on for .c input
+    bool optimize = true;           ///< compile C with -O1 when true
+    bool link_libc = false;         ///< link libc alongside the input
     std::string command = "build";  ///< prefix used in diagnostics
 };
 

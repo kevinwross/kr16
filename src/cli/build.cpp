@@ -165,7 +165,7 @@ BuildResult build_program(const BuildOptions& options, std::ostream& error) {
         return result;
     }
 
-    const bool with_libc = extension == ".c" || options.link_libc;
+    const bool with_libc = options.link_libc;
 
     result.executable = options.output.empty() ? options.input : options.output;
     if (options.output.empty()) {
@@ -198,6 +198,7 @@ BuildResult build_program(const BuildOptions& options, std::ostream& error) {
             if (options.debug) {
                 compile.push_back("-g");
             }
+            compile.push_back(options.optimize ? "-O1" : "-O0");
             compile.insert(compile.end(), includes.begin(), includes.end());
             ok = run_step(options.command, error, compile);
         }

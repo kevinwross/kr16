@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <cstdlib>
+#include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -40,6 +42,54 @@ constexpr int kAsmGutter = 90;
 constexpr int kAsmBytes = 128;
 constexpr int kRegH = 74;
 constexpr int kColumnHeader = 18;
+
+std::filesystem::path settings_path() {
+    const char* appdata = std::getenv("APPDATA");
+    if (appdata != nullptr && *appdata != 0) {
+        return std::filesystem::path(appdata) / "KR16" / "settings.ini";
+    }
+    const char* xdg = std::getenv("XDG_CONFIG_HOME");
+    if (xdg != nullptr && *xdg != 0) {
+        return std::filesystem::path(xdg) / "kr16" / "settings.ini";
+    }
+    const char* home = std::getenv("HOME");
+    if (home != nullptr && *home != 0) {
+        return std::filesystem::path(home) / ".config" / "kr16" /
+               "settings.ini";
+    }
+    return std::filesystem::current_path() / "kr16-settings.ini";
+}
+
+void read_settings(SessionBuildOptions& settings) {
+    std::ifstream input(settings_path());
+    std::string line;
+    while (std::getline(input, line)) {
+        const auto equals = line.find('=');
+        if (equals == std::string::npos) {
+            continue;
+        }
+        const std::string key = line.substr(0, equals);
+        const bool enabled = line.substr(equals + 1) != "0";
+        if (key == "optimize") settings.optimize = enabled;
+        if (key == "debug") settings.debug = enabled;
+        if (key == "libc") settings.link_libc = enabled;
+        if (key == "listing") settings.listing = enabled;
+    }
+}
+
+void write_settings(const SessionBuildOptions& settings) {
+    const auto path = settings_path();
+    std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
+    std::ofstream output(path, std::ios::trunc);
+    if (!output.good()) {
+        return;
+    }
+    output << "optimize=" << (settings.optimize ? 1 : 0) << '\n';
+    output << "debug=" << (settings.debug ? 1 : 0) << '\n';
+    output << "libc=" << (settings.link_libc ? 1 : 0) << '\n';
+    output << "listing=" << (settings.listing ? 1 : 0) << '\n';
+}
 
 std::string decimal_with_commas(std::uint64_t value) {
     const std::string digits = std::to_string(value);
@@ -126,6 +176,7 @@ App::App(Window& window, DebugSession& session,
     : window_(window),
       session_(session),
       libc_source_(std::move(libc_source)) {
+    load_settings();
     layout();
 }
 
@@ -181,6 +232,37 @@ void App::layout() {
                   bottom_.left + bottom_width * 66 / 100, bottom_.bottom};
     console_ = Rect{stack_.right + kPad, bottom_.top, bottom_.right,
                     bottom_.bottom};
+
+    settings_rect_ = Rect{top_bar_.right - 142, top_bar_.top + 4,
+                          top_bar_.right - 114, top_bar_.top + 32};
+    settings_modal_ = Rect{std::max(kPad, (width - 520) / 2),
+                           std::max(kPad, (height - 330) / 2),
+                           std::max(kPad, (width - 520) / 2) + 520,
+                           std::max(kPad, (height - 330) / 2) + 330};
+    settings_close_ = Rect{settings_modal_.right - 34,
+                           settings_modal_.top + 8,
+                           settings_modal_.right - 10,
+                           settings_modal_.top + 32};
+    settings_opt0_ = Rect{settings_modal_.left + 220,
+                          settings_modal_.top + 58,
+                          settings_modal_.left + 276,
+                          settings_modal_.top + 82};
+    settings_opt1_ = Rect{settings_modal_.left + 286,
+                          settings_modal_.top + 58,
+                          settings_modal_.left + 342,
+                          settings_modal_.top + 82};
+    settings_debug_ = Rect{settings_modal_.left + 220,
+                           settings_modal_.top + 98,
+                           settings_modal_.left + 238,
+                           settings_modal_.top + 116};
+    settings_libc_ = Rect{settings_modal_.left + 220,
+                          settings_modal_.top + 134,
+                          settings_modal_.left + 238,
+                          settings_modal_.top + 152};
+    settings_listing_ = Rect{settings_modal_.left + 220,
+                             settings_modal_.top + 170,
+                             settings_modal_.left + 238,
+                             settings_modal_.top + 188};
 
     buttons_.clear();
     int x = top_bar_.left + 8;
@@ -253,6 +335,9 @@ void App::paint(Canvas& canvas) {
     draw_hover_tooltip(canvas);
     draw_var_tooltip(canvas);
     draw_asm_tooltip(canvas);
+    if (settings_open_) {
+        draw_settings(canvas);
+    }
 }
 
 void App::draw_top(Canvas& canvas) {
@@ -261,6 +346,24 @@ void App::draw_top(Canvas& canvas) {
             draw_button(canvas, button);
         }
     }
+
+    fill(canvas, settings_rect_,
+         hover_settings_ ? kButtonHover : kButton);
+    frame(canvas, settings_rect_, hover_settings_ ? kAccent : kBorder);
+    const int gear_x = settings_rect_.left + settings_rect_.width() / 2;
+    const int gear_y = settings_rect_.top + settings_rect_.height() / 2;
+    fill(canvas, Rect{gear_x - 7, gear_y - 7, gear_x + 7, gear_y + 7},
+         kText);
+    fill(canvas, Rect{gear_x - 11, gear_y - 3, gear_x - 7, gear_y + 3},
+         kText);
+    fill(canvas, Rect{gear_x + 7, gear_y - 3, gear_x + 11, gear_y + 3},
+         kText);
+    fill(canvas, Rect{gear_x - 3, gear_y - 11, gear_x + 3, gear_y - 7},
+         kText);
+    fill(canvas, Rect{gear_x - 3, gear_y + 7, gear_x + 3, gear_y + 11},
+         kText);
+    fill(canvas, Rect{gear_x - 3, gear_y - 3, gear_x + 3, gear_y + 3},
+         kPanel);
 
     fill(canvas, step_reset_rect_, kPanelAlt);
     frame(canvas, step_reset_rect_,
@@ -1112,6 +1215,136 @@ void App::draw_bottom(Canvas& canvas) {
               console_visible);
 }
 
+void App::draw_settings(Canvas& canvas) {
+    fill(canvas, settings_modal_, kPanel);
+    canvas.frame_rect(settings_modal_, kAccent, 2);
+    text(canvas, settings_modal_.left + 18, settings_modal_.top + 10,
+         "Settings", kAccent, FontRole::UiBold);
+
+    fill(canvas, settings_close_,
+         hover_settings_control_ == 99 ? kButtonHover : kButton);
+    frame(canvas, settings_close_,
+          hover_settings_control_ == 99 ? kAccent : kBorder);
+    text(canvas, settings_close_.left + 7, settings_close_.top + 2, "x",
+         kText, FontRole::UiBold);
+
+    const int label_x = settings_modal_.left + 18;
+    text(canvas, label_x, settings_modal_.top + 58, "Optimization",
+         kText, FontRole::MonoSmall);
+    fill(canvas, settings_opt0_,
+         settings_.optimize ? kButton : kButtonHover);
+    frame(canvas, settings_opt0_,
+          hover_settings_control_ == 0 ? kAccent : kBorder);
+    text(canvas, settings_opt0_.left + 16, settings_opt0_.top + 3, "O0",
+         settings_.optimize ? kTextDim : kText, FontRole::MonoSmall);
+    fill(canvas, settings_opt1_,
+         settings_.optimize ? kButtonHover : kButton);
+    frame(canvas, settings_opt1_,
+          hover_settings_control_ == 1 ? kAccent : kBorder);
+    text(canvas, settings_opt1_.left + 16, settings_opt1_.top + 3, "O1",
+         settings_.optimize ? kText : kTextDim, FontRole::MonoSmall);
+
+    auto checkbox = [&](const Rect& box, bool enabled, int id,
+                        const char* label, int y) {
+        fill(canvas, box, enabled ? kAccent : kPanel);
+        frame(canvas, box,
+              hover_settings_control_ == id ? kAccent : kBorder);
+        if (enabled) {
+            fill(canvas, Rect{box.left + 4, box.top + 4, box.right - 4,
+                              box.bottom - 4},
+                 kPanel);
+        }
+        text(canvas, box.right + 12, y, label, kText, FontRole::MonoSmall);
+    };
+    checkbox(settings_debug_, settings_.debug, 2, "Debug info (-g)",
+             settings_modal_.top + 96);
+    checkbox(settings_libc_, settings_.link_libc, 3, "Link libc",
+             settings_modal_.top + 132);
+    checkbox(settings_listing_, settings_.listing, 4, "Write assembler listing",
+             settings_modal_.top + 168);
+
+    if (settings_.debug && settings_.optimize) {
+        text(canvas, label_x, settings_modal_.top + 216,
+             "Debug info keeps frame locals but disables the IR optimizer.",
+             kAmber, FontRole::MonoSmall);
+    }
+    text(canvas, label_x, settings_modal_.top + 244,
+         "Changes apply immediately and rebuild the current source.",
+         kTextDim, FontRole::MonoSmall);
+    text(canvas, label_x, settings_modal_.top + 266,
+         "Settings are saved for the next KR16 session.",
+         kTextDim, FontRole::MonoSmall);
+}
+
+void App::load_settings() {
+    read_settings(settings_);
+}
+
+void App::save_settings() {
+    write_settings(settings_);
+}
+
+void App::open_settings() {
+    settings_open_ = true;
+    hover_settings_control_ = -1;
+    window_.invalidate();
+}
+
+void App::close_settings() {
+    settings_open_ = false;
+    hover_settings_control_ = -1;
+    window_.invalidate();
+}
+
+void App::apply_settings() {
+    save_settings();
+    if (current_path_.empty()) {
+        message_ = "settings saved; no source loaded";
+        window_.invalidate();
+        return;
+    }
+    const std::string extension =
+        current_path_.extension().string();
+    if (extension == ".kex") {
+        message_ = "settings apply to compile inputs";
+        window_.invalidate();
+        return;
+    }
+    reload_current();
+}
+
+void App::reload_current() {
+    if (current_path_.empty()) {
+        message_ = "no source to rebuild";
+        window_.invalidate();
+        return;
+    }
+    if (session_.running()) {
+        stop_run("paused");
+    }
+    std::string error;
+    if (!session_.build_and_load(current_path_, libc_source_, settings_,
+                                 error)) {
+        message_ = "rebuild failed";
+        window_.show_error("KR16",
+                           error.empty() ? "settings rebuild failed" : error);
+        window_.invalidate();
+        return;
+    }
+    source_scroll_ = 0;
+    asm_scroll_ = 0;
+    variables_scroll_ = 0;
+    stack_scroll_ = 0;
+    console_scroll_ = 0;
+    window_.set_title("KR16 - " + current_path_.filename().string());
+    layout();
+    if (step_at_reset_) {
+        apply_reset_entry();
+    }
+    message_ = "settings applied; rebuilt";
+    window_.invalidate();
+}
+
 void App::draw_status(Canvas& canvas) {
     fill(canvas, status_, kPanelAlt);
     fill(canvas, Rect{status_.left, status_.top, status_.right,
@@ -1145,8 +1378,80 @@ void App::resize(Size size) {
 }
 
 void App::event(const Event& event) {
+    if (settings_open_) {
+        if (const auto* move = std::get_if<MouseMove>(&event);
+            move != nullptr) {
+            mouse_ = move->position;
+            int hover = -1;
+            if (settings_close_.contains(move->position)) hover = 99;
+            else if (settings_opt0_.contains(move->position)) hover = 0;
+            else if (settings_opt1_.contains(move->position)) hover = 1;
+            else if (settings_debug_.contains(move->position)) hover = 2;
+            else if (settings_libc_.contains(move->position)) hover = 3;
+            else if (settings_listing_.contains(move->position)) hover = 4;
+            if (hover != hover_settings_control_) {
+                hover_settings_control_ = hover;
+                window_.invalidate();
+            }
+            return;
+        }
+        if (const auto* down = std::get_if<MouseDown>(&event);
+            down != nullptr) {
+            if (down->button != MouseButton::Left) {
+                return;
+            }
+            if (settings_close_.contains(down->position) ||
+                !settings_modal_.contains(down->position)) {
+                close_settings();
+                return;
+            }
+            if (settings_opt0_.contains(down->position)) {
+                if (settings_.optimize) {
+                    settings_.optimize = false;
+                    apply_settings();
+                }
+            } else if (settings_opt1_.contains(down->position)) {
+                if (!settings_.optimize) {
+                    settings_.optimize = true;
+                    apply_settings();
+                }
+            } else if (settings_debug_.contains(down->position)) {
+                settings_.debug = !settings_.debug;
+                apply_settings();
+            } else if (settings_libc_.contains(down->position)) {
+                settings_.link_libc = !settings_.link_libc;
+                apply_settings();
+            } else if (settings_listing_.contains(down->position)) {
+                settings_.listing = !settings_.listing;
+                apply_settings();
+            }
+            window_.invalidate();
+            return;
+        }
+        if (std::holds_alternative<MouseWheel>(event)) {
+            return;
+        }
+        if (const auto* key = std::get_if<KeyDown>(&event); key != nullptr) {
+            if (key->key == Key::Escape) {
+                close_settings();
+            }
+            return;
+        }
+        if (std::holds_alternative<TextInput>(event)) {
+            return;
+        }
+        if (std::holds_alternative<Timer>(event)) {
+            on_timer();
+        }
+        return;
+    }
     if (const auto* move = std::get_if<MouseMove>(&event); move != nullptr) {
         mouse_ = move->position;
+        const bool gear_hover = settings_rect_.contains(move->position);
+        if (gear_hover != hover_settings_) {
+            hover_settings_ = gear_hover;
+            window_.invalidate();
+        }
         const int hover = hit_button(move->position);
         if (hover != hover_button_) {
             hover_button_ = hover;
@@ -1227,11 +1532,16 @@ void App::event(const Event& event) {
         (void)leave;
         hover_memory_byte_ = -1;
         hover_step_reset_ = false;
+        hover_settings_ = false;
         window_.invalidate();
         return;
     }
     if (const auto* down = std::get_if<MouseDown>(&event); down != nullptr) {
         if (down->button != MouseButton::Left) {
+            return;
+        }
+        if (settings_rect_.contains(down->position)) {
+            open_settings();
             return;
         }
         if (editing_memory()) {
@@ -1935,11 +2245,12 @@ void App::open(const std::filesystem::path& path) {
         stop_run("paused");
     }
     std::string error;
-    if (!session_.build_and_load(path, libc_source_, error)) {
+    if (!session_.build_and_load(path, libc_source_, settings_, error)) {
         message_ = "load failed";
         window_.show_error("KR16", error.empty() ? "cannot load file" : error);
         return;
     }
+    current_path_ = path;
     source_scroll_ = 0;
     asm_scroll_ = 0;
     variables_scroll_ = 0;

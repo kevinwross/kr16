@@ -206,6 +206,13 @@ bool DebugSession::build_and_load(const std::filesystem::path& input,
 bool DebugSession::build_and_load(const std::filesystem::path& input,
                                   const std::filesystem::path& libc_source,
                                   std::string& error) {
+    return build_and_load(input, libc_source, SessionBuildOptions{}, error);
+}
+
+bool DebugSession::build_and_load(const std::filesystem::path& input,
+                                  const std::filesystem::path& libc_source,
+                                  const SessionBuildOptions& settings,
+                                  std::string& error) {
     std::string extension = input.extension().string();
     std::transform(extension.begin(), extension.end(), extension.begin(),
                    [](unsigned char ch) {
@@ -221,10 +228,15 @@ bool DebugSession::build_and_load(const std::filesystem::path& input,
 
     BuildOptions options;
     options.input = input;
-    options.debug = true;
-    options.link_libc = true;
+    options.debug = settings.debug;
+    options.optimize = settings.optimize;
+    options.link_libc = settings.link_libc;
     options.libc_source = libc_source;
     options.command = "load";
+    if (settings.listing) {
+        options.listing = input;
+        options.listing.replace_extension(".lst");
+    }
     std::ostringstream diagnostics;
     const BuildResult built = build_program(options, diagnostics);
     if (!built.ok) {

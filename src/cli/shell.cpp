@@ -154,6 +154,9 @@ int load_program(const std::vector<std::string>& tokens,
     BuildOptions options;
     options.input = source;
     options.command = "load";
+    if (source.extension() == ".c" || source.extension() == ".C") {
+        options.link_libc = true;
+    }
     const auto result = build_program(options, error);
     if (!result.ok) {
         return 1;

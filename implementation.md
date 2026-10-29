@@ -2325,3 +2325,16 @@ Entry format:
   compiler state (`source`, `tkind`, `ttext`, etc.) is global and now appears
   before the libc heap symbols.
 - C-for-U's embedded test program also exercises `do`/`while` and `times++`.
+
+### 2026-10-28 — load/compile/link settings
+
+- Added a gear button and modal settings popup with optimization (`-O0`/`-O1`),
+  debug info, libc linkage, and assembler-listing controls.
+- Settings apply immediately: changing one stops a running program, saves the
+  setting, and rebuilds/reloads the current source.
+- Settings persist in `%APPDATA%/KR16/settings.ini` or the platform equivalent
+  config directory.
+- Added the debug/IR warning when `-g` and `-O1` are both enabled.
+- Added `BuildOptions::optimize`, passed `-O0`/`-O1` through `build_program`,
+  and made libc linkage a real build option for all input kinds.
+- Added `kr16 build -O0/-O1` command-line flags.

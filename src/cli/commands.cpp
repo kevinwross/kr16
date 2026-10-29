@@ -128,6 +128,8 @@ Options:
   -I<dir>              attached form of -I
   -g                   record debug information (default)
   --no-debug           omit debug sections
+  -O0                   disable C optimization
+  -O1                   enable C optimization (default)
   --libc               link resources/libc.s for .s/.asm/.o input
   --run                run the image after a successful build
   -h, --help           show this help
@@ -1013,6 +1015,10 @@ int run_build_command(int argc, char** argv) {
             options.debug = true;
         } else if (flag == "--no-debug") {
             options.debug = false;
+        } else if (flag == "-O0") {
+            options.optimize = false;
+        } else if (flag == "-O1") {
+            options.optimize = true;
         } else if (flag == "--run") {
             run_after = true;
         } else if (flag == "--libc") {
@@ -1046,6 +1052,10 @@ int run_build_command(int argc, char** argv) {
                   << options.input.extension().string()
                   << "' (expected .c, .s, .asm, or .o)\n";
         return 2;
+    }
+    if (options.input.extension() == ".c" ||
+        options.input.extension() == ".C") {
+        options.link_libc = true;
     }
     if (options.output.empty()) {
         options.output = input;

@@ -83,7 +83,14 @@ private:
     void draw_hover_tooltip(Canvas& canvas);
     void draw_var_tooltip(Canvas& canvas);
     void draw_asm_tooltip(Canvas& canvas);
+    void draw_settings(Canvas& canvas);
     void draw_button(Canvas& canvas, const Button& button);
+    void open_settings();
+    void close_settings();
+    void apply_settings();
+    void reload_current();
+    void load_settings();
+    void save_settings();
     void activate(Action action);
     void start_run();
     void stop_run(const std::string& reason);
@@ -133,6 +140,19 @@ private:
     Rect stack_{};
     Rect console_{};
     Rect status_{};
+    Rect settings_rect_{};
+    Rect settings_modal_{};
+    Rect settings_close_{};
+    Rect settings_opt0_{};
+    Rect settings_opt1_{};
+    Rect settings_debug_{};
+    Rect settings_libc_{};
+    Rect settings_listing_{};
+    SessionBuildOptions settings_{};
+    std::filesystem::path current_path_;
+    bool settings_open_ = false;
+    bool hover_settings_ = false;
+    int hover_settings_control_ = -1;
 
     std::vector<Button> buttons_;
     std::vector<AsmRow> asm_rows_;
