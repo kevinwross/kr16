@@ -2338,3 +2338,12 @@ Entry format:
 - Added `BuildOptions::optimize`, passed `-O0`/`-O1` through `build_program`,
   and made libc linkage a real build option for all input kinds.
 - Added `kr16 build -O0/-O1` command-line flags.
+
+### 2026-10-28 — source gutter and memory focus
+
+- Restored a visible 18 px breakpoint gutter at the left of the C source pane,
+  with a separator and shifted line numbers; breakpoint dots still occupy the
+  gutter column.
+- Clicking a variable now points the memory panel at that variable's address.
+  This is especially useful for arrays such as `source`, whose displayed value
+  is its first two bytes, not its address.

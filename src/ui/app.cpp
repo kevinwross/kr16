@@ -645,6 +645,11 @@ void App::draw_source(Canvas& canvas) {
          kBorder);
 
     fill(canvas, source_text_, kPanel);
+    const int break_gutter = source_text_.left + 18;
+    fill(canvas,
+         Rect{source_text_.left, source_text_.top, break_gutter,
+              source_text_.bottom},
+         kPanelAlt);
     if (!session_.loaded()) {
         text(canvas, source_text_.left + 16, source_text_.top + 16,
              "Load a .kex, .c, .s, .asm or .o file to begin.", kTextDim,
@@ -690,7 +695,7 @@ void App::draw_source(Canvas& canvas) {
                               y + line_height},
                  kAccent);
         }
-        text_right(canvas, source_text_.left + kGutter - 8, y + 1,
+        text_right(canvas, source_text_.left + kGutter - 2, y + 1,
                    std::to_string(index + 1),
                    current ? kAccent : kTextDim, FontRole::Mono);
         if (session_.has_line_breakpoint(index + 1)) {
@@ -701,6 +706,10 @@ void App::draw_source(Canvas& canvas) {
         text(canvas, source_text_.left + kGutter + 4, y + 1, lines[index].text,
              lines[index].executable ? kText : kTextDim, FontRole::Mono);
     }
+    fill(canvas,
+         Rect{break_gutter, source_text_.top, break_gutter + 1,
+              source_text_.bottom},
+         kBorder);
     canvas.pop_clip();
 }
 
@@ -2157,7 +2166,13 @@ void App::start_variable_edit(int index) {
         return;
     }
     const VarHit& hit = var_hits_[index];
+    if (hit.ok) {
+        memory_address_ = static_cast<std::uint16_t>(
+            std::min<unsigned>(hit.address, 0xFFE0));
+        hover_memory_byte_ = -1;
+    }
     if (!hit.ok || hit.size > 2) {
+        window_.invalidate();
         return;
     }
     editing_var_ = index;
