@@ -88,6 +88,25 @@ std::filesystem::path make_debug_fixture(std::string& error) {
 
 }  // namespace
 
+TEST_CASE("debug session can disassemble an edited PC outside text") {
+    kr16::DebugSession session;
+    std::string error;
+    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    session.set_reg(5, 0xF100);
+    CHECK(session.pc() == 0xF100);
+    CHECK(session.ensure_disassembly_at(session.pc()));
+    bool found = false;
+    for (const auto& instruction : session.disassembly()) {
+        if (session.pc() >= instruction.address &&
+            session.pc() < instruction.address + instruction.size) {
+            found = true;
+            break;
+        }
+    }
+    CHECK(found);
+    CHECK_FALSE(session.ensure_disassembly_at(session.pc()));
+}
+
 TEST_CASE("debug session loads an executable and decodes disassembly") {
     kr16::DebugSession session;
     std::string error;

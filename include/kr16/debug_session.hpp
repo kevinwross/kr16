@@ -112,6 +112,9 @@ public:
     const std::vector<SessionInstruction>& disassembly() const noexcept {
         return disassembly_;
     }
+    /// Add a decoded window at `address` when the current PC has been moved
+    /// outside the image's normal text disassembly.
+    bool ensure_disassembly_at(std::uint16_t address);
     std::uint16_t text_low() const noexcept { return text_low_; }
     std::uint32_t text_high() const noexcept { return text_high_; }
 

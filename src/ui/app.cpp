@@ -338,8 +338,16 @@ void App::layout() {
 
 void App::paint(Canvas& canvas) {
     const std::uint64_t instructions = session_.instructions_executed();
-    follow_current_ = last_follow_instructions_ != instructions;
+    const std::uint16_t pc = session_.pc();
+    follow_current_ = !have_last_follow_pc_ ||
+                      last_follow_instructions_ != instructions ||
+                      last_follow_pc_ != pc;
     last_follow_instructions_ = instructions;
+    last_follow_pc_ = pc;
+    have_last_follow_pc_ = true;
+    if (session_.loaded()) {
+        session_.ensure_disassembly_at(pc);
+    }
     fill(canvas, Rect{0, 0, size_.width, size_.height}, kBg);
     draw_top(canvas);
     draw_source(canvas);
@@ -905,8 +913,10 @@ void App::draw_asm(Canvas& canvas) {
     const int line_height = 20;
     const int visible = std::max(1, (asm_text_.height() - 2) / line_height);
     int pc_index = -1;
+    const std::uint16_t current_pc = session_.pc();
     for (std::size_t i = 0; i < instructions.size(); ++i) {
-        if (instructions[i].address == session_.pc()) {
+        if (current_pc >= instructions[i].address &&
+            current_pc < instructions[i].address + instructions[i].size) {
             pc_index = static_cast<int>(i);
             break;
         }
@@ -931,7 +941,9 @@ void App::draw_asm(Canvas& canvas) {
         }
         const auto& instruction = instructions[index];
         const int y = asm_text_.top + row * line_height;
-        const bool current = instruction.address == session_.pc();
+        const bool current =
+            current_pc >= instruction.address &&
+            current_pc < instruction.address + instruction.size;
         const Rect line_rect{asm_text_.left, y, asm_text_.right,
                              y + line_height};
         const int text_x = asm_text_.left + kAsmGutter + kAsmBytes + 8;
@@ -1384,6 +1396,7 @@ void App::reload_current() {
     stack_scroll_ = 0;
     console_scroll_ = 0;
     last_follow_instructions_ = ~std::uint64_t{0};
+    have_last_follow_pc_ = false;
     window_.set_title("KR16 - " + current_path_.filename().string());
     layout();
     if (step_at_reset_) {
@@ -1777,6 +1790,7 @@ void App::activate(Action action) {
             } else {
                 message_ = "restarted";
                 last_follow_instructions_ = ~std::uint64_t{0};
+                have_last_follow_pc_ = false;
                 if (step_at_reset_) {
                     apply_reset_entry();
                 }
@@ -1796,6 +1810,7 @@ void App::activate(Action action) {
             } else {
                 message_ = "image reloaded";
                 last_follow_instructions_ = ~std::uint64_t{0};
+                have_last_follow_pc_ = false;
                 if (step_at_reset_) {
                     apply_reset_entry();
                 }
@@ -2313,6 +2328,7 @@ void App::open(const std::filesystem::path& path) {
     stack_scroll_ = 0;
     console_scroll_ = 0;
     last_follow_instructions_ = ~std::uint64_t{0};
+    have_last_follow_pc_ = false;
     memory_address_ = 0x0100;
     memory_address_editing_ = false;
     memory_byte_editing_ = -1;

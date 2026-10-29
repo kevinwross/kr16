@@ -2382,3 +2382,12 @@ Entry format:
 - `Addr` and `Value` now use the same accent bold font as the `Variables`
   title.
 - Headers are centered over fixed-width `Addr` and `Value` columns.
+
+### 2026-10-28 — follow edited PC and decode outside text
+
+- Auto-follow now triggers on a PC change as well as instruction progress, so
+  editing PC scrolls the source/disassembly to the new location.
+- If PC is moved outside the image's normal `.text` disassembly, the session
+  decodes a 128-byte window at PC and inserts it into the disassembly list.
+- Disassembly highlighting treats a PC inside a multi-byte instruction as that
+  instruction's current row.

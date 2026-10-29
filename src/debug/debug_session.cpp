@@ -435,6 +435,62 @@ void DebugSession::decode_disassembly() {
     text_high_ = std::min<std::uint32_t>(end, 0x10000);
 }
 
+bool DebugSession::ensure_disassembly_at(std::uint16_t target) {
+    if (!loaded_) {
+        return false;
+    }
+    for (const auto& instruction : disassembly_) {
+        if (target >= instruction.address &&
+            target < instruction.address + instruction.size) {
+            return false;
+        }
+    }
+
+    std::vector<SessionInstruction> window;
+    std::uint32_t address = target;
+    const std::uint32_t end =
+        std::min<std::uint32_t>(0x10000, address + 128);
+    while (address + 2 <= end && address + 2 <= 0x10000) {
+        const auto pc = static_cast<std::uint16_t>(address);
+        const std::uint16_t first = machine_.read16(pc);
+        const bool is_long = Instruction::first_word_is_32_bit(first);
+        const std::uint32_t size = is_long ? 4 : 2;
+        if (address + size > end || address + size > 0x10000) {
+            break;
+        }
+
+        std::vector<std::uint8_t> bytes;
+        bytes.push_back(static_cast<std::uint8_t>(first & 0xFF));
+        bytes.push_back(static_cast<std::uint8_t>(first >> 8));
+        if (is_long) {
+            const std::uint16_t second =
+                machine_.read16(static_cast<std::uint16_t>(pc + 2));
+            bytes.push_back(static_cast<std::uint8_t>(second & 0xFF));
+            bytes.push_back(static_cast<std::uint8_t>(second >> 8));
+        }
+
+        SessionInstruction instruction;
+        instruction.address = pc;
+        instruction.size = static_cast<std::uint8_t>(size);
+        instruction.text = strip_disassembly_prefix(
+            disassemble_raw(bytes, DisassemblyOptions{pc, false}));
+        instruction.bytes = std::move(bytes);
+        window.push_back(std::move(instruction));
+        address += size;
+    }
+    if (window.empty()) {
+        return false;
+    }
+
+    const auto position = std::lower_bound(
+        disassembly_.begin(), disassembly_.end(), target,
+        [](const SessionInstruction& instruction, std::uint16_t value) {
+            return instruction.address < value;
+        });
+    disassembly_.insert(position, window.begin(), window.end());
+    return true;
+}
+
 void DebugSession::load_debug_info() {
     source_lines_.clear();
     source_path_.clear();

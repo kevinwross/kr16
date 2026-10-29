@@ -166,6 +166,8 @@ private:
     int stack_scroll_ = 0;
     int console_scroll_ = 0;
     std::uint64_t last_follow_instructions_ = ~std::uint64_t{0};
+    std::uint16_t last_follow_pc_ = 0;
+    bool have_last_follow_pc_ = false;
     bool follow_current_ = true;
     std::uint16_t memory_address_ = 0x0100;
     bool memory_address_editing_ = false;
