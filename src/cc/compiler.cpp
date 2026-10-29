@@ -4630,6 +4630,30 @@ private:
             }
         }
         int temporary_bytes = 0;
+        if (!expr->children.empty() && expr->children.size() <= 3) {
+            bool all_simple = true;
+            for (std::size_t i = 0; i < expr->children.size(); ++i) {
+                if (struct_args[i] ||
+                    !is_simple_leaf(expr->children[i].get())) {
+                    all_simple = false;
+                    break;
+                }
+            }
+            if (all_simple) {
+                for (std::size_t i = 0; i < expr->children.size(); ++i) {
+                    if (!emit_simple_leaf(
+                            expr->children[i].get(),
+                            static_cast<int>(i) + 1, out)) {
+                        all_simple = false;
+                        break;
+                    }
+                }
+                if (all_simple) {
+                    out << "  CALL " << expr->text << "\n";
+                    return;
+                }
+            }
+        }
         if (expr->children.size() == 1 && !struct_args[0]) {
             gen_expr(expr->children[0].get(), out);
             out << "  MOV R1, R0\n";

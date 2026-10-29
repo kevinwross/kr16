@@ -297,11 +297,22 @@ TEST_CASE("constant casts and sizeof conditions are folded") {
     CHECK(assembly.find("CMP R0, #0") == std::string::npos);
 }
 
+TEST_CASE("simple multi-argument calls use argument registers directly") {
+    const auto assembly = compile_text(
+        "int printf(const char *, ...);\n"
+        "int main(void) { int result = 5; "
+        "printf(\"%d\\n\", result); return 0; }\n");
+    CHECK(assembly.find("PUSH R0") == std::string::npos);
+    CHECK(assembly.find("POP R1") == std::string::npos);
+    CHECK(assembly.find("MOV R1, #.Lstr") != std::string::npos);
+    CHECK(assembly.find("LD R2,") != std::string::npos);
+    CHECK(assembly.find("CALL printf") != std::string::npos);
+}
+
 TEST_CASE("fallback conditions branch directly on comparisons") {
     const auto assembly = compile_text(
         "int f(int x) { int a[2]; if (x == 0) return 1; return 2; }\n"
         "int main(void) { return f(0); }\n");
-    CHECK(assembly.find("MOV R1, #0") == std::string::npos);
     CHECK(assembly.find("CMP R0, R1") == std::string::npos);
     CHECK(assembly.find("CMP R0, #0") != std::string::npos);
     CHECK(assembly.find("BNE ") != std::string::npos);
@@ -313,7 +324,7 @@ TEST_CASE("single-argument calls avoid stack shuffling") {
         "int main(void) { return f(5); }\n");
     CHECK(assembly.find("PUSH R0") == std::string::npos);
     CHECK(assembly.find("POP R1") == std::string::npos);
-    CHECK(assembly.find("MOV R1, R0") != std::string::npos);
+    CHECK(assembly.find("MOV R1, #5") != std::string::npos);
 }
 
 TEST_CASE("IR dead code and strength reduction") {
