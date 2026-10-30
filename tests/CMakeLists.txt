@@ -180,8 +180,15 @@ add_test(NAME kr16.cc.cforu
 )
 set_tests_properties(kr16.cc.cforu PROPERTIES LABELS "integration")
 
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U-input.c"
+               "${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox/C-for-U-input.c"
+               COPYONLY)
+
 add_test(NAME kr16.vm.cforu
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    --fs-root "${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
+    "C-for-U-input.c"
 )
 set_tests_properties(kr16.vm.cforu PROPERTIES LABELS "integration"
   DEPENDS kr16.cc.cforu
@@ -190,17 +197,20 @@ set_tests_properties(kr16.vm.cforu PROPERTIES LABELS "integration"
 
 add_test(NAME kr16.vm.cforu_args
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
-    one "two words" "C:\\Users\\kevin"
+    --fs-root "${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
+    -- "C-for-U-input.c" -o "C-for-U-output.s"
 )
 set_tests_properties(kr16.vm.cforu_args PROPERTIES LABELS "integration"
   DEPENDS kr16.cc.cforu
-  PASS_REGULAR_EXPRESSION "two words"
+  PASS_REGULAR_EXPRESSION "C-for-U-input.c"
   FAIL_REGULAR_EXPRESSION "C-for-U error")
 
 add_test(NAME kr16.cforu.generated
   COMMAND ${CMAKE_COMMAND}
     "-DKR16=$<TARGET_FILE:kr16>"
     "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    "-DCFORU_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
+    "-DCFORU_INPUT=C-for-U-input.c"
     "-DGENDIR=${CMAKE_CURRENT_BINARY_DIR}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_check.cmake"
 )

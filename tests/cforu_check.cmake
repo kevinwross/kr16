@@ -1,9 +1,13 @@
 if(NOT DEFINED KR16 OR NOT DEFINED CFORU_KEX OR NOT DEFINED GENDIR)
   message(FATAL_ERROR "cforu_check requires KR16, CFORU_KEX, and GENDIR")
 endif()
+if(NOT DEFINED CFORU_ROOT OR NOT DEFINED CFORU_INPUT)
+  message(FATAL_ERROR "cforu_check requires CFORU_ROOT and CFORU_INPUT")
+endif()
 
 execute_process(
-  COMMAND "${KR16}" vm "${CFORU_KEX}"
+  COMMAND "${KR16}" vm "${CFORU_KEX}" --fs-root "${CFORU_ROOT}"
+          "${CFORU_INPUT}"
   OUTPUT_VARIABLE generated
   ERROR_VARIABLE generated_error
   RESULT_VARIABLE run_result)

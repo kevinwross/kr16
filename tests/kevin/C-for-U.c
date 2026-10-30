@@ -1,7 +1,7 @@
 /*
  * C-for-U: a small C-to-KR16-assembly compiler.
  *
- * Input:  char source[1024], a fixed practical-subset C program.
+ * Input:  a source file, read in refillable chunks into a bounded buffer.
  * Output: assembly text streamed to the KR16 IO device (0xF000).
  * Startup: prints each command-line argument as an assembler comment.
  *
@@ -9,13 +9,14 @@
  * arithmetic/comparison/bitwise/logical expressions, if/else, while, for,
  * do/while, break, continue, prefix/postfix ++/--, function definitions and
  * calls (up to three arguments), strings, printf calls, casts, and sizeof.
+ * Input is limited to 4095 bytes and 384 tokens in this pass.
  * Not supported: structs/unions, switch, ternary, typedef, pointer declarators,
  * and calls with more than three arguments.
  */
 
-char source[1024];
+#include <stdio.h>
 
-int putchar(int c);
+char source[4096];
 void *malloc(int n);
 void free(void *p);
 void exit(int n);
@@ -50,6 +51,9 @@ char *strcpy(char *d, char *s);
 #define T_DEC 309
 #define T_ADDASSIGN 310
 #define T_SUBASSIGN 311
+
+#define MAX_TOKENS 384
+#define READ_CHUNK 128
 
 int *tkind;
 int *tval;
@@ -138,6 +142,7 @@ int parse_primary(void);
 void emit_cmp_result(char *branch);
 void emit_externs(void);
 void emit_strings(void);
+void read_source(char *path);
 
 int same(char *a, char *b) {
     while (*a != 0 && *b != 0) {
@@ -206,7 +211,7 @@ char *tok_text(int i) {
 void addtok(int kind, int value, char *text, int n) {
     char *d;
     int i;
-    if (tcount >= 250) err("too many tokens");
+    if (tcount >= MAX_TOKENS) err("too many tokens");
     tkind[tcount] = kind;
     tval[tcount] = value;
     tlen[tcount] = n;
@@ -1429,8 +1434,74 @@ void emit_strings(void) {
     outs(".text\n");
 }
 
+void read_source(char *path) {
+    FILE *in;
+    char chunk[READ_CHUNK];
+    int total;
+    int n;
+    int i;
+    in = fopen(path, "r");
+    if (in == 0) {
+        outs("; C-for-U error: cannot open ");
+        outs(path);
+        outs("\n");
+        exit(1);
+    }
+    total = 0;
+    while (1) {
+        n = fread(chunk, 1, READ_CHUNK, in);
+        if (n <= 0) break;
+        if (total + n >= 4096) {
+            fclose(in);
+            err("input file too large");
+        }
+        i = 0;
+        while (i < n) {
+            source[total] = chunk[i];
+            total = total + 1;
+            i = i + 1;
+        }
+    }
+    if (ferror(in)) {
+        fclose(in);
+        err("input read error");
+    }
+    fclose(in);
+    source[total] = 0;
+    if (total == 0) err("input file is empty");
+}
+
 int main(int argc, char *argv[]) {
     int argi;
+    char *input;
+    char *output;
+
+    input = 0;
+    output = 0;
+    argi = 1;
+    while (argi < argc) {
+        if (same(argv[argi], "-o")) {
+            if (argi + 1 >= argc) {
+                outs("; C-for-U error: -o needs a filename\n");
+                return 1;
+            }
+            output = argv[argi + 1];
+            argi = argi + 2;
+        } else if (input == 0) {
+            input = argv[argi];
+            argi = argi + 1;
+        } else {
+            outs("; C-for-U error: unexpected argument ");
+            outs(argv[argi]);
+            outs("\n");
+            return 1;
+        }
+    }
+    if (input == 0) {
+        outs("; usage: C-for-U.kex <filename>.c [-o <filename>.s]\n");
+        return 1;
+    }
+
     for (argi = 0; argi < argc; argi = argi + 1) {
         outs("; argv[");
         outn(argi);
@@ -1438,11 +1509,12 @@ int main(int argc, char *argv[]) {
         outs(argv[argi]);
         outch(10);
     }
-    strcpy(source, "int fact(int n) {\n    if (n <= 1) return 1;\n    return n * fact(n - 1);\n}\n\nint main(void) {\n    int i;\n    int sum;\n  int times = 0;\n  int values[5];\n    sum = 0;\n    for (i = 0; i < 5; i = i + 1) {\n        values[i] = i * i;\n        sum = sum + values[i];\n    }\n    printf(\"sum=%d fact=%d\\n\", sum, fact(5));\n do { printf(\"Wow: It's great! #%d\\n\",times++);} while (times < 5);\n   return 0;\n}\n");
-    tkind = (int *)malloc(512);
-    tval = (int *)malloc(512);
-    ttext = (char *)malloc(8192);
-    tlen = (int *)malloc(512);
+    (void)output;
+    read_source(input);
+    tkind = (int *)malloc(MAX_TOKENS * 2);
+    tval = (int *)malloc(MAX_TOKENS * 2);
+    ttext = (char *)malloc(MAX_TOKENS * 32);
+    tlen = (int *)malloc(MAX_TOKENS * 2);
     tcount = 0;
     tpos = 0;
     label_n = 0;
