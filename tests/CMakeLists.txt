@@ -188,6 +188,15 @@ set_tests_properties(kr16.vm.cforu PROPERTIES LABELS "integration"
   PASS_REGULAR_EXPRESSION "\\.global fact"
   FAIL_REGULAR_EXPRESSION "C-for-U error")
 
+add_test(NAME kr16.vm.cforu_args
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    one "two words" "C:\\Users\\kevin"
+)
+set_tests_properties(kr16.vm.cforu_args PROPERTIES LABELS "integration"
+  DEPENDS kr16.cc.cforu
+  PASS_REGULAR_EXPRESSION "two words"
+  FAIL_REGULAR_EXPRESSION "C-for-U error")
+
 add_test(NAME kr16.cforu.generated
   COMMAND ${CMAKE_COMMAND}
     "-DKR16=$<TARGET_FILE:kr16>"

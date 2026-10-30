@@ -3,6 +3,7 @@
  *
  * Input:  char source[1024], a fixed practical-subset C program.
  * Output: assembly text streamed to the KR16 IO device (0xF000).
+ * Startup: prints each command-line argument as an assembler comment.
  *
  * Supported subset: int/char, locals, globals, one-dimensional arrays,
  * arithmetic/comparison/bitwise/logical expressions, if/else, while, for,
@@ -1428,7 +1429,15 @@ void emit_strings(void) {
     outs(".text\n");
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    int argi;
+    for (argi = 0; argi < argc; argi = argi + 1) {
+        outs("; argv[");
+        outn(argi);
+        outs("] = ");
+        outs(argv[argi]);
+        outch(10);
+    }
     strcpy(source, "int fact(int n) {\n    if (n <= 1) return 1;\n    return n * fact(n - 1);\n}\n\nint main(void) {\n    int i;\n    int sum;\n  int times = 0;\n  int values[5];\n    sum = 0;\n    for (i = 0; i < 5; i = i + 1) {\n        values[i] = i * i;\n        sum = sum + values[i];\n    }\n    printf(\"sum=%d fact=%d\\n\", sum, fact(5));\n do { printf(\"Wow: It's great! #%d\\n\",times++);} while (times < 5);\n   return 0;\n}\n");
     tkind = (int *)malloc(512);
     tval = (int *)malloc(512);
