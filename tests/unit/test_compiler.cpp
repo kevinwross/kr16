@@ -662,6 +662,21 @@ TEST_CASE("compiler emits local variable debug records") {
     CHECK(type_data.find("struct P|2") != std::string::npos);
 }
 
+TEST_CASE("debug source lines resume after included headers") {
+    kr16::CompileOptions options;
+    options.debug = true;
+    options.source_name = "included.c";
+    const auto result = kr16::compile_c(
+        "#include <stdio.h>\n"
+        "int main(void) {\n"
+        "  return 0;\n"
+        "}\n",
+        options);
+    REQUIRE(result.ok);
+    CHECK(result.assembly.find(".loc 0 3") != std::string::npos);
+    CHECK(result.assembly.find(".loc 0 28") == std::string::npos);
+}
+
 TEST_CASE("compiler emits source line information with -g") {
     kr16::CompileOptions options;
     options.debug = true;

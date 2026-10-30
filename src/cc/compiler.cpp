@@ -411,6 +411,7 @@ std::string preprocess_source_impl(
     std::istringstream input(source);
     std::string line;
     std::string out;
+    int source_line = 0;
     struct Conditional {
         bool parent = true;
         bool condition = true;
@@ -426,6 +427,7 @@ std::string preprocess_source_impl(
         return top.parent && top.condition;
     };
     while (std::getline(input, line)) {
+        ++source_line;
         const std::string trimmed = trim_copy(line);
         if (!trimmed.empty() && trimmed.front() == '#') {
             std::string rest = trim_copy(trimmed.substr(1));
@@ -446,6 +448,7 @@ std::string preprocess_source_impl(
                     system_header = true;
                 }
                 bool included = false;
+                bool emitted_include = false;
                 auto include_file = [&](const std::filesystem::path& path) {
                     std::ifstream include(path, std::ios::binary);
                     if (!include.good()) {
@@ -457,6 +460,7 @@ std::string preprocess_source_impl(
                     out += preprocess_source_impl(
                         included_text, path.parent_path().string(),
                         include_paths, macros, depth + 1);
+                    emitted_include = true;
                     return true;
                 };
                 if (!system_header && !file.empty()) {
@@ -487,10 +491,15 @@ std::string preprocess_source_impl(
                             out += preprocess_source_impl(
                                 header, base_dir, include_paths, macros,
                                 depth + 1);
+                            emitted_include = true;
                         }
                     }
                 }
-                out += '\n';
+                if (emitted_include) {
+                    out += "#line " + std::to_string(source_line + 1) + "\n";
+                } else {
+                    out += '\n';
+                }
                 continue;
             }
             if (directive == "define") {
@@ -599,7 +608,29 @@ public:
                 return tokens;
             }
             if (source_[position_] == '#') {
-                while (position_ < source_.size() && source_[position_] != '\n') {
+                const std::size_t directive_start = position_;
+                while (position_ < source_.size() &&
+                       source_[position_] != '\n') {
+                    advance();
+                }
+                const std::string directive(
+                    source_.substr(directive_start,
+                                   position_ - directive_start));
+                if (directive.rfind("#line ", 0) == 0) {
+                    std::size_t cursor = 6;
+                    while (cursor < directive.size() &&
+                           std::isspace(static_cast<unsigned char>(
+                               directive[cursor])) != 0) {
+                        ++cursor;
+                    }
+                    try {
+                        const int number =
+                            std::stoi(directive.substr(cursor));
+                        line_ = std::max(1, number) - 1;
+                    } catch (const std::exception&) {
+                    }
+                }
+                if (position_ < source_.size()) {
                     advance();
                 }
                 continue;
