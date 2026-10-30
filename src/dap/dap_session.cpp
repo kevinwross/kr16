@@ -23,6 +23,7 @@
 #include "kr16/debug_objects.hpp"
 #include "kr16/disassembler.hpp"
 #include "kr16/host.hpp"
+#include "kr16/process.hpp"
 #include "kr16/instruction.hpp"
 #include "kr16/machine.hpp"
 
@@ -519,6 +520,7 @@ struct DapSession::Impl {
         const auto bytes = read_file(options.program);
         std::uint16_t stack_limit = 0xE000;
         std::uint16_t start = options.base;
+        std::uint16_t stack_pointer = 0xF000;
 
         if (options.raw) {
             machine.load_bytes(options.base, bytes);
@@ -546,6 +548,21 @@ struct DapSession::Impl {
             stack_limit = symbol_value(container, "__stack_limit", 0xE000);
         }
 
+        if (!options.raw || !options.program_args.empty()) {
+            ProcessStackLayout layout;
+            std::string stack_error;
+            const std::string program_name =
+                std::filesystem::path(options.program).filename().string();
+            if (!initialize_process_stack(
+                    machine, program_name, options.program_args, 0xF000,
+                    stack_limit, layout, stack_error)) {
+                throw std::runtime_error(stack_error);
+            }
+            cpu.set_reg(1, layout.argc);
+            cpu.set_reg(2, layout.argv);
+            stack_pointer = layout.sp;
+        }
+
         if (!options.no_bios && !options.bios_path.empty()) {
             const auto bios = read_file(options.bios_path);
             if (bios.size() > Machine::kRomSize) {
@@ -565,7 +582,7 @@ struct DapSession::Impl {
 
         entry = start;
         cpu.set_pc(start);
-        cpu.set_sp(0xF000);
+        cpu.set_sp(stack_pointer);
         cpu.set_stack_limit(stack_limit);
         launched = true;
         started = false;
@@ -811,6 +828,26 @@ std::vector<std::string> DapSession::Impl::handle_launch(
     const auto program = string_or(arguments, "program", {});
     if (!program.empty()) {
         options.program = program;
+    }
+    if (const JsonValue* args = arguments != nullptr
+                                    ? arguments->find("args")
+                                    : nullptr;
+        args != nullptr) {
+        if (!args->is_array()) {
+            append_response(out, request, command, false, JsonValue::null(),
+                            "launch args must be an array");
+            return out;
+        }
+        options.program_args.clear();
+        for (const auto& item : args->as_array()) {
+            if (!item.is_string()) {
+                append_response(out, request, command, false,
+                                JsonValue::null(),
+                                "launch args must contain strings");
+                return out;
+            }
+            options.program_args.push_back(item.as_string());
+        }
     }
     if (const JsonValue* raw = arguments != nullptr
                                    ? arguments->find("raw")

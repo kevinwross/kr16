@@ -35,6 +35,10 @@ Key map_key(SDL_Keycode key) {
         case SDLK_PAGEDOWN: return Key::PageDown;
         case SDLK_F5: return Key::F5;
         case SDLK_F6: return Key::F6;
+        case SDLK_A: return Key::A;
+        case SDLK_C: return Key::C;
+        case SDLK_V: return Key::V;
+        case SDLK_X: return Key::X;
         default: return Key::Unknown;
     }
 }
@@ -164,6 +168,20 @@ void SdlWindow::show_error(std::string_view title,
                            std::string_view message) {
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, std::string(title).c_str(),
                              std::string(message).c_str(), window_);
+}
+
+std::string SdlWindow::clipboard_text() const {
+    char* text = SDL_GetClipboardText();
+    if (text == nullptr) {
+        return {};
+    }
+    std::string result(text);
+    SDL_free(text);
+    return result;
+}
+
+void SdlWindow::set_clipboard_text(std::string_view text) {
+    SDL_SetClipboardText(std::string(text).c_str());
 }
 
 void SdlWindow::set_cursor(CursorKind cursor) {

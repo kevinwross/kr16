@@ -3,6 +3,7 @@
 #include <commdlg.h>
 #include <windowsx.h>
 
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -66,6 +67,10 @@ Key map_key(WPARAM key) {
         case VK_NEXT: return Key::PageDown;
         case VK_F5: return Key::F5;
         case VK_F6: return Key::F6;
+        case 'A': return Key::A;
+        case 'C': return Key::C;
+        case 'V': return Key::V;
+        case 'X': return Key::X;
         default: return Key::Unknown;
     }
 }
@@ -183,6 +188,48 @@ void Win32Window::show_error(std::string_view title,
                              std::string_view message) {
     MessageBoxW(hwnd_, widen(message).c_str(), widen(title).c_str(),
                 MB_OK | MB_ICONERROR);
+}
+
+std::string Win32Window::clipboard_text() const {
+    if (hwnd_ == nullptr || OpenClipboard(hwnd_) == FALSE) {
+        return {};
+    }
+    const HANDLE handle = GetClipboardData(CF_UNICODETEXT);
+    if (handle == nullptr) {
+        CloseClipboard();
+        return {};
+    }
+    const auto* data = static_cast<const wchar_t*>(GlobalLock(handle));
+    std::string result;
+    if (data != nullptr) {
+        result = narrow(data);
+        GlobalUnlock(handle);
+    }
+    CloseClipboard();
+    return result;
+}
+
+void Win32Window::set_clipboard_text(std::string_view text) {
+    if (hwnd_ == nullptr || OpenClipboard(hwnd_) == FALSE) {
+        return;
+    }
+    EmptyClipboard();
+    const std::wstring wide = widen(text);
+    const SIZE_T bytes = (wide.size() + 1) * sizeof(wchar_t);
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
+    if (memory != nullptr) {
+        void* destination = GlobalLock(memory);
+        if (destination != nullptr) {
+            std::memcpy(destination, wide.c_str(), bytes);
+            GlobalUnlock(memory);
+            if (SetClipboardData(CF_UNICODETEXT, memory) == nullptr) {
+                GlobalFree(memory);
+            }
+        } else {
+            GlobalFree(memory);
+        }
+    }
+    CloseClipboard();
 }
 
 void Win32Window::set_cursor(CursorKind cursor) {

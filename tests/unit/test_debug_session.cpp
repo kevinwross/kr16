@@ -136,6 +136,56 @@ TEST_CASE("debug session loads an executable and decodes disassembly") {
     CHECK(session.read16(0x0100) == 0x0201);
 }
 
+TEST_CASE("debug session initializes argc and argv") {
+    kr16::DebugSession session;
+    std::string error;
+    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    CHECK(session.reg(1) == 1);
+    CHECK(session.reg(2) == session.sp());
+    const auto first = session.read16(session.reg(2));
+    std::string name;
+    for (std::uint32_t i = 0; i < 64; ++i) {
+        const char ch = static_cast<char>(
+            session.read8(static_cast<std::uint16_t>(first + i)));
+        if (ch == 0) {
+            break;
+        }
+        name.push_back(ch);
+    }
+    CHECK(name == "exec_min.kex");
+    CHECK(session.read16(
+              static_cast<std::uint16_t>(session.reg(2) + 2)) == 0);
+}
+
+TEST_CASE("debug session forwards program arguments") {
+    kr16::DebugSession session;
+    session.set_program_args({"one", "two words", "C:\\Users\\kevin"});
+    std::string error;
+    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    CHECK(session.reg(1) == 4);
+    CHECK(session.reg(2) == session.sp());
+    auto read_argument = [&](int index) {
+        const auto pointer = session.read16(static_cast<std::uint16_t>(
+            session.reg(2) + index * 2));
+        std::string value;
+        for (std::uint32_t i = 0; i < 128; ++i) {
+            const char ch = static_cast<char>(
+                session.read8(static_cast<std::uint16_t>(pointer + i)));
+            if (ch == 0) {
+                break;
+            }
+            value.push_back(ch);
+        }
+        return value;
+    };
+    CHECK(read_argument(0) == "exec_min.kex");
+    CHECK(read_argument(1) == "one");
+    CHECK(read_argument(2) == "two words");
+    CHECK(read_argument(3) == "C:\\Users\\kevin");
+    CHECK(session.read16(static_cast<std::uint16_t>(
+              session.reg(2) + 8)) == 0);
+}
+
 TEST_CASE("debug session exposes registers and writable memory") {
     kr16::DebugSession session;
     std::string error;

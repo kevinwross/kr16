@@ -15,6 +15,7 @@
 #include "kr16/cpu.hpp"
 #include "kr16/host.hpp"
 #include "kr16/machine.hpp"
+#include "kr16/process.hpp"
 #include "kr16/resources.hpp"
 
 namespace kr16 {
@@ -84,50 +85,16 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
 
         std::uint16_t sp = 0xF000;
         if (!options.program_args.empty() || !options.raw) {
-            std::vector<std::string> args;
-            args.push_back(base_name(program_path));
-            args.insert(args.end(), options.program_args.begin(),
-                        options.program_args.end());
-            if (args.size() > 32) {
-                throw std::runtime_error("too many program arguments");
+            ProcessStackLayout layout;
+            std::string stack_error;
+            if (!initialize_process_stack(
+                    machine, base_name(program_path), options.program_args,
+                    0xF000, stack_limit, layout, stack_error)) {
+                throw std::runtime_error(stack_error);
             }
-
-            std::uint16_t cursor = 0xF000;
-            std::vector<std::uint16_t> pointers;
-            for (const auto& argument : args) {
-                const auto length = static_cast<std::uint16_t>(argument.size() + 1);
-                if (static_cast<std::uint32_t>(cursor) <
-                    static_cast<std::uint32_t>(stack_limit) + length + 64) {
-                    throw std::runtime_error("argument block does not fit on stack");
-                }
-                cursor = static_cast<std::uint16_t>(cursor - length);
-                cursor = static_cast<std::uint16_t>(cursor & ~1u);
-                machine.load_bytes(
-                    cursor, std::span<const std::uint8_t>(
-                                reinterpret_cast<const std::uint8_t*>(argument.data()),
-                                argument.size()));
-                machine.write8(static_cast<std::uint16_t>(cursor + length - 1), 0);
-                pointers.push_back(cursor);
-            }
-
-            const auto array_size =
-                static_cast<std::uint16_t>((pointers.size() + 1) * 2);
-            std::uint16_t array_address =
-                static_cast<std::uint16_t>((cursor - array_size) & ~1u);
-            if (array_address < stack_limit) {
-                throw std::runtime_error("argv block does not fit on stack");
-            }
-            for (std::size_t i = 0; i < pointers.size(); ++i) {
-                machine.write16(static_cast<std::uint16_t>(array_address + i * 2),
-                                pointers[i]);
-            }
-            machine.write16(static_cast<std::uint16_t>(
-                                array_address + pointers.size() * 2),
-                            0);
-
-            cpu.set_reg(1, static_cast<std::uint16_t>(pointers.size()));
-            cpu.set_reg(2, array_address);
-            sp = static_cast<std::uint16_t>(array_address - 2);
+            cpu.set_reg(1, layout.argc);
+            cpu.set_reg(2, layout.argv);
+            sp = layout.sp;
         }
 
         if (!options.no_bios && !options.bios_path.empty()) {

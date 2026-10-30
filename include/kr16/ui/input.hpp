@@ -31,6 +31,10 @@ enum class Key {
     PageDown,
     F5,
     F6,
+    A,
+    C,
+    V,
+    X,
 };
 
 struct MouseMove {

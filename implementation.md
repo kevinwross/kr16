@@ -2467,3 +2467,14 @@ Entry format:
   and file-I/O CTest coverage.
 - The host ABI now reports the implemented filesystem, directory, time,
   random, console, and fsinfo capability bits.
+
+### 2026-10-29 — command-line arguments in the debugger
+
+- Added a Windows-compatible command-line parser that preserves backslashes in
+  Windows paths and supports quoted arguments and empty quoted strings.
+- Extracted argv stack construction into `initialize_process_stack` and used it
+  from the VM runner, DebugSession (including restart), and DAP launch.
+- Added `SessionBuildOptions::command_line`, a portable single-line `TextField`
+  with selection/copy/cut/paste, and a settings-dialog field. Arguments are
+  applied on Load or Restart; the generated image basename is `argv[0]`.
+- Added parser/stack tests and a debug-session argc/argv test.

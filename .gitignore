@@ -31,3 +31,5 @@ tests/kevin/*.kex
 /examples/*.kex
 /resources/*.o
 
+# Local UI settings fallback
+/kr16-settings.ini

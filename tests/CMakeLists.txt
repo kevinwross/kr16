@@ -12,6 +12,7 @@ add_executable(kr16_tests
   unit/test_disassembler.cpp
   unit/test_machine.cpp
   unit/test_vm.cpp
+  unit/test_process.cpp
   unit/test_linker.cpp
   unit/test_debug_info.cpp
   unit/test_debug_session.cpp
@@ -329,6 +330,23 @@ add_test(NAME kr16.sysfile.run
 )
 set_tests_properties(kr16.sysfile.run PROPERTIES LABELS "integration"
   DEPENDS kr16.sysfile.build)
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/args.c"
+               "${CMAKE_CURRENT_BINARY_DIR}/args.c" COPYONLY)
+
+add_test(NAME kr16.args.build
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/args.c"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/args.kex"
+)
+set_tests_properties(kr16.args.build PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.args.run
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/args.kex"
+    one "two words" "C:\\Users\\kevin"
+)
+set_tests_properties(kr16.args.run PROPERTIES LABELS "integration"
+  DEPENDS kr16.args.build
+  PASS_REGULAR_EXPRESSION "argv\\[3\\]=C:\\\\Users\\\\kevin")
 
 find_program(KR16_NODE_EXECUTABLE node)
 if(KR16_NODE_EXECUTABLE)

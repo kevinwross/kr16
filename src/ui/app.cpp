@@ -11,6 +11,7 @@
 #include <variant>
 
 #include "help.hpp"
+#include "kr16/command_line.hpp"
 
 namespace kr16::ui {
 namespace {
@@ -69,8 +70,13 @@ std::filesystem::path settings_path() {
     return std::filesystem::current_path() / "kr16-settings.ini";
 }
 
+std::filesystem::path fallback_settings_path();
+
 void read_settings(SessionBuildOptions& settings) {
     std::ifstream input(settings_path());
+    if (!input.good()) {
+        input.open(fallback_settings_path());
+    }
     std::string line;
     while (std::getline(input, line)) {
         const auto equals = line.find('=');
@@ -83,21 +89,33 @@ void read_settings(SessionBuildOptions& settings) {
         if (key == "debug") settings.debug = enabled;
         if (key == "libc") settings.link_libc = enabled;
         if (key == "listing") settings.listing = enabled;
+        if (key == "arguments") settings.command_line = line.substr(equals + 1);
     }
 }
 
+std::filesystem::path fallback_settings_path() {
+    return std::filesystem::current_path() / "kr16-settings.ini";
+}
+
 void write_settings(const SessionBuildOptions& settings) {
-    const auto path = settings_path();
-    std::error_code ec;
-    std::filesystem::create_directories(path.parent_path(), ec);
-    std::ofstream output(path, std::ios::trunc);
-    if (!output.good()) {
-        return;
+    auto write_to = [&](const std::filesystem::path& path) {
+        std::error_code ec;
+        std::filesystem::create_directories(path.parent_path(), ec);
+        std::ofstream output(path, std::ios::trunc);
+        if (!output.good()) {
+            return false;
+        }
+        output << "optimize=" << (settings.optimize ? 1 : 0) << '\n';
+        output << "debug=" << (settings.debug ? 1 : 0) << '\n';
+        output << "libc=" << (settings.link_libc ? 1 : 0) << '\n';
+        output << "listing=" << (settings.listing ? 1 : 0) << '\n';
+        output << "arguments=" << settings.command_line << '\n';
+        return output.good();
+    };
+
+    if (!write_to(settings_path())) {
+        write_to(fallback_settings_path());
     }
-    output << "optimize=" << (settings.optimize ? 1 : 0) << '\n';
-    output << "debug=" << (settings.debug ? 1 : 0) << '\n';
-    output << "libc=" << (settings.link_libc ? 1 : 0) << '\n';
-    output << "listing=" << (settings.listing ? 1 : 0) << '\n';
 }
 
 std::string decimal_with_commas(std::uint64_t value) {
@@ -334,9 +352,9 @@ void App::layout() {
     settings_rect_ = Rect{top_bar_.right - 142, top_bar_.top + 4,
                           top_bar_.right - 114, top_bar_.top + 32};
     settings_modal_ = Rect{std::max(kPad, (width - 520) / 2),
-                           std::max(kPad, (height - 330) / 2),
+                           std::max(kPad, (height - 430) / 2),
                            std::max(kPad, (width - 520) / 2) + 520,
-                           std::max(kPad, (height - 330) / 2) + 330};
+                           std::max(kPad, (height - 430) / 2) + 430};
     settings_close_ = Rect{settings_modal_.right - 34,
                            settings_modal_.top + 8,
                            settings_modal_.right - 10,
@@ -361,6 +379,10 @@ void App::layout() {
                              settings_modal_.top + 170,
                              settings_modal_.left + 238,
                              settings_modal_.top + 188};
+    settings_args_ = Rect{settings_modal_.left + 18,
+                          settings_modal_.top + 224,
+                          settings_modal_.right - 18,
+                          settings_modal_.top + 254};
 
     buttons_.clear();
     int x = top_bar_.left + 8;
@@ -1767,15 +1789,31 @@ void App::draw_settings(Canvas& canvas) {
     checkbox(settings_listing_, settings_.listing, 4, "Write assembler listing",
              settings_modal_.top + 168);
 
+    text(canvas, label_x, settings_modal_.top + 206,
+         "Command line arguments", kText, FontRole::MonoSmall);
+    text_field_paint(canvas, settings_args_, settings_args_field_,
+                     "argument one \"two words\"");
+    if (!settings_args_error_.empty()) {
+        text(canvas, label_x, settings_modal_.top + 260,
+             settings_args_error_, kRed, FontRole::MonoSmall);
+    } else {
+        text(canvas, label_x, settings_modal_.top + 260,
+             "Backslashes are literal; quote paths with spaces.",
+             kTextDim, FontRole::MonoSmall);
+    }
+
     if (settings_.debug && settings_.optimize) {
-        text(canvas, label_x, settings_modal_.top + 216,
+        text(canvas, label_x, settings_modal_.top + 286,
              "Debug info keeps frame locals but disables the IR optimizer.",
              kAmber, FontRole::MonoSmall);
     }
-    text(canvas, label_x, settings_modal_.top + 244,
-         "Changes apply immediately and rebuild the current source.",
+    text(canvas, label_x, settings_modal_.top + 310,
+         "Build settings apply immediately and rebuild the current source.",
          kTextDim, FontRole::MonoSmall);
-    text(canvas, label_x, settings_modal_.top + 266,
+    text(canvas, label_x, settings_modal_.top + 332,
+         "Arguments apply on Load or Restart.",
+         kTextDim, FontRole::MonoSmall);
+    text(canvas, label_x, settings_modal_.top + 354,
          "Settings are saved for the next KR16 session.",
          kTextDim, FontRole::MonoSmall);
 }
@@ -1791,10 +1829,17 @@ void App::save_settings() {
 void App::open_settings() {
     settings_open_ = true;
     hover_settings_control_ = -1;
+    text_field_set_text(settings_args_field_, settings_.command_line);
+    settings_args_field_.focused = false;
+    settings_args_error_.clear();
     window_.invalidate();
 }
 
 void App::close_settings() {
+    settings_.command_line = settings_args_field_.text;
+    settings_args_field_.focused = false;
+    settings_args_field_.dragging = false;
+    save_settings();
     settings_open_ = false;
     hover_settings_control_ = -1;
     window_.invalidate();
@@ -1817,6 +1862,18 @@ void App::apply_settings() {
     reload_current();
 }
 
+bool App::prepare_arguments(std::string& error) {
+    const auto parsed = parse_command_line(settings_.command_line);
+    if (!parsed.ok) {
+        settings_args_error_ = parsed.error;
+        error = "invalid command line arguments: " + parsed.error;
+        return false;
+    }
+    settings_args_error_.clear();
+    session_.set_program_args(parsed.arguments);
+    return true;
+}
+
 void App::reload_current() {
     if (current_path_.empty()) {
         message_ = "no source to rebuild";
@@ -1828,6 +1885,12 @@ void App::reload_current() {
     }
     cleanup_temporary_breakpoint();
     std::string error;
+    if (!prepare_arguments(error)) {
+        message_ = "invalid arguments";
+        window_.show_error("KR16", error);
+        window_.invalidate();
+        return;
+    }
     if (!session_.build_and_load(current_path_, libc_source_, settings_,
                                  error)) {
         message_ = "rebuild failed";
@@ -2086,6 +2149,10 @@ void App::event(const Event& event) {
         if (const auto* move = std::get_if<MouseMove>(&event);
             move != nullptr) {
             mouse_ = move->position;
+            if (settings_args_field_.dragging) {
+                text_field_mouse_move(settings_args_field_, settings_args_,
+                                      move->position.x);
+            }
             int hover = -1;
             if (settings_close_.contains(move->position)) hover = 99;
             else if (settings_opt0_.contains(move->position)) hover = 0;
@@ -2093,8 +2160,11 @@ void App::event(const Event& event) {
             else if (settings_debug_.contains(move->position)) hover = 2;
             else if (settings_libc_.contains(move->position)) hover = 3;
             else if (settings_listing_.contains(move->position)) hover = 4;
+            else if (settings_args_.contains(move->position)) hover = 5;
             if (hover != hover_settings_control_) {
                 hover_settings_control_ = hover;
+                window_.invalidate();
+            } else if (settings_args_field_.dragging) {
                 window_.invalidate();
             }
             return;
@@ -2109,6 +2179,15 @@ void App::event(const Event& event) {
                 close_settings();
                 return;
             }
+            if (settings_args_.contains(down->position)) {
+                text_field_mouse_down(settings_args_field_, settings_args_,
+                                      down->position.x, false);
+                settings_args_field_.focused = true;
+                window_.invalidate();
+                return;
+            }
+            settings_args_field_.focused = false;
+            settings_args_field_.dragging = false;
             if (settings_opt0_.contains(down->position)) {
                 if (settings_.optimize) {
                     settings_.optimize = false;
@@ -2132,16 +2211,43 @@ void App::event(const Event& event) {
             window_.invalidate();
             return;
         }
+        if (const auto* up = std::get_if<MouseUp>(&event); up != nullptr) {
+            if (up->button == MouseButton::Left) {
+                text_field_mouse_up(settings_args_field_);
+            }
+            return;
+        }
         if (std::holds_alternative<MouseWheel>(event)) {
             return;
         }
         if (const auto* key = std::get_if<KeyDown>(&event); key != nullptr) {
             if (key->key == Key::Escape) {
                 close_settings();
+                return;
+            }
+            if (key->key == Key::Enter) {
+                close_settings();
+                return;
+            }
+            if (settings_args_field_.focused) {
+                if (text_field_key(settings_args_field_, *key, window_)) {
+                    settings_.command_line = settings_args_field_.text;
+                    save_settings();
+                    settings_args_error_.clear();
+                }
+                window_.invalidate();
             }
             return;
         }
-        if (std::holds_alternative<TextInput>(event)) {
+        if (const auto* input = std::get_if<TextInput>(&event);
+            input != nullptr) {
+            if (settings_args_field_.focused &&
+                text_field_text(settings_args_field_, input->utf8)) {
+                settings_.command_line = settings_args_field_.text;
+                save_settings();
+                settings_args_error_.clear();
+                window_.invalidate();
+            }
             return;
         }
         if (std::holds_alternative<Timer>(event)) {
@@ -2499,6 +2605,12 @@ void App::activate(Action action) {
                 stop_run("paused");
             }
             std::string error;
+            if (!prepare_arguments(error)) {
+                message_ = "invalid arguments";
+                window_.show_error("KR16", error);
+                window_.invalidate();
+                break;
+            }
             if (!session_.restart(error)) {
                 message_ = "restart failed";
                 window_.show_error("KR16", error);
@@ -3180,6 +3292,11 @@ void App::open(const std::filesystem::path& path) {
     }
     cleanup_temporary_breakpoint();
     std::string error;
+    if (!prepare_arguments(error)) {
+        message_ = "invalid arguments";
+        window_.show_error("KR16", error);
+        return;
+    }
     if (!session_.build_and_load(path, libc_source_, settings_, error)) {
         message_ = "load failed";
         window_.show_error("KR16", error.empty() ? "cannot load file" : error);

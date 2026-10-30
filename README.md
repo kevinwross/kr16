@@ -141,6 +141,14 @@ loaded. The UI has source and disassembly panes, linked stepping, registers and
 flags, variables, a memory strip, a call stack and the console; see
 [`docs/research/ui-integration-plan.md`](docs/research/ui-integration-plan.md).
 
+The settings dialog includes a **Command line arguments** field. It is parsed
+with Windows-style quoting (backslashes are literal except before a quote), and
+the resulting strings become `argv[1..argc-1]`; `argv[0]` is the generated image
+name. The field supports selection, copy/cut/paste, and normal line editing.
+Arguments are applied on Load or Restart. Guest file paths still use `/` inside
+the sandbox; the argument parser preserves Windows paths but does not translate
+host paths.
+
 On Linux, the UI builds with static SDL3 fetched by CMake. Install the X11 /
 Wayland development headers first, for example:
 

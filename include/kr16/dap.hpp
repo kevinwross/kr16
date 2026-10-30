@@ -20,6 +20,7 @@ struct DapOptions {
     std::string bios_path;
     bool no_bios = false;
     bool stop_on_entry = true;
+    std::vector<std::string> program_args;
     // Optional readiness marker written after the TCP listener is bound.
     std::string ready_file;
     // Bound for a single continue/step request so a runaway guest cannot hang

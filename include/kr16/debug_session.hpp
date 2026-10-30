@@ -78,6 +78,7 @@ struct SessionBuildOptions {
     bool optimize = true;
     bool link_libc = true;
     bool listing = false;
+    std::string command_line;
 };
 
 /// Product debug model used by the windowed UI and by tests. It owns the
@@ -97,6 +98,13 @@ public:
                         std::string& error);
     bool restart(std::string& error);
     void unload();
+
+    /// Arguments passed to main() on the next load/restart. The program name
+    /// (argv[0]) is added by the session from the image path.
+    void set_program_args(std::vector<std::string> arguments);
+    const std::vector<std::string>& program_args() const noexcept {
+        return program_args_;
+    }
 
     bool loaded() const noexcept { return loaded_; }
     const std::filesystem::path& image_path() const noexcept {
@@ -202,6 +210,7 @@ private:
 
     bool loaded_ = false;
     std::filesystem::path image_path_;
+    std::vector<std::string> program_args_;
     Container container_;
     Machine machine_;
     Cpu cpu_;

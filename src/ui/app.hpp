@@ -10,6 +10,7 @@
 #include "kr16/ui/canvas.hpp"
 #include "kr16/ui/input.hpp"
 #include "kr16/ui/window.hpp"
+#include "text_field.hpp"
 
 namespace kr16::ui {
 
@@ -148,6 +149,7 @@ private:
     void open_settings();
     void close_settings();
     void apply_settings();
+    bool prepare_arguments(std::string& error);
     void reload_current();
     void load_settings();
     void save_settings();
@@ -224,6 +226,9 @@ private:
     Rect settings_debug_{};
     Rect settings_libc_{};
     Rect settings_listing_{};
+    Rect settings_args_{};
+    TextField settings_args_field_;
+    std::string settings_args_error_;
     SessionBuildOptions settings_{};
     std::filesystem::path current_path_;
     bool settings_open_ = false;

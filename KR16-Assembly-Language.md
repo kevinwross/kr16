@@ -1852,8 +1852,13 @@ For calls:
 - Flags and `SR` are caller-saved. A function that changes the interrupt enable
   state must restore it if its caller expects it preserved.
 
-At program entry, the VM may set `R1` to `argc` and `R2` to `argv` when a
-command line is present. A custom `_start` receives those registers.
+At program entry, the VM builds an argument block on the stack for normal
+`.kex` images, even with no user arguments. `R1` is `argc`, `R2` points to
+`argv`, and `argv[0]` is the image name. The strings and the null-terminated
+pointer array are above `SP`; a custom `_start` receives those registers. The
+windowed debugger's **Command line arguments** setting supplies `argv[1..]`,
+parsed with Windows-style quoting (backslashes are literal except before a
+quote).
 
 ### 10.4 Reset state
 

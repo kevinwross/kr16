@@ -17,6 +17,7 @@
 #include "kr16/debug_info.hpp"
 #include "kr16/disassembler.hpp"
 #include "kr16/instruction.hpp"
+#include "kr16/process.hpp"
 
 namespace kr16 {
 namespace {
@@ -128,6 +129,10 @@ std::vector<std::uint8_t> read_file(const std::filesystem::path& path,
 
 }  // namespace
 
+void DebugSession::set_program_args(std::vector<std::string> arguments) {
+    program_args_ = std::move(arguments);
+}
+
 bool DebugSession::load(const std::filesystem::path& image,
                         std::string& error) {
     clear_image_state();
@@ -171,8 +176,20 @@ bool DebugSession::load(const std::filesystem::path& image,
             }
         }
 
+        ProcessStackLayout stack_layout;
+        std::string stack_error;
+        if (!initialize_process_stack(
+                machine_, image.filename().string(), program_args_, 0xF000,
+                stack_limit, stack_layout, stack_error)) {
+            clear_image_state();
+            error = stack_error;
+            return false;
+        }
+
         cpu_.set_pc(entry);
-        cpu_.set_sp(0xF000);
+        cpu_.set_reg(1, stack_layout.argc);
+        cpu_.set_reg(2, stack_layout.argv);
+        cpu_.set_sp(stack_layout.sp);
         cpu_.set_stack_limit(stack_limit);
         cpu_.set_syscall_handler(
             [this](std::uint8_t service, std::uint16_t block, MemoryBus& bus) {

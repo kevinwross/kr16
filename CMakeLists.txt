@@ -42,6 +42,8 @@ add_library(kr16_core STATIC
   src/asm/assembler.cpp
   src/dis/disassembler.cpp
   src/vm/machine.cpp
+  src/vm/command_line.cpp
+  src/vm/process.cpp
   src/vm/runner.cpp
   src/vm/host.cpp
   src/link/linker.cpp
@@ -71,6 +73,7 @@ target_link_libraries(kr16 PRIVATE kr16_core)
 if(KR16_BUILD_UI)
   set(KR16_UI_SOURCES
     src/ui/app.cpp
+    src/ui/text_field.cpp
     src/ui/help.cpp
     src/resources/embedded_fonts.cpp
   )

@@ -30,6 +30,8 @@ public:
                    std::string_view filter) override;
     void show_error(std::string_view title,
                     std::string_view message) override;
+    std::string clipboard_text() const override;
+    void set_clipboard_text(std::string_view text) override;
     void set_cursor(CursorKind cursor) override;
     void request_close() override;
 

@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <functional>
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include "kr16/ui/canvas.hpp"
@@ -47,6 +48,8 @@ public:
                            std::string_view filter) = 0;
     virtual void show_error(std::string_view title,
                             std::string_view message) = 0;
+    virtual std::string clipboard_text() const = 0;
+    virtual void set_clipboard_text(std::string_view text) = 0;
     virtual void set_cursor(CursorKind cursor) = 0;
     virtual void request_close() = 0;
 };
