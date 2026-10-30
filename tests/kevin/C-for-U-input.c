@@ -4,12 +4,11 @@ int fact(int n) {
 }
 
 int main(void) {
-    int i;
     int sum;
     int times = 0;
     int values[5];
     sum = 0;
-    for (i = 0; i < 5; i = i + 1) {
+    for (int i = 0; i < 5; i = i + 1) {
         values[i] = i * i;
         sum = sum + values[i];
     }

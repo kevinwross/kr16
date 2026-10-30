@@ -1164,12 +1164,16 @@ void parse_statement(void) {
         tpos = tpos + 1;
         if (tkind[tpos] != '(') err("expected (");
         tpos = tpos + 1;
-        if (tkind[tpos] != ';') {
-            if (has_assign()) parse_assign();
-            else parse_expr();
+        if (tkind[tpos] == T_INT || tkind[tpos] == T_CHAR) {
+            parse_decl();
+        } else {
+            if (tkind[tpos] != ';') {
+                if (has_assign()) parse_assign();
+                else parse_expr();
+            }
+            if (tkind[tpos] != ';') err("expected ;");
+            tpos = tpos + 1;
         }
-        if (tkind[tpos] != ';') err("expected ;");
-        tpos = tpos + 1;
         start = new_label();
         end = new_label();
         next = new_label();
