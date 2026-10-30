@@ -4,16 +4,28 @@ endif()
 if(NOT DEFINED CFORU_ROOT OR NOT DEFINED CFORU_INPUT)
   message(FATAL_ERROR "cforu_check requires CFORU_ROOT and CFORU_INPUT")
 endif()
+if(NOT DEFINED CFORU_OUTPUT)
+  get_filename_component(CFORU_OUTPUT "${CFORU_INPUT}" NAME_WE)
+  set(CFORU_OUTPUT "${CFORU_OUTPUT}.s")
+endif()
+
+set(generated_output "${CFORU_ROOT}/${CFORU_OUTPUT}")
+file(REMOVE "${generated_output}")
 
 execute_process(
   COMMAND "${KR16}" vm "${CFORU_KEX}" --fs-root "${CFORU_ROOT}"
-          "${CFORU_INPUT}"
-  OUTPUT_VARIABLE generated
-  ERROR_VARIABLE generated_error
+          -- "${CFORU_INPUT}"
+  OUTPUT_VARIABLE run_output
+  ERROR_VARIABLE run_error
   RESULT_VARIABLE run_result)
 if(NOT run_result EQUAL 0)
-  message(FATAL_ERROR "C-for-U failed: ${generated_error}")
+  message(FATAL_ERROR "C-for-U failed: ${run_output}${run_error}")
 endif()
+if(NOT EXISTS "${generated_output}")
+  message(FATAL_ERROR "C-for-U did not create ${generated_output}")
+endif()
+
+file(READ "${generated_output}" generated)
 
 set(generated_s "${GENDIR}/C-for-U.generated.s")
 set(generated_kex "${GENDIR}/C-for-U.generated.kex")

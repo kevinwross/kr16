@@ -2478,3 +2478,10 @@ Entry format:
   with selection/copy/cut/paste, and a settings-dialog field. Arguments are
   applied on Load or Restart; the generated image basename is `argv[0]`.
 - Added parser/stack tests and a debug-session argc/argv test.
+
+### 2026-10-29 — C-for-U file output
+
+- C-for-U derives `<input-base>.s` from the input path or uses the `-o` path.
+- Assembly and argv comments are written to the output file through the
+  sandboxed file API; stdout reports `; wrote <path>`.
+- Added default-output and explicit-output CTest coverage.

@@ -2,7 +2,7 @@
  * C-for-U: a small C-to-KR16-assembly compiler.
  *
  * Input:  a source file, read in refillable chunks into a bounded buffer.
- * Output: assembly text streamed to the KR16 IO device (0xF000).
+ * Output: <input-base>.s, or the path after -o, in the VM sandbox.
  * Startup: prints each command-line argument as an assembler comment.
  *
  * Supported subset: int/char, locals, globals, one-dimensional arrays,
@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 char source[4096];
+FILE *outfile;
 void *malloc(int n);
 void free(void *p);
 void exit(int n);
@@ -164,12 +165,16 @@ void copy_name(char *d, char *s, int max) {
 }
 
 void outch(int c) {
-    putchar(c);
+    if (outfile != 0) {
+        fputc(c, outfile);
+    } else {
+        putchar(c);
+    }
 }
 
 void outs(char *s) {
     while (*s != 0) {
-        putchar(*s);
+        outch(*s);
         s = s + 1;
     }
 }
@@ -178,11 +183,11 @@ void outn(int n) {
     char b[8];
     int i;
     if (n < 0) {
-        putchar(45);
+        outch(45);
         n = 0 - n;
     }
     if (n == 0) {
-        putchar(48);
+        outch(48);
         return;
     }
     i = 0;
@@ -193,11 +198,15 @@ void outn(int n) {
     }
     while (i > 0) {
         i = i - 1;
-        putchar(b[i]);
+        outch(b[i]);
     }
 }
 
 void err(char *m) {
+    if (outfile != 0) {
+        fclose(outfile);
+        outfile = 0;
+    }
     outs("; C-for-U error: ");
     outs(m);
     outs("\n");
@@ -1475,10 +1484,31 @@ void read_source(char *path) {
     if (total == 0) err("input file is empty");
 }
 
+void make_output_name(char *input, char *output) {
+    int i;
+    int dot;
+    i = 0;
+    dot = 0 - 1;
+    while (input[i] != 0) {
+        if (i >= 250) err("input path too long");
+        output[i] = input[i];
+        if (input[i] == '/') dot = 0 - 1;
+        else if (input[i] == '.') dot = i;
+        i = i + 1;
+    }
+    if (dot >= 0) i = dot;
+    output[i] = '.';
+    i = i + 1;
+    output[i] = 's';
+    i = i + 1;
+    output[i] = 0;
+}
+
 int main(int argc, char *argv[]) {
     int argi;
     char *input;
     char *output;
+    char outname[256];
 
     input = 0;
     output = 0;
@@ -1505,6 +1535,23 @@ int main(int argc, char *argv[]) {
         outs("; usage: C-for-U.kex <filename>.c [-o <filename>.s]\n");
         return 1;
     }
+    if (output == 0) {
+        make_output_name(input, outname);
+        output = outname;
+    }
+    if (same(input, output)) {
+        outs("; C-for-U error: input and output are the same file\n");
+        return 1;
+    }
+
+    read_source(input);
+    outfile = fopen(output, "w");
+    if (outfile == 0) {
+        outs("; C-for-U error: cannot create ");
+        outs(output);
+        outs("\n");
+        return 1;
+    }
 
     for (argi = 0; argi < argc; argi = argi + 1) {
         outs("; argv[");
@@ -1513,8 +1560,6 @@ int main(int argc, char *argv[]) {
         outs(argv[argi]);
         outch(10);
     }
-    (void)output;
-    read_source(input);
     tkind = (int *)malloc(MAX_TOKENS * 2);
     tval = (int *)malloc(MAX_TOKENS * 2);
     ttext = (char *)malloc(MAX_TOKENS * 32);
@@ -1537,6 +1582,12 @@ int main(int argc, char *argv[]) {
     free(tval);
     free(ttext);
     free(tlen);
+    if (ferror(outfile)) err("output write error");
+    fclose(outfile);
+    outfile = 0;
+    outs("; wrote ");
+    outs(output);
+    outs("\n");
     return 0;
 }
 

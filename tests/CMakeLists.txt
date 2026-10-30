@@ -192,18 +192,19 @@ add_test(NAME kr16.vm.cforu
 )
 set_tests_properties(kr16.vm.cforu PROPERTIES LABELS "integration"
   DEPENDS kr16.cc.cforu
-  PASS_REGULAR_EXPRESSION "\\.global fact"
   FAIL_REGULAR_EXPRESSION "C-for-U error")
 
-add_test(NAME kr16.vm.cforu_args
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
-    --fs-root "${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
-    -- "C-for-U-input.c" -o "C-for-U-output.s"
+add_test(NAME kr16.cforu.explicit_output
+  COMMAND ${CMAKE_COMMAND}
+    "-DKR16=$<TARGET_FILE:kr16>"
+    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    "-DCFORU_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
+    "-DCFORU_INPUT=C-for-U-input.c"
+    "-DCFORU_OUTPUT=C-for-U-output.s"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_output_check.cmake"
 )
-set_tests_properties(kr16.vm.cforu_args PROPERTIES LABELS "integration"
-  DEPENDS kr16.cc.cforu
-  PASS_REGULAR_EXPRESSION "C-for-U-input.c"
-  FAIL_REGULAR_EXPRESSION "C-for-U error")
+set_tests_properties(kr16.cforu.explicit_output PROPERTIES LABELS "integration"
+  DEPENDS kr16.cc.cforu)
 
 add_test(NAME kr16.cforu.generated
   COMMAND ${CMAKE_COMMAND}
