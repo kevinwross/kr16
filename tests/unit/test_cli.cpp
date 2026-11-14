@@ -137,3 +137,29 @@ TEST_CASE("as -l without a path is a usage error") {
     }
     CHECK(kr16::cli::run(static_cast<int>(argv.size()), argv.data()) == 2);
 }
+
+TEST_CASE("build accepts optimization-level flags") {
+    auto source =
+        std::filesystem::current_path() / "cli_opt_flag.c";
+    const auto image =
+        std::filesystem::current_path() / "cli_opt_flag.kex";
+    {
+        std::ofstream output(source);
+        output << "int main(void) { return 0; }\n";
+    }
+    int status = 0;
+    (void)run_cli({"kr16", "build", source.string(), "-O0", "-o",
+                   image.string()}, status);
+    CHECK(status == 0);
+    (void)run_cli({"kr16", "build", source.string(), "-O1", "-o",
+                   image.string()}, status);
+    CHECK(status == 0);
+    std::filesystem::remove(source);
+    std::filesystem::remove(image);
+    std::filesystem::remove(source.replace_extension(".s"));
+    std::filesystem::remove(source.replace_extension(".o"));
+    std::filesystem::remove(source.replace_extension(".libc.o"));
+    std::filesystem::remove(source.replace_extension(".fileio.o"));
+}
+
+

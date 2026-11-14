@@ -2583,3 +2583,11 @@ Entry format:
 - Tests: full Windows and Linux suites remain green; benchmark commands now
   work.
 - Next: remaining M3/M4 spill/select coloring and copy propagation.
+
+### 2026-11-14 09:35:03 -08:00 — CLI optimization-level regression test
+
+- Added a unit test that builds the same C source with `-O0` and `-O1` and
+  requires both commands to succeed.
+- This locks in the `kr16 build` option-parsing fix.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Next: remaining M3/M4 spill/select coloring and copy propagation.
