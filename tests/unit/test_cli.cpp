@@ -156,10 +156,15 @@ TEST_CASE("build accepts optimization-level flags") {
     CHECK(status == 0);
     std::filesystem::remove(source);
     std::filesystem::remove(image);
-    std::filesystem::remove(source.replace_extension(".s"));
-    std::filesystem::remove(source.replace_extension(".o"));
-    std::filesystem::remove(source.replace_extension(".libc.o"));
-    std::filesystem::remove(source.replace_extension(".fileio.o"));
+    auto base = source;
+    base.replace_extension();
+    const std::string stem = base.string();
+    std::filesystem::remove(stem + ".s");
+    std::filesystem::remove(stem + ".o");
+    std::filesystem::remove(stem + ".libc.o");
+    std::filesystem::remove(stem + ".fileio.o");
 }
+
+
 
 
