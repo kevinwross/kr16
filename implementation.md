@@ -2591,3 +2591,13 @@ Entry format:
 - This locks in the `kr16 build` option-parsing fix.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Next: remaining M3/M4 spill/select coloring and copy propagation.
+
+### 2026-11-14 09:40:09 -08:00 — DAP restart
+
+- Added `supportsRestartRequest` and a `restart` handler that reloads the
+  program, resets the VM, preserves breakpoints, and re-emits the entry stop.
+- Added a DAP session test covering the restart response and stopped event.
+- Updated the final plan and VS Code README; restart is no longer a debugger
+  gap.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Next: conditional breakpoints/setVariable, or the remaining compiler spills.

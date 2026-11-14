@@ -128,6 +128,25 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
     REQUIRE(source != nullptr);
     CHECK(source->find("path")->as_string().ends_with("main.c"));
     CHECK(stack->as_array()[0].find("line")->as_integer() == 1);
+    const auto restarted = session.handle_message(
+        "{\"seq\":5,\"type\":\"request\",\"command\":\"restart\","
+        "\"arguments\":{}}");
+    bool restart_ok = false;
+    bool restart_stopped = false;
+    for (const auto& message : restarted) {
+        const auto parsed = kr16::dap::JsonValue::parse(message);
+        if (parsed.find("type")->as_string() == "response" &&
+            parsed.find("command")->as_string() == "restart") {
+            restart_ok = parsed.find("success")->as_boolean();
+        }
+        if (parsed.find("type")->as_string() == "event" &&
+            parsed.find("event")->as_string() == "stopped") {
+            restart_stopped = true;
+        }
+    }
+    CHECK(restart_ok);
+    CHECK(restart_stopped);
     std::filesystem::remove(path);
 }
+
 

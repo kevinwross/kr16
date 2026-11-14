@@ -781,6 +781,7 @@ struct DapSession::Impl {
     std::vector<std::string> handle_evaluate(const JsonValue& request,
                                               const JsonValue* arguments);
     std::vector<std::string> handle_continue(const JsonValue& request);
+    std::vector<std::string> handle_restart(const JsonValue& request);
     std::vector<std::string> handle_pause(const JsonValue& request);
     std::vector<std::string> handle_step(const JsonValue& request,
                                          std::string_view command);
@@ -803,7 +804,7 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
     body.set("supportsHitConditionalBreakpoints", JsonValue::boolean(false));
     body.set("supportsFunctionBreakpoints", JsonValue::boolean(true));
     body.set("supportsStepBack", JsonValue::boolean(false));
-    body.set("supportsRestartRequest", JsonValue::boolean(false));
+    body.set("supportsRestartRequest", JsonValue::boolean(true));
     body.set("supportsSetVariable", JsonValue::boolean(false));
     body.set("supportsLoadedSourcesRequest", JsonValue::boolean(false));
     body.set("supportsDelayedStackTraceLoading", JsonValue::boolean(false));
@@ -1402,6 +1403,26 @@ std::vector<std::string> DapSession::Impl::handle_evaluate(
     return out;
 }
 
+std::vector<std::string> DapSession::Impl::handle_restart(
+    const JsonValue& request) {
+    std::vector<std::string> out;
+    if (!launched) {
+        append_response(out, request, "restart", false, JsonValue::null(),
+                        "program is not loaded");
+        return out;
+    }
+    try {
+        load_program();
+    } catch (const std::exception& error) {
+        append_response(out, request, "restart", false, JsonValue::null(),
+                        error.what());
+        return out;
+    }
+    append_response(out, request, "restart", true, JsonValue::object());
+    start_ready(out);
+    return out;
+}
+
 std::vector<std::string> DapSession::Impl::handle_continue(
     const JsonValue& request) {
     std::vector<std::string> out;
@@ -1563,6 +1584,9 @@ std::vector<std::string> DapSession::Impl::handle_message(
     if (command == "continue") {
         return handle_continue(request);
     }
+    if (command == "restart") {
+        return handle_restart(request);
+    }
     if (command == "pause") {
         return handle_pause(request);
     }
@@ -1610,6 +1634,8 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
+
 
 
 

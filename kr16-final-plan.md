@@ -862,8 +862,8 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 - Diagnostics for an unresolvable `#include` (currently silent).
 - Linker: `--gc-all`, relocatable `-r` links, weak/common symbols, linker
   scripts, embedded release BIOS selection, BIOS RAM loading.
-- Debugger: conditional/hit-count breakpoints, step back, restart,
-  `setVariable`, delayed stack traces.
+- Debugger: conditional/hit-count breakpoints, step back, `setVariable`,
+  and delayed stack traces. Restart is supported.
 - Distribution: marketplace publication, code signing, installers.
 
 ### Known rough edges
@@ -881,9 +881,8 @@ Ordered by value to the teaching story:
 1. **Compiler optimization M3–M5.** Finish stack spilling/copy propagation,
    address folding, loop-invariant and induction-variable passes, and the
    benchmark suite in `docs/compiler-opt.md`.
-2. **Debugger depth.** Conditional breakpoints, restart, `setVariable`, and
-   loaded-sources support would make the VS Code experience comparable to the
-   native window.
+2. **Debugger depth.** Conditional breakpoints, `setVariable`, and loaded-sources
+   support would make the VS Code experience comparable to the native window.
 3. **Release pipeline parity.** The workflow publishes the exe and AppImages;
    the 1.0.0 tag also carried a VSIX and `SHA256SUMS`, which the automated
    workflow does not yet produce.
@@ -956,3 +955,4 @@ Branch conditions: `EQ NE CS/HS CC/LO MI PL VS VC HI LS GE LT GT LE AL/RA`.
 | **DebugSession** | the portable debug model shared by the GUI, DAP, and tests |
 | **sandbox** | the guest-visible filesystem root, quota, and read-only policy |
 | **C-for-U** | the C→assembly compiler written in KR16 C and used as an end-to-end test |
+
