@@ -85,13 +85,19 @@ TEST_CASE("DAP launch forwards program arguments") {
 TEST_CASE("DAP stack frame uses the compiled source path") {
     kr16::CompileOptions options;
     options.debug = true;
-    options.source_name = "main.c";
+    options.source_name = "dap_loaded_source.c";
     const auto compiled = kr16::compile_c(
         "int main(void) { return 0; }\n", options);
     REQUIRE(compiled.ok);
     const auto assembled =
         kr16::assemble_text(compiled.assembly, kr16::AsmOptions{});
     REQUIRE(assembled.ok);
+    const auto source_file =
+        std::filesystem::current_path() / "dap_loaded_source.c";
+    {
+        std::ofstream source_output(source_file);
+        source_output << "int main(void) { return 0; }\n";
+    }
     const auto linked = kr16::link_objects({assembled.object});
     REQUIRE(linked.ok);
     const auto image = linked.image.write();
@@ -126,7 +132,7 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
     REQUIRE(stack->as_array().size() == 1);
     const auto* source = stack->as_array()[0].find("source");
     REQUIRE(source != nullptr);
-    CHECK(source->find("path")->as_string().ends_with("main.c"));
+    CHECK(source->find("path")->as_string().ends_with("dap_loaded_source.c"));
     CHECK(stack->as_array()[0].find("line")->as_integer() == 1);
     const auto restarted = session.handle_message(
         "{\"seq\":5,\"type\":\"request\",\"command\":\"restart\","
@@ -146,7 +152,41 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
     }
     CHECK(restart_ok);
     CHECK(restart_stopped);
+    const auto loaded = session.handle_message(
+        "{\"seq\":6,\"type\":\"request\",\"command\":\"loadedSources\","
+        "\"arguments\":{}}");
+    REQUIRE(loaded.size() == 1);
+    const auto loaded_body = kr16::dap::JsonValue::parse(loaded[0]);
+    const auto* loaded_sources = loaded_body.find("body")->find("sources");
+    REQUIRE(loaded_sources != nullptr);
+    REQUIRE(loaded_sources->as_array().size() == 1);
+    const auto loaded_path =
+        loaded_sources->as_array()[0].find("path")->as_string();
+    CHECK(loaded_path.ends_with("dap_loaded_source.c"));
+    std::string escaped_path;
+    for (const char ch : loaded_path) {
+        if (ch == '\\' || ch == '"') {
+            escaped_path.push_back('\\');
+        }
+        escaped_path.push_back(ch);
+    }
+    const std::string source_request =
+        "{\"seq\":7,\"type\":\"request\",\"command\":\"source\","
+        "\"arguments\":{\"source\":{\"path\":\"" + escaped_path + "\"}}}";
+    const auto source_text = session.handle_message(source_request);
+    REQUIRE(source_text.size() == 1);
+    const auto source_body = kr16::dap::JsonValue::parse(source_text[0]);
+    INFO(source_text[0]);
+    CHECK(source_body.find("success")->as_boolean());
+    CHECK(source_body.find("body")->find("content")->as_string().find(
+              "return 0") != std::string::npos);
     std::filesystem::remove(path);
+    std::filesystem::remove(source_file);
 }
+
+
+
+
+
 
 

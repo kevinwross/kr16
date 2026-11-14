@@ -2601,3 +2601,13 @@ Entry format:
   gap.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Next: conditional breakpoints/setVariable, or the remaining compiler spills.
+
+### 2026-11-14 09:47:28 -08:00 — DAP loaded sources and source content
+
+- Added `supportsLoadedSourcesRequest`, `loadedSources`, and `source` request
+  handling. The adapter reports the resolved debug source path and returns the
+  file contents.
+- Added DAP tests for the loaded-source path and source content.
+- Updated the final plan and VS Code README capability tables.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Next: conditional breakpoints and setVariable.

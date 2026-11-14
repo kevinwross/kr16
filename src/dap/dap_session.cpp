@@ -771,6 +771,9 @@ struct DapSession::Impl {
         const JsonValue& request);
     std::vector<std::string> handle_threads(const JsonValue& request);
     std::vector<std::string> handle_stack_trace(const JsonValue& request);
+    std::vector<std::string> handle_loaded_sources(const JsonValue& request);
+    std::vector<std::string> handle_source(const JsonValue& request,
+                                             const JsonValue* arguments);
     std::vector<std::string> handle_scopes(const JsonValue& request);
     std::vector<std::string> handle_variables(const JsonValue& request,
                                               const JsonValue* arguments);
@@ -806,7 +809,7 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
     body.set("supportsStepBack", JsonValue::boolean(false));
     body.set("supportsRestartRequest", JsonValue::boolean(true));
     body.set("supportsSetVariable", JsonValue::boolean(false));
-    body.set("supportsLoadedSourcesRequest", JsonValue::boolean(false));
+    body.set("supportsLoadedSourcesRequest", JsonValue::boolean(true));
     body.set("supportsDelayedStackTraceLoading", JsonValue::boolean(false));
     body.set("exceptionBreakpointFilters", JsonValue::array());
     append_response(out, request, "initialize", true, std::move(body));
@@ -1147,6 +1150,53 @@ std::vector<std::string> DapSession::Impl::handle_scopes(
     return out;
 }
 
+std::vector<std::string> DapSession::Impl::handle_loaded_sources(
+    const JsonValue& request) {
+    std::vector<std::string> out;
+    JsonValue sources = JsonValue::array();
+    if (!source_path.empty()) {
+        JsonValue source = JsonValue::object();
+        source.set("name", JsonValue::string(base_name(source_path)));
+        source.set("path", JsonValue::string(source_path));
+        sources.push(std::move(source));
+    }
+    JsonValue body = JsonValue::object();
+    body.set("sources", std::move(sources));
+    append_response(out, request, "loadedSources", true, std::move(body));
+    return out;
+}
+
+std::vector<std::string> DapSession::Impl::handle_source(
+    const JsonValue& request, const JsonValue* arguments) {
+    std::vector<std::string> out;
+    std::string path = source_path;
+    if (const JsonValue* source = arguments != nullptr
+                                      ? arguments->find("source")
+                                      : nullptr;
+        source != nullptr) {
+        if (const JsonValue* requested = source->find("path");
+            requested != nullptr && requested->is_string()) {
+            path = requested->as_string();
+        }
+    }
+    if (path.empty() || path != source_path) {
+        append_response(out, request, "source", false, JsonValue::null(),
+                        "unknown source");
+        return out;
+    }
+    try {
+        const auto bytes = read_file(path);
+        JsonValue body = JsonValue::object();
+        body.set("content", JsonValue::string(
+                                std::string(bytes.begin(), bytes.end())));
+        body.set("mimeType", JsonValue::string("text/plain"));
+        append_response(out, request, "source", true, std::move(body));
+    } catch (const std::exception& error) {
+        append_response(out, request, "source", false, JsonValue::null(),
+                        error.what());
+    }
+    return out;
+}
 std::vector<std::string> DapSession::Impl::handle_variables(
     const JsonValue& request, const JsonValue* arguments) {
     std::vector<std::string> out;
@@ -1566,6 +1616,12 @@ std::vector<std::string> DapSession::Impl::handle_message(
     if (command == "stackTrace") {
         return handle_stack_trace(request);
     }
+    if (command == "loadedSources") {
+        return handle_loaded_sources(request);
+    }
+    if (command == "source") {
+        return handle_source(request, arguments);
+    }
     if (command == "scopes") {
         return handle_scopes(request);
     }
@@ -1634,6 +1690,8 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
+
 
 
 
