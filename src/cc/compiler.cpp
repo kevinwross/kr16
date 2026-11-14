@@ -337,10 +337,18 @@ std::string builtin_header(std::string_view name) {
                "#define SEEK_SET 0\n"
                "#define SEEK_CUR 1\n"
                "#define SEEK_END 2\n"
+               "#define EOF (-1)\n"
+               "#define _IONBF 0\n"
+               "#define _IOFBF 1\n"
+               "#define _IOLBF 2\n"
+               "#define stdin ((FILE *)0)\n"
+               "#define stdout ((FILE *)1)\n"
+               "#define stderr ((FILE *)2)\n"
                "int putchar(int c);\n"
                "int puts(char *s);\n"
                "int getchar(void);\n"
                "int printf(char *fmt, ...);\n"
+               "int fprintf(FILE *stream, char *fmt, ...);\n"
                "FILE *fopen(const char *path, const char *mode);\n"
                "int fclose(FILE *stream);\n"
                "int fread(void *buffer, int size, int count, FILE *stream);\n"
@@ -353,6 +361,8 @@ std::string builtin_header(std::string_view name) {
                "int ftell(FILE *stream);\n"
                "void rewind(FILE *stream);\n"
                "int fflush(FILE *stream);\n"
+               "int ungetc(int value, FILE *stream);\n"
+               "int setvbuf(FILE *stream, char *buffer, int mode, int size);\n"
                "int feof(FILE *stream);\n"
                "int ferror(FILE *stream);\n"
                "void clearerr(FILE *stream);\n"
@@ -3663,6 +3673,10 @@ private:
         return (value + alignment - 1) / alignment * alignment;
     }
 
+    static bool byte_displacement_fits(int offset) {
+        return offset >= -32 && offset <= 31;
+    }
+
     std::shared_ptr<Type> expression_type(const Expr* expr) {
         if (expr == nullptr) {
             return make_type(TypeKind::Int);
@@ -4546,6 +4560,14 @@ private:
             return false;
         }
         gen_expr(expr->children[1].get(), out);
+        if (character && address.rfind("R4-", 0) == 0) {
+            const int offset = -std::stoi(address.substr(3));
+            if (!byte_displacement_fits(offset)) {
+                out << "  LEA R1, [" << address << "]\n";
+                out << "  STB [R1], R0\n";
+                return true;
+            }
+        }
         const std::string bracketed = "[" + address + "]";
         out << (character ? "  STB " : "  ST ") << bracketed << ", R0\n";
         return true;
@@ -4790,6 +4812,11 @@ private:
             if (local->second.type->is_array()) {
                 out << "  LEA R" << target << ", [R4-" << local->second.offset
                     << "]\n";
+            } else if (local->second.type->is_char() &&
+                       !byte_displacement_fits(-local->second.offset)) {
+                out << "  LEA R" << target << ", [R4-" << local->second.offset
+                    << "]\n";
+                out << "  LDB R" << target << ", [R" << target << "]\n";
             } else {
                 out << (local->second.type->is_char() ? "  LDB R"
                                                       : "  LD R")
@@ -5024,8 +5051,12 @@ private:
             return;
         }
         const auto local_function = function_map_.find(expr->text);
-        if (local_function != function_map_.end() &&
-            local_function->second->variadic) {
+        const bool all_stack_variadic =
+            expr->text == "fprintf" ||
+            (local_function != function_map_.end() &&
+             local_function->second->variadic);
+        if (all_stack_variadic) {
+            external_calls_.insert(expr->text);
             for (auto it = expr->children.rbegin(); it != expr->children.rend();
                  ++it) {
                 gen_expr(it->get(), out);
@@ -5188,3 +5219,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+

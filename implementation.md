@@ -2512,3 +2512,20 @@ Entry format:
 - Updated the assembly manual and final plan to remove the silent-zero warning.
 - Tests: Windows 48/48 CTest; Linux 48/48 CTest; new assembler tests pass.
 - Next: buffered stdio and the remaining `printf` family.
+
+### 2026-11-14 09:03:50 -08:00 — Buffered stdio and fprintf
+
+- Extended `resources/fileio.c` with per-stream buffers, flush/refill helpers,
+  line/full/unbuffered modes, `ungetc`, `setvbuf`, standard `stdin`/`stdout`/
+  `stderr` streams, and a varargs `fprintf`.
+- `fprintf` supports `%d`/`%i`, `%u`, `%x`/`%X`, `%o`, `%p`, `%c`, `%s`, `%%`,
+  width, `-`, and `0` padding.
+- Fixed codegen for byte locals beyond the 6-bit displacement range by emitting
+  `LEA` before `LDB`/`STB`.
+- Fixed the compiler's all-stack call path for external `fprintf` so fixed
+  parameters and varargs use the same convention as the variadic callee.
+- Remaining gaps are `fscanf`, `freopen`, `tmpfile`, and `printf`/`fprintf`
+  format parity; the assembly `printf` still has the older format set.
+- Tests: new `stdio_buffered.c` write/read/seek/`fprintf`/`ungetc` test;
+  Windows 50/50 CTest, Linux 50/50 CTest.
+- Next: finish stdio parity or start compiler optimization M3–M5.

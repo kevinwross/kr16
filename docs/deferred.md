@@ -6,12 +6,12 @@ release.
 
 ## Host and VM
 
-- Full POSIX file API and buffered stdio. The current sandbox implements
+- Full POSIX file API. The sandbox implements
   `SYS_OPEN`/`SYS_CLOSE`/`SYS_READ`/`SYS_WRITE`/`SYS_SEEK`/`SYS_STAT`,
-  directory and namespace services, and an unbuffered `fopen`/`fread`/
-  `fwrite`/`fclose` subset.
-- Remaining stdio gaps: `fprintf`, `fscanf`, buffering, `setvbuf`, `ungetc`,
-  `freopen`, `tmpfile`, and standard console `FILE` streams.
+  directory and namespace services, and buffered `fopen`/`fread`/`fwrite`/
+  `fclose` with `fprintf`, `ungetc`, `setvbuf`, and standard streams.
+- Remaining stdio gaps: `fscanf`, `freopen`, `tmpfile`, full parity between the
+  assembly `printf` and `fprintf` formats, and interactive stdin buffering.
 - BIOS RAM loading, embedded release BIOS selection, and linker scripts.
 - `--gc-all`, relocatable `-r` links, weak/common symbols, and arm64 hosts.
 - Real-time pacing accuracy and the full interactive monitor.

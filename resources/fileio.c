@@ -6,8 +6,11 @@
  */
 
 #include <kr16/systemservices.h>
+#include <stdarg.h>
 
 typedef struct FILE FILE;
+
+#define KR16_BUFFER_SIZE 64
 
 struct FILE {
     int fd;
@@ -15,10 +18,22 @@ struct FILE {
     int writable;
     int eof;
     int error;
+    int mode;
+    int buffered;
+    int position;
+    int length;
+    int pushback;
+    unsigned char buffer[KR16_BUFFER_SIZE];
 };
 
 #define KR16_FILE_MAX 8
 #define KR16_EOF (-1)
+#define KR16_UNBUFFERED 0
+#define KR16_FULL_BUFFER 1
+#define KR16_LINE_BUFFER 2
+#define KR16_STDIN ((FILE *)0)
+#define KR16_STDOUT ((FILE *)1)
+#define KR16_STDERR ((FILE *)2)
 
 static struct FILE file_table[KR16_FILE_MAX];
 static int file_used[KR16_FILE_MAX];
@@ -30,6 +45,8 @@ struct sys_call_block {
 };
 
 int __host_call(int service, void *block);
+int putchar(int value);
+int getchar(void);
 
 static struct FILE *file_alloc(void) {
     int i;
@@ -38,6 +55,11 @@ static struct FILE *file_alloc(void) {
             file_used[i] = 1;
             file_table[i].eof = 0;
             file_table[i].error = 0;
+            file_table[i].mode = KR16_FULL_BUFFER;
+            file_table[i].buffered = 0;
+            file_table[i].position = 0;
+            file_table[i].length = 0;
+            file_table[i].pushback = -1;
             return &file_table[i];
         }
     }
@@ -333,10 +355,62 @@ FILE *fopen(const char *path, const char *mode) {
     return stream;
 }
 
+static int flush_stream(FILE *stream) {
+    struct sys_write_args args;
+    struct sys_write_result result;
+    if (stream == 0 || !stream->writable) {
+        return 0;
+    }
+    if (stream == KR16_STDOUT || stream == KR16_STDERR) {
+        return 0;
+    }
+    if (stream->length <= 0) {
+        return 0;
+    }
+    args.fd = stream->fd;
+    args.buffer = stream->buffer;
+    args.count = (sys_u16)stream->length;
+    if (sys_write(&args, &result) != SYS_OK ||
+        result.bytes != (sys_u16)stream->length) {
+        stream->error = 1;
+        return KR16_EOF;
+    }
+    stream->length = 0;
+    return 0;
+}
+
+static int refill_stream(FILE *stream) {
+    struct sys_read_args args;
+    struct sys_read_result result;
+    if (stream == 0 || !stream->readable) {
+        return 0;
+    }
+    args.fd = stream->fd;
+    args.buffer = stream->buffer;
+    args.count = KR16_BUFFER_SIZE;
+    if (sys_read(&args, &result) != SYS_OK) {
+        stream->error = 1;
+        return 0;
+    }
+    stream->position = 0;
+    stream->length = result.bytes;
+    if (result.bytes == 0) {
+        stream->eof = 1;
+    }
+    return result.bytes;
+}
+
 int fclose(FILE *stream) {
     struct sys_close_args args;
     int status;
     if (stream == 0) {
+        return KR16_EOF;
+    }
+    if (stream == KR16_STDIN || stream == KR16_STDOUT ||
+        stream == KR16_STDERR) {
+        return 0;
+    }
+    if (flush_stream(stream) != 0) {
         return KR16_EOF;
     }
     args.fd = stream->fd;
@@ -346,63 +420,130 @@ int fclose(FILE *stream) {
 }
 
 int fread(void *buffer, int size, int count, FILE *stream) {
-    struct sys_read_args args;
-    struct sys_read_result result;
+    unsigned char *destination;
     int total;
-    if (stream == 0 || !stream->readable || size <= 0 || count <= 0) {
+    int written;
+    int value;
+    if (stream == 0 || size <= 0 || count <= 0) {
         return 0;
     }
+    destination = (unsigned char *)buffer;
     total = size * count;
     if (total <= 0 || total > 4096) {
         total = 4096;
     }
-    args.fd = stream->fd;
-    args.buffer = buffer;
-    args.count = (sys_u16)total;
-    if (sys_read(&args, &result) != SYS_OK) {
-        stream->error = 1;
+    if (stream == KR16_STDIN) {
+        written = 0;
+        while (written < total) {
+            value = fgetc(KR16_STDIN);
+            if (value == KR16_EOF) {
+                break;
+            }
+            destination[written] = (unsigned char)value;
+            ++written;
+        }
+        return written / size;
+    }
+    if (!stream->readable) {
         return 0;
     }
-    if (result.bytes < (sys_u16)total) {
-        stream->eof = 1;
+    written = 0;
+    while (written < total) {
+        if (stream->position >= stream->length) {
+            if (refill_stream(stream) == 0) {
+                break;
+            }
+        }
+        destination[written] = stream->buffer[stream->position];
+        ++stream->position;
+        ++written;
     }
-    return result.bytes / size;
+    return written / size;
 }
 
 int fwrite(const void *buffer, int size, int count, FILE *stream) {
     struct sys_write_args args;
     struct sys_write_result result;
+    const unsigned char *source;
     int total;
-    if (stream == 0 || !stream->writable || size <= 0 || count <= 0) {
+    int written;
+    int index;
+    if (stream == 0 || size <= 0 || count <= 0) {
         return 0;
     }
+    source = (const unsigned char *)buffer;
     total = size * count;
     if (total <= 0 || total > 4096) {
         total = 4096;
     }
-    args.fd = stream->fd;
-    args.buffer = (void *)buffer;
-    args.count = (sys_u16)total;
-    if (sys_write(&args, &result) != SYS_OK) {
-        stream->error = 1;
+    if (stream == KR16_STDOUT || stream == KR16_STDERR) {
+        for (index = 0; index < total; ++index) {
+            putchar(source[index]);
+        }
+        return total / size;
+    }
+    if (!stream->writable) {
         return 0;
     }
-    return result.bytes / size;
+    if (stream->mode == KR16_UNBUFFERED) {
+        args.fd = stream->fd;
+        args.buffer = (void *)buffer;
+        args.count = (sys_u16)total;
+        if (sys_write(&args, &result) != SYS_OK) {
+            stream->error = 1;
+            return 0;
+        }
+        return result.bytes / size;
+    }
+    written = 0;
+    while (written < total) {
+        if (stream->length >= KR16_BUFFER_SIZE && flush_stream(stream) != 0) {
+            break;
+        }
+        stream->buffer[stream->length] = source[written];
+        ++stream->length;
+        ++written;
+        if (stream->mode == KR16_LINE_BUFFER &&
+            source[written - 1] == '\n') {
+            if (flush_stream(stream) != 0) {
+                break;
+            }
+        }
+    }
+    return written / size;
 }
 
 int fgetc(FILE *stream) {
-    unsigned char byte;
-    if (stream == 0 || !stream->readable) {
+    int value;
+    if (stream == 0) {
         return KR16_EOF;
     }
-    if (fread(&byte, 1, 1, stream) != 1) {
+    if (stream == KR16_STDIN) {
+        return getchar();
+    }
+    if (!stream->readable) {
         return KR16_EOF;
     }
-    return (int)byte;
+    if (stream->pushback >= 0) {
+        value = stream->pushback;
+        stream->pushback = -1;
+        return value;
+    }
+    if (stream->position >= stream->length) {
+        if (refill_stream(stream) == 0) {
+            return KR16_EOF;
+        }
+    }
+    value = stream->buffer[stream->position];
+    ++stream->position;
+    return value;
 }
 
 int fputc(int value, FILE *stream) {
     unsigned char byte;
+    if (stream == KR16_STDOUT || stream == KR16_STDERR) {
+        return putchar(value);
+    }
     if (stream == 0 || !stream->writable) {
         return KR16_EOF;
     }
@@ -411,6 +552,183 @@ int fputc(int value, FILE *stream) {
         return KR16_EOF;
     }
     return (int)byte;
+}
+
+int ungetc(int value, FILE *stream) {
+    if (stream == 0 || value == KR16_EOF || stream->pushback >= 0) {
+        return KR16_EOF;
+    }
+    stream->pushback = value & 0xFF;
+    stream->eof = 0;
+    return value & 0xFF;
+}
+
+int setvbuf(FILE *stream, char *buffer, int mode, int size) {
+    (void)buffer;
+    (void)size;
+    if (stream == 0 || stream == KR16_STDIN || stream == KR16_STDOUT ||
+        stream == KR16_STDERR) {
+        return 0;
+    }
+    if (mode == 0) {
+        stream->mode = KR16_UNBUFFERED;
+    } else if (mode == 2) {
+        stream->mode = KR16_LINE_BUFFER;
+    } else {
+        stream->mode = KR16_FULL_BUFFER;
+    }
+    return 0;
+}
+
+static void print_char(FILE *stream, int value, int *count) {
+    if (fputc(value, stream) != KR16_EOF) {
+        ++(*count);
+    }
+}
+
+static void print_padded(FILE *stream, const char *text, int length, int width,
+                         int left, int *count) {
+    int i;
+    if (!left) {
+        for (i = length; i < width; ++i) {
+            print_char(stream, ' ', count);
+        }
+    }
+    for (i = 0; i < length; ++i) {
+        print_char(stream, text[i], count);
+    }
+    if (left) {
+        for (i = length; i < width; ++i) {
+            print_char(stream, ' ', count);
+        }
+    }
+}
+
+static void print_number(FILE *stream, int value, int base, int upper,
+                         int width, int pad, int prefix, int *count) {
+    char digits[8];
+    int length;
+    int negative;
+    int total;
+    int i;
+    char temp;
+    negative = value < 0 && base == 10;
+    if (negative) {
+        value = -value;
+    }
+    length = 0;
+    do {
+        int digit = value % base;
+        digits[length] = (char)(digit < 10 ? '0' + digit
+                                           : (upper ? 'A' : 'a') + digit - 10);
+        ++length;
+        value /= base;
+    } while (value != 0);
+    if (negative) {
+        digits[length] = '-';
+        ++length;
+    }
+    for (i = 0; i < length / 2; ++i) {
+        temp = digits[i];
+        digits[i] = digits[length - 1 - i];
+        digits[length - 1 - i] = temp;
+    }
+    total = length + (prefix ? 2 : 0);
+    for (i = total; i < width; ++i) {
+        print_char(stream, pad, count);
+    }
+    if (prefix) {
+        print_char(stream, '0', count);
+        print_char(stream, 'x', count);
+    }
+    for (i = 0; i < length; ++i) {
+        print_char(stream, digits[i], count);
+    }
+}
+int fprintf(FILE *stream, const char *format, ...) {
+    va_list args;
+    int count;
+    int width;
+    int pad;
+    int left;
+    int value;
+    char *text;
+    char byte[2];
+    const char *cursor;
+    if (stream == 0 || format == 0) {
+        return KR16_EOF;
+    }
+    count = 0;
+    va_start(args, format);
+    cursor = format;
+    while (*cursor != '\0') {
+        if (*cursor != '%') {
+            print_char(stream, *cursor, &count);
+            ++cursor;
+            continue;
+        }
+        ++cursor;
+        pad = ' ';
+        left = 0;
+        width = 0;
+        if (*cursor == '-') {
+            left = 1;
+            ++cursor;
+        }
+        if (*cursor == '0') {
+            pad = '0';
+            ++cursor;
+        }
+        while (*cursor >= '0' && *cursor <= '9') {
+            width = width * 10 + (*cursor - '0');
+            ++cursor;
+        }
+        if (*cursor == 'l' || *cursor == 'h') {
+            ++cursor;
+        }
+        if (*cursor == 'u') {
+            value = va_arg(args, int);
+            print_number(stream, value, 10, 0, width, pad, 0, &count);
+        } else if (*cursor == 'd' || *cursor == 'i') {
+            value = va_arg(args, int);
+            print_number(stream, value, 10, 0, width, pad, 0, &count);
+        } else if (*cursor == 'x' || *cursor == 'X') {
+            value = va_arg(args, int);
+            print_number(stream, value, 16, *cursor == 'X', width, pad, 0,
+                         &count);
+        } else if (*cursor == 'o') {
+            value = va_arg(args, int);
+            print_number(stream, value, 8, 0, width, pad, 0, &count);
+        } else if (*cursor == 'p') {
+            value = va_arg(args, int);
+            print_number(stream, value, 16, 0, width, pad, 1, &count);
+        } else if (*cursor == 'c') {
+            value = va_arg(args, int);
+            print_char(stream, value, &count);
+        } else if (*cursor == 's') {
+            text = va_arg(args, char *);
+            if (text == 0) {
+                text = (char *)"(null)";
+            }
+            value = 0;
+            while (text[value] != '\0') {
+                ++value;
+            }
+            print_padded(stream, text, value, width, left, &count);
+        } else if (*cursor == '%') {
+            print_char(stream, '%', &count);
+        } else if (*cursor == '\0') {
+            break;
+        } else {
+            print_char(stream, '%', &count);
+            print_char(stream, *cursor, &count);
+        }
+        if (*cursor != '\0') {
+            ++cursor;
+        }
+    }
+    va_end(args);
+    return count;
 }
 
 char *fgets(char *buffer, int size, FILE *stream) {
@@ -459,6 +777,16 @@ int fseek(FILE *stream, int offset, int whence) {
     if (stream == 0) {
         return KR16_EOF;
     }
+    if (stream == KR16_STDIN || stream == KR16_STDOUT ||
+        stream == KR16_STDERR) {
+        return stream == KR16_STDOUT ? 0 : KR16_EOF;
+    }
+    if (flush_stream(stream) != 0) {
+        return KR16_EOF;
+    }
+    stream->position = 0;
+    stream->length = 0;
+    stream->pushback = -1;
     args.fd = stream->fd;
     args.offset.lo = (sys_u16)(offset & 0xFFFF);
     args.offset.hi = offset < 0 ? 0xFFFF : 0;
@@ -474,7 +802,15 @@ int fseek(FILE *stream, int offset, int whence) {
 int ftell(FILE *stream) {
     struct sys_seek_args args;
     struct sys_seek_result result;
+    int offset;
     if (stream == 0) {
+        return KR16_EOF;
+    }
+    if (stream == KR16_STDIN || stream == KR16_STDOUT ||
+        stream == KR16_STDERR) {
+        return 0;
+    }
+    if (flush_stream(stream) != 0) {
         return KR16_EOF;
     }
     args.fd = stream->fd;
@@ -487,7 +823,9 @@ int ftell(FILE *stream) {
     if (result.offset.hi != 0 || result.offset.lo > 32767) {
         return KR16_EOF;
     }
-    return (int)result.offset.lo;
+    offset = (int)result.offset.lo;
+    offset -= stream->length - stream->position;
+    return offset;
 }
 
 void rewind(FILE *stream) {
@@ -495,20 +833,41 @@ void rewind(FILE *stream) {
 }
 
 int fflush(FILE *stream) {
-    (void)stream;
-    return 0;
+    if (stream == 0) {
+        int i;
+        for (i = 0; i < KR16_FILE_MAX; ++i) {
+            if (file_used[i] && flush_stream(&file_table[i]) != 0) {
+                return KR16_EOF;
+            }
+        }
+        return 0;
+    }
+    if (stream == KR16_STDIN || stream == KR16_STDOUT ||
+        stream == KR16_STDERR) {
+        return 0;
+    }
+    return flush_stream(stream);
 }
 
 int feof(FILE *stream) {
-    return stream != 0 ? stream->eof : 0;
+    if (stream == 0 || stream == KR16_STDIN || stream == KR16_STDOUT ||
+        stream == KR16_STDERR) {
+        return 0;
+    }
+    return stream->eof;
 }
 
 int ferror(FILE *stream) {
-    return stream != 0 ? stream->error : 0;
+    if (stream == 0 || stream == KR16_STDIN || stream == KR16_STDOUT ||
+        stream == KR16_STDERR) {
+        return 0;
+    }
+    return stream->error;
 }
 
 void clearerr(FILE *stream) {
-    if (stream != 0) {
+    if (stream != 0 && stream != KR16_STDIN && stream != KR16_STDOUT &&
+        stream != KR16_STDERR) {
         stream->eof = 0;
         stream->error = 0;
     }
@@ -532,3 +891,8 @@ int rename(const char *old_path, const char *new_path) {
     args.new_path = (char *)new_path;
     return sys_rename(&args) == SYS_OK ? 0 : KR16_EOF;
 }
+
+
+
+
+

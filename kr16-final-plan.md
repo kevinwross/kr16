@@ -850,9 +850,10 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 
 ### Deliberately deferred
 
-- Full buffered stdio and the rest of `printf`/`scanf`: `fprintf`, `fscanf`,
-  `setvbuf`, `ungetc`, `freopen`, `tmpfile`, standard streams, `%p`, `%u`, `%o`,
-  width and padding.
+- Remaining stdio work: `fscanf`, `freopen`, `tmpfile`, and full format parity
+  between the assembly `printf` and the buffered `fprintf`. `fprintf`,
+  `setvbuf`, `ungetc`, standard streams, `%p`, `%u`, `%o`, width and padding
+  are implemented.
 - `errno`, `ctype.h`, `qsort`, `bsearch`, and broad POSIX wrappers.
 - Function pointers, floating point, `setjmp`/`longjmp`, signals, locale, wide
   characters.

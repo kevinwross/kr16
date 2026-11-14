@@ -335,6 +335,22 @@ add_test(NAME kr16.fileio.run
 set_tests_properties(kr16.fileio.run PROPERTIES LABELS "integration"
   DEPENDS kr16.fileio.build)
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/integration/stdio_buffered.c"
+               "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.c" COPYONLY)
+
+add_test(NAME kr16.stdio.build
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.c"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.kex"
+)
+set_tests_properties(kr16.stdio.build PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.stdio.run
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.kex"
+    --fs-root "${CMAKE_CURRENT_BINARY_DIR}/fileio-sandbox"
+)
+set_tests_properties(kr16.stdio.run PROPERTIES LABELS "integration"
+  DEPENDS kr16.stdio.build PASS_REGULAR_EXPRESSION "stdio ok")
+
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/sysfile.c"
                "${CMAKE_CURRENT_BINARY_DIR}/sysfile.c" COPYONLY)
 
@@ -379,5 +395,6 @@ if(KR16_NODE_EXECUTABLE)
   set_tests_properties(kr16.dap.smoke PROPERTIES LABELS "integration"
     DEPENDS kr16.ld.hello)
 endif()
+
 
 
