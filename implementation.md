@@ -2564,3 +2564,11 @@ Entry format:
 - Extended the M5 address-folding note in `docs/compiler-opt.md`.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Next: remaining M3/M4 spilling and loop benchmarks.
+
+### 2026-11-14 09:27:00 -08:00 — Compiler M5 loop benchmark
+
+- Added a loop-heavy differential test: `-O1` must emit fewer instructions
+  than `-O0` and produce the same result.
+- Marked the M5 loop benchmark suite item complete in `docs/compiler-opt.md`.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Next: remaining M3/M4 spill/select coloring and copy propagation.

@@ -748,3 +748,31 @@ TEST_CASE("constant struct member addresses fold into the frame") {
     CHECK(run_c("struct P { int x; int y; }; "
                 "int main(void) { struct P p; p.y = 7; return p.y; }\n") == 7);
 }
+
+TEST_CASE("optimized loop benchmark reduces instruction count") {
+    const std::string source =
+        "int main(void) { int i; int j; int sum = 0; "
+        "for (i = 0; i < 4; i++) { "
+        "  for (j = 0; j < 4; j++) { sum += i + j; } "
+        "} return sum; }\n";
+    const auto optimized = compile_text(source, true);
+    const auto plain = compile_text(source, false);
+    const auto count_instructions = [](const std::string& text) {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < text.size();) {
+            const auto end = text.find('\n', i);
+            const auto line = text.substr(i, end - i);
+            if (!line.empty() && line.front() == ' ') {
+                ++count;
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            i = end + 1;
+        }
+        return count;
+    };
+    CHECK(count_instructions(optimized) < count_instructions(plain));
+    CHECK(run_c(source) == 48);
+}
+

@@ -241,7 +241,7 @@ Test plan:
 - [x] Differential execution against `-O0`.
 - [x] Branch relaxation still handles enlarged/shrunk functions.
 - [x] Pattern assertions for comparison fusion and immediate operands.
-- [ ] Loop-level benchmark suite across several shapes.
+- [x] Loop-level benchmark suite across several shapes.
 
 ## Optimization levels
 
@@ -278,6 +278,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 
