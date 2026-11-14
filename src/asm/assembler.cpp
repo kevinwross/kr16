@@ -596,7 +596,7 @@ private:
     void add_reloc(std::uint32_t offset, RelocationType type,
                    const std::string& symbol, std::int32_t addend);
     ExprValue eval(std::string_view text, int line) const;
-    ExprValue lookup_expr_symbol(std::string_view name) const;
+    ExprValue lookup_expr_symbol(std::string_view name, int line) const;
     void handle_directive(const std::string& mnemonic,
                           const std::vector<std::string>& operands, int line);
     void handle_instruction(const std::string& mnemonic,
@@ -631,6 +631,7 @@ private:
     std::unordered_map<std::string, std::size_t> symbol_index_;
     std::unordered_map<std::string, std::int64_t> constants_;
     std::unordered_set<std::string> globals_;
+    mutable std::unordered_map<std::string, int> referenced_symbols_;
     std::unordered_map<std::string, Macro> macros_;
     std::vector<Conditional> conditionals_;
     std::vector<RelocRecord> relocations_;
@@ -870,6 +871,7 @@ void Assembler::reset_for_pass(bool first) {
         symbol_index_.clear();
         constants_.clear();
         globals_.clear();
+        referenced_symbols_.clear();
         debug_files_.clear();
     }
 }
@@ -909,6 +911,17 @@ AsmResult Assembler::run() {
         reset_for_pass(false);
         for (const auto& line : lines_) {
             process_line(line);
+        }
+        for (const auto& [name, line] : referenced_symbols_) {
+            const auto symbol = symbol_index_.find(name);
+            if (symbol == symbol_index_.end() ||
+                (!symbols_[symbol->second].defined &&
+                 !symbols_[symbol->second].external)) {
+                throw AsmError(
+                    line, 1,
+                    "undefined symbol '" + name +
+                        "' (declare it with .extern for another object)");
+            }
         }
         emit_debug_line();
         emit_debug_sources();
@@ -1160,7 +1173,7 @@ void Assembler::ensure_object_section(const std::string& name) {
     current_section_ = sections_.size() - 1;
 }
 
-ExprValue Assembler::lookup_expr_symbol(std::string_view name) const {
+ExprValue Assembler::lookup_expr_symbol(std::string_view name, int line) const {
     if (name == ".") {
         ExprValue value;
         value.value = current_address();
@@ -1184,6 +1197,9 @@ ExprValue Assembler::lookup_expr_symbol(std::string_view name) const {
         value.value = symbol.defined ? symbol.value : 0;
         return value;
     }
+    if (referenced_symbols_.find(key) == referenced_symbols_.end()) {
+        referenced_symbols_[key] = line;
+    }
     ExprValue value;
     value.symbol = key;
     value.symbolic = true;
@@ -1194,8 +1210,8 @@ ExprValue Assembler::lookup_expr_symbol(std::string_view name) const {
 
 ExprValue Assembler::eval(std::string_view text, int line) const {
     ExprParser parser(text, line,
-                      [this](std::string_view name) {
-                          return lookup_expr_symbol(name);
+                      [this, line](std::string_view name) {
+                          return lookup_expr_symbol(name, line);
                       });
     return parser.parse();
 }
@@ -2167,5 +2183,6 @@ AsmResult assemble_file(const std::string& path, AsmOptions options) {
 }
 
 }  // namespace kr16
+
 
 

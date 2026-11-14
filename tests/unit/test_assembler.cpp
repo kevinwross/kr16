@@ -196,3 +196,27 @@ TEST_CASE("assembler emits debug line rows") {
     CHECK(line->data[22] == 3);   // second column
 }
 
+
+TEST_CASE("undeclared symbols are diagnosed") {
+    const auto result = kr16::assemble_text(
+        ".text\n"
+        "main:\n"
+        "  CALL missing\n"
+        "  RET\n",
+        kr16::AsmOptions{});
+    CHECK_FALSE(result.ok);
+    REQUIRE_FALSE(result.diagnostics.empty());
+    CHECK(result.diagnostics.front().message.find("undefined symbol 'missing'") !=
+          std::string::npos);
+}
+
+TEST_CASE("extern declarations allow cross-object symbols") {
+    const auto result = kr16::assemble_text(
+        ".extern missing\n"
+        ".text\n"
+        "main:\n"
+        "  CALL missing\n"
+        "  RET\n",
+        kr16::AsmOptions{});
+    CHECK(result.ok);
+}

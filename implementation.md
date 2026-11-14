@@ -2500,3 +2500,15 @@ Entry format:
 - Tests: Windows 48/48 CTest; Linux 48/48 CTest with UI off; heap test reports
   `heap ok peak=20002`, BSS is 8 bytes.
 - Next: undefined-symbol diagnostics.
+
+### 2026-11-14 08:50:50 -08:00 — Undefined assembly symbols
+
+- The assembler now records unresolved symbol references and rejects any that
+  are neither defined nor declared with `.extern`:
+  `undefined symbol 'missing' (declare it with .extern for another object)`.
+- Forward references within a file still resolve after the final pass; `.extern`
+  declarations still produce linker relocations.
+- Added regression tests for both the error and the allowed `.extern` case.
+- Updated the assembly manual and final plan to remove the silent-zero warning.
+- Tests: Windows 48/48 CTest; Linux 48/48 CTest; new assembler tests pass.
+- Next: buffered stdio and the remaining `printf` family.

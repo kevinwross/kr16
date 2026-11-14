@@ -919,10 +919,10 @@ putchar:
     ...
 ```
 
-**Important:** in this release, a reference to an undefined symbol without a
-matching `.extern` is not diagnosed reliably. Always write `.extern` for every
-symbol that is defined in another file. This turns a missing definition into a
-clear linker error instead of a silently zero displacement.
+**Important:** the assembler rejects an undeclared symbol with
+`undefined symbol 'name'`. Always write `.extern` for every symbol that is
+defined in another file; a declared symbol still becomes a clear linker error
+if no object defines it.
 
 ### 6.12 Labels and the entry point
 
@@ -1166,9 +1166,9 @@ _start:
 Do not use `.extern` for a symbol that is defined in the same file; the
 assembler will see a duplicate definition.
 
-**Remember:** use `.extern` for every cross-file reference in this release. A
-missing `.extern` can produce a silent zero displacement instead of a linker
-error.
+**Remember:** use `.extern` for every cross-file reference. The assembler now
+reports an undeclared symbol as `undefined symbol 'name'` instead of encoding a
+zero displacement.
 
 ### 7.8 Symbol metadata: `.type` and `.size`
 
@@ -4212,8 +4212,8 @@ the linked image. Use unique names; do not rely on `.L` for local scope.
 
 ### 20.3 External symbols need `.extern`
 
-A reference to an undefined symbol without `.extern` may produce a zero
-displacement instead of a linker error. Always declare external symbols:
+A reference to an undeclared symbol is rejected with `undefined symbol`. Always
+declare external symbols:
 
 ```asm
 .extern putchar

@@ -373,7 +373,7 @@ msg:
 ```
 
 Assemble it with `kr16 as`, then link with `libc.o` for `puts`. The `.extern`
-line is required: an undeclared symbol is treated as zero (§14).
+line is required: an undeclared symbol is rejected with `undefined symbol`.
 
 ---
 
@@ -867,11 +867,6 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 
 ### Known rough edges
 
-- Hand-written assembly must declare `.extern` for every symbol it references
-  from another file (`putchar`, `malloc`, a runtime helper). Without it the
-  assembler treats the name as zero and silently encodes a call to the next
-  instruction, or a zero address. `kr16 cc` emits `.extern` correctly, so this
-  only bites assembly sources.
 - `build` writes intermediates beside the input, which surprises build
   directories and source trees alike.
 - `--realtime` is approximate, and the monitor is minimal.
@@ -882,24 +877,24 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 
 Ordered by value to the teaching story:
 
-1. **Diagnose undefined symbols.** Make an undeclared symbol an error instead of
-   encoding a self-call; it is the sharpest remaining edge in the assembler.
-2. **Buffered stdio and the rest of `printf`.** `fprintf`, `fscanf`, standard
+1. **Buffered stdio and the rest of `printf`.** `fprintf`, `fscanf`, standard
    streams, `%p`/`%u`/`%o`, width and padding — this is the gap students hit
    first when they bring outside C.
-3. **Compiler optimization M3–M5.** Finish the IR, loop peepholes, and the
+2. **Compiler optimization M3–M5.** Finish the IR, loop peepholes, and the
    measured benchmark suite in `docs/compiler-opt.md`.
-4. **Debugger depth.** Conditional breakpoints, restart, `setVariable`, and
+3. **Debugger depth.** Conditional breakpoints, restart, `setVariable`, and
    loaded-sources support would make the VS Code experience comparable to the
    native window.
-5. **Release pipeline parity.** The workflow publishes the exe and AppImages;
+4. **Release pipeline parity.** The workflow publishes the exe and AppImages;
    the 1.0.0 tag also carried a VSIX and `SHA256SUMS`, which the automated
    workflow does not yet produce.
-6. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
+5. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
    directory still needs the assembly exercises it describes.
 
 The linker-sized heap is complete: `libc.s` uses `[__heap_start,
 __stack_limit)`, and the heap integration test allocates 20,000 bytes.
+Undefined symbols are now rejected by the assembler with a source-line
+diagnostic.
 
 ---
 
