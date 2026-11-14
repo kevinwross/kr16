@@ -878,24 +878,23 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 
 Ordered by value to the teaching story:
 
-1. **Buffered stdio and the rest of `printf`.** `fprintf`, `fscanf`, standard
-   streams, `%p`/`%u`/`%o`, width and padding — this is the gap students hit
-   first when they bring outside C.
-2. **Compiler optimization M3–M5.** Finish the IR, loop peepholes, and the
-   measured benchmark suite in `docs/compiler-opt.md`.
-3. **Debugger depth.** Conditional breakpoints, restart, `setVariable`, and
+1. **Compiler optimization M3–M5.** Finish stack spilling/copy propagation,
+   address folding, loop-invariant and induction-variable passes, and the
+   benchmark suite in `docs/compiler-opt.md`.
+2. **Debugger depth.** Conditional breakpoints, restart, `setVariable`, and
    loaded-sources support would make the VS Code experience comparable to the
    native window.
-4. **Release pipeline parity.** The workflow publishes the exe and AppImages;
+3. **Release pipeline parity.** The workflow publishes the exe and AppImages;
    the 1.0.0 tag also carried a VSIX and `SHA256SUMS`, which the automated
    workflow does not yet produce.
-5. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
+4. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
    directory still needs the assembly exercises it describes.
 
 The linker-sized heap is complete: `libc.s` uses `[__heap_start,
 __stack_limit)`, and the heap integration test allocates 20,000 bytes.
 Undefined symbols are now rejected by the assembler with a source-line
-diagnostic.
+diagnostic. Buffered stdio and the `printf`/`fprintf` formatter are in place;
+`fscanf`, `freopen`, and `tmpfile` remain deferred.
 
 ---
 
