@@ -92,14 +92,16 @@ void main(void) {
 
     /* 6. bad requests fail cleanly */
     expect(malloc(0) == 0);
-    expect(malloc(20000) == 0);
-    expect(calloc(200, 200) == 0);
     expect(__kr16_heap_check() == 0);
 
-    /* 7. the 16 KiB ceiling is enforced and leaves the heap consistent */
-    p = malloc(16000);
+    /* 7. the heap is the linker-sized region, not a 16 KiB pool */
+    p = malloc(20000);
     expect(p != 0);
-    expect(malloc(1000) == 0);
+    expect(__kr16_heap_peak() >= 20000);
+    p[0] = 'a';
+    p[19999] = 'z';
+    expect(p[0] == 'a');
+    expect(p[19999] == 'z');
     expect(__kr16_heap_check() == 0);
     free(p);
     expect(__kr16_heap_used() == 0);

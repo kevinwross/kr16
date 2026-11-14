@@ -354,33 +354,31 @@ memcpy:
 ; pool so the footprint tracks live data instead of the historical peak.
 ;
 ; Invariants (verified by tests/support/heapcheck.s):
-;   1. blocks tile [__kr16_heap_block, top) with no gaps and no overlaps
+;   1. blocks tile [heap_start, top) with no gaps and no overlaps
 ;   2. every header is even-addressed, size >= 4, even, addr+size <= top
 ;   3. the free list is address-ordered and holds every free block once
 ;   4. no two free blocks are adjacent
-;   5. top - __kr16_heap_block == sum of all block sizes
+;   5. top - heap_start == sum of all block sizes
 ; ---------------------------------------------------------------------------
+
+.extern __heap_start
+.extern __stack_limit
 
 .data
 .align 2
 .global __kr16_heap_start
 __kr16_heap_start:
-  .word __kr16_heap_block
+  .word __heap_start
 __kr16_heap_end:
-  .word __kr16_heap_limit
+  .word __stack_limit
 .global __kr16_heap_top
 __kr16_heap_top:
-  .word __kr16_heap_block
+  .word __heap_start
 
-; The heap is a fixed pool in .bss rather than the region above the image:
-; the linker defines __heap_start after relocation processing, so a relocation
-; against it silently assembles to zero.  A local label is resolved normally,
-; and the pool keeps the heap clear of the stack at 0xF000.
+; The heap occupies the region between the loaded image and the stack reserve.
+; The linker resolves both bounds, so no fixed pool is reserved in .bss.
 .bss
 .align 2
-__kr16_heap_block:
-  .space 16384
-__kr16_heap_limit:
 .global __kr16_free_list
 __kr16_free_list:
   .space 2
@@ -964,3 +962,4 @@ __kr16_heap_peak:
 exit:
   MOV R0, R1
   HLT
+

@@ -1,22 +1,19 @@
 # Handoff: reusing heap allocator (`malloc`/`free`/`calloc`/`realloc`)
 
-- Status: **implemented and verified**; committed as `ea60403`
-- Last touched: 2026-10-28
+- Status: **implemented, updated, and verified**
+- Last touched: 2026-11-14
 - Design record: [`docs/decisions/0002-heap-allocator.md`](docs/decisions/0002-heap-allocator.md)
 
-## Follow-up from the next session
+## Follow-up completed (2026-11-14)
 
-- Casts are now implemented (`d24c958`): `(int *)malloc(128)` and other
-  scalar/pointer casts compile.
-- The linker now resolves `__heap_start`, `__stack_top` and `__stack_limit`
-  during relocation (`4255269`). The fixed `.bss` pool is therefore no longer
-  required; switching the allocator to `[__heap_start, __stack_limit)` is the
-  remaining optional step.
-- Assembler branch relaxation is implemented, so large C functions no longer
-  hit the `branch target out of range` limit.
-- The heap work and its new tests are committed. Full CTest result after the
-  cast, linker and relaxation changes: **38/38**; doctest: **118 cases /
-  3228 assertions**.
+- The heap now uses `[__heap_start, __stack_limit)` from linker relocations.
+  The fixed 16 KiB `.bss` pool and `__kr16_heap_block` are gone.
+- `libc.s` declares `__heap_start` and `__stack_limit` with `.extern` so the
+  linker records relocations for the bounds.
+- `tests/integration/heap.c` allocates 20,000 bytes and verifies the payload,
+  proving the heap is no longer capped at 16 KiB.
+- Assembler branch relaxation, casts, and linker symbol resolution are all
+  available, so no allocator workarounds remain.
 
 
 This document is for whoever picks this up next. It assumes you know nothing
@@ -24,23 +21,21 @@ about the change beyond the repo itself.
 
 ## TL;DR
 
-`resources/libc.s` no longer has a bump allocator. It now has a first-fit
-allocator with an address-ordered free list, immediate coalescing, in-place
-`realloc`, and a 16 KiB static pool. Tests pass: the full doctest suite, a
-behaviour test, and a 400-operation randomised churn test with an invariant
-checker.
+`resources/libc.s` no longer has a bump allocator. It has a first-fit allocator
+with an address-ordered free list, immediate coalescing, in-place `realloc`,
+and a heap region bounded by `__heap_start` and `__stack_limit`. Tests pass: the
+full doctest suite, a behaviour test, and a 400-operation randomised churn test
+with an invariant checker.
 
-Two toolchain limitations shaped the result; both are now fixed:
+Two toolchain limitations shaped the original result; both are fixed:
 
-1. The linker can resolve relocations against `__heap_start` /
-   `__stack_top` / `__stack_limit` (commit `4255269`). The fixed pool can be
-   replaced by a linker-sized one.
-2. `kr16 cc` has casts (`d24c958`) and the assembler now relaxes long branches,
-   so large C functions compile.
+1. The linker resolves relocations against `__heap_start` / `__stack_top` /
+   `__stack_limit`, so the heap can grow from the image to the stack reserve.
+2. `kr16 cc` has casts and the assembler relaxes long branches, so large C
+   functions compile.
 
-The heap is still a fixed `.bss` pool; converting it to the region above the
-image is the next allocator change. The allocator remains assembly for now,
-although the original branch-range blocker is gone.
+No allocator workarounds remain. The allocator stays in assembly because that
+is the runtime's implementation language, not because of a compiler limit.
 
 ## First five minutes
 
@@ -63,7 +58,7 @@ $kr = "build\windows-ninja\kr16.exe"
 & $kr cc tests\integration\heap.c -S -o build\scratch\heapint.s
 & $kr as build\scratch\heapint.s -o build\scratch\heapint.o
 & $kr ld build\scratch\libc.o build\scratch\heapcheck.o build\scratch\heapint.o -o build\scratch\heapint.kex
-& $kr vm build\scratch\heapint.kex               # expect: heap ok peak=16002
+& $kr vm build\scratch\heapint.kex               # expect: heap ok peak=20002
 ```
 
 `build\scratch\` is a scratch directory created during this work; it is not
@@ -176,7 +171,7 @@ allocations hand out overlapping memory and `used_bytes` drifts. Registers in
 
 | Check | Command | Observed |
 |---|---|---|
-| Behaviour | `kr16 vm heapint.kex` | `heap ok peak=16002` |
+| Behaviour | `kr16 vm heapint.kex` | `heap ok peak=20002` |
 | Churn + checker | `kr16 vm stress.kex` | `OK` (173,821 instructions) |
 | Existing suite | `tests\kr16_tests.exe` | 112/112 cases, 3126 assertions |
 | `malloc` from C | `kr16 build tests/kevin/smalltest.c` | prints as before |
@@ -261,4 +256,5 @@ choice, not a remaining toolchain blocker.
 4. Optional: `--stack-reserve` exists as a `LinkOptions` field but has no CLI
    flag; once the heap derives from the linker symbols, that flag becomes the
    knob for trading heap against stack.
+
 

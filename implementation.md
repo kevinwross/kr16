@@ -2485,3 +2485,18 @@ Entry format:
 - Assembly and argv comments are written to the output file through the
   sandboxed file API; stdout reports `; wrote <path>`.
 - Added default-output and explicit-output CTest coverage.
+
+### 2026-11-14 08:47:16 -08:00 — Post-1.0 heap from linker symbols
+
+- `resources/libc.s` now initializes the heap from `.extern __heap_start` and
+  `.extern __stack_limit`; the fixed 16 KiB `.bss` pool and
+  `__kr16_heap_block`/`__kr16_heap_limit` are gone.
+- Heap metadata is eight bytes of `.bss`; growing the heap consumes only the
+  linker-defined region above the image.
+- Updated `tests/integration/heap.c` to allocate and touch 20,000 bytes and
+  verify the peak, proving the old 16 KiB ceiling is gone.
+- Regenerated `src/resources/embedded_libc.cpp` and `resources/manifest.json`.
+- Updated ADR 0002, the allocator handoff, and the final-plan next-work list.
+- Tests: Windows 48/48 CTest; Linux 48/48 CTest with UI off; heap test reports
+  `heap ok peak=20002`, BSS is 8 bytes.
+- Next: undefined-symbol diagnostics.

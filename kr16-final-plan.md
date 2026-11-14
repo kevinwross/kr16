@@ -867,9 +867,6 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 
 ### Known rough edges
 
-- The heap is a fixed 16 KiB pool even though the linker symbols now work, so a
-  large program pays for a heap it may not use, and a heap-hungry program must
-  edit the pool size.
 - Hand-written assembly must declare `.extern` for every symbol it references
   from another file (`putchar`, `malloc`, a runtime helper). Without it the
   assembler treats the name as zero and silently encodes a call to the next
@@ -885,25 +882,24 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 
 Ordered by value to the teaching story:
 
-1. **Heap from linker symbols.** `__heap_start` and `__stack_limit` resolve
-   now. Replacing the fixed pool with `[__heap_start, __stack_limit)` removes a
-   hard-coded size and lets the heap grow toward the stack; the allocator
-   algorithm does not change.
-2. **Diagnose undefined symbols.** Make an undeclared symbol an error instead of
+1. **Diagnose undefined symbols.** Make an undeclared symbol an error instead of
    encoding a self-call; it is the sharpest remaining edge in the assembler.
-3. **Buffered stdio and the rest of `printf`.** `fprintf`, `fscanf`, standard
+2. **Buffered stdio and the rest of `printf`.** `fprintf`, `fscanf`, standard
    streams, `%p`/`%u`/`%o`, width and padding — this is the gap students hit
    first when they bring outside C.
-4. **Compiler optimization M3–M5.** Finish the IR, loop peepholes, and the
+3. **Compiler optimization M3–M5.** Finish the IR, loop peepholes, and the
    measured benchmark suite in `docs/compiler-opt.md`.
-5. **Debugger depth.** Conditional breakpoints, restart, `setVariable`, and
+4. **Debugger depth.** Conditional breakpoints, restart, `setVariable`, and
    loaded-sources support would make the VS Code experience comparable to the
    native window.
-6. **Release pipeline parity.** The workflow publishes the exe and AppImages;
+5. **Release pipeline parity.** The workflow publishes the exe and AppImages;
    the 1.0.0 tag also carried a VSIX and `SHA256SUMS`, which the automated
    workflow does not yet produce.
-7. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
+6. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
    directory still needs the assembly exercises it describes.
+
+The linker-sized heap is complete: `libc.s` uses `[__heap_start,
+__stack_limit)`, and the heap integration test allocates 20,000 bytes.
 
 ---
 

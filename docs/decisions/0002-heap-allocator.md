@@ -1,15 +1,14 @@
 # ADR 0002: Reusing heap allocator for `libc`
 
-- Status: accepted for the teaching-toolchain release
+- Status: accepted; updated 2026-11-14 to use linker-sized heap bounds
 - Date: 2026-10-28
 - Supersedes: the bump allocator described in `implementation.md` (M7,
   "malloc/free")
 
-> **Follow-up (2026-10-28).** The linker now resolves `__heap_start`,
-> `__stack_top` and `__stack_limit` during relocation, and `kr16 cc` has casts.
-> The fixed 16 KiB `.bss` pool is therefore a temporary implementation choice,
-> not a permanent constraint. Switching the initializers to
-> `[__heap_start, __stack_limit)` is the next allocator change.
+> **Follow-up implemented (2026-11-14).** `resources/libc.s` now initializes the
+> heap from the linker symbols `__heap_start` and `__stack_limit`; the fixed
+> 16 KiB `.bss` pool is gone. `tests/integration/heap.c` allocates 20,000 bytes
+> to prove the heap can grow beyond the old ceiling.
 
 ## Context
 
@@ -31,21 +30,26 @@ KR16 has hard constraints that shape the design:
 - Only five general registers (`R0`–`R4`) are available, and the runtime is
   hand-written assembly.
 
-A second constraint is a toolchain bug: the linker defines `__heap_start` after
-it applies relocations, so a relocation against that symbol either fails to
-link or, when the assembler did not record one, silently assembles to zero.
-The first bump allocator was in fact handing out addresses starting at 2. Until
-that is fixed, the runtime cannot learn where the image ends.
+A second constraint was a toolchain bug: the linker defined `__heap_start`
+after it applied relocations, so a relocation against that symbol either failed
+to link or, when the assembler did not record one, silently assembled to zero.
+That is fixed; `libc.s` now declares `__heap_start` and `__stack_limit` as
+external symbols and the linker resolves both.
 
 ## Decision
 
-### A fixed pool in `.bss`
+### Heap region from linker symbols
 
-The heap is a 16 KiB array, `__kr16_heap_block`, with `__kr16_heap_limit` one
-past its end. This needs no linker symbol, is settled at assemble time, and is
-by construction below the stack. The size is one label in `resources/libc.s`
-and can be tuned between roughly 10 and 20 KiB without touching the algorithm;
-it is RAM that is always reserved, even when unused.
+The runtime stores:
+
+- `__kr16_heap_start` = `__heap_start`
+- `__kr16_heap_end` = `__stack_limit`
+- `__kr16_heap_top` = `__heap_start`
+
+`__heap_start` is the first address after the loaded image; `__stack_limit` is
+the bottom of the stack reserve. The allocator grows from the image toward the
+stack, so an unused heap costs only the three 2-byte bounds. No fixed `.bss`
+pool is reserved.
 
 ### Block format
 
@@ -116,9 +120,9 @@ ordering, coverage and the no-adjacent-free-blocks invariant in one pass.
 - 2 bytes of overhead per block: 6 % on 32-byte blocks, 12.5 % on 16-byte
   blocks, 25 % on 8-byte blocks. The overhead is fixed; it cannot be traded
   away later without changing the block format.
-- The pool is a fixed 16 KiB. A program that needs a larger heap must grow the
-  label, and pays for it whether or not it allocates. Making the heap grow
-  toward the stack needs `__heap_start`, which needs the linker fix.
+- The heap grows from `__heap_start` to the stack reserve (`__stack_limit`).
+  It is not a fixed pool; an unused heap costs only the bounds. A request that
+  would overlap the stack fails cleanly.
 - `malloc` and `free` are O(number of free blocks). A long-lived, badly
   fragmented heap scans more; the list is empty for allocate-only programs, so
   the common case stays O(1).
@@ -137,9 +141,6 @@ ordering, coverage and the no-adjacent-free-blocks invariant in one pass.
 - **Segregated size-class bins**: excellent for uniform allocation sizes and
   O(1) turnaround, but it cannot coalesce across classes and it multiplies the
   code.
-- **Heap above the image instead of a fixed pool**: the intended design, and
-  what `kr16-plan.md` §7.13 describes, but it depends on a `__heap_start`
-  relocation that the linker cannot currently resolve.
 - **Implementing it in C**: rejected for now. The compiler has no casts, so a
   byte pool cannot be viewed as words, and it emits unrelaxed short branches,
   so a function longer than about 1 KiB fails to assemble. Expressing the
