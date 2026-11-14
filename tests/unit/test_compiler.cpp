@@ -739,3 +739,12 @@ TEST_CASE("constant array indexes fold into the frame address") {
     CHECK(run_c("int main(void) { int values[3]; values[2] = 7; "
                 "return values[2]; }\n") == 7);
 }
+
+TEST_CASE("constant struct member addresses fold into the frame") {
+    const auto assembly = compile_text(
+        "struct P { int x; int y; }; "
+        "int main(void) { struct P p; p.y = 7; return p.y; }\n");
+    CHECK(assembly.find("LEA R0, [R4-") != std::string::npos);
+    CHECK(run_c("struct P { int x; int y; }; "
+                "int main(void) { struct P p; p.y = 7; return p.y; }\n") == 7);
+}

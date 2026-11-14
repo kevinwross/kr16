@@ -4899,6 +4899,30 @@ private:
             return;
         }
         if (expr->kind == Expr::Kind::Member) {
+            if (expr->op == "." &&
+                expr->children[0]->kind == Expr::Kind::Identifier) {
+                const auto local =
+                    locals_.find(expr->children[0]->text);
+                if (local != locals_.end() && !local->second.indirect &&
+                    local->second.symbol.empty() &&
+                    local->second.type &&
+                    (local->second.type->kind == TypeKind::Struct ||
+                     local->second.type->kind == TypeKind::Union)) {
+                    for (const auto& member : local->second.type->members) {
+                        if (member.name != expr->text || member.offset == 0) {
+                            continue;
+                        }
+                        const int displacement =
+                            local->second.offset - member.offset;
+                        out << "  LEA R0, [R4"
+                            << (displacement >= 0 ? "-" : "+")
+                            << (displacement < 0 ? -displacement
+                                                 : displacement)
+                            << "]\n";
+                        return;
+                    }
+                }
+            }
             if (expr->op == "->") {
                 gen_expr(expr->children[0].get(), out);
             } else {
@@ -5238,6 +5262,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

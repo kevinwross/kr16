@@ -2554,3 +2554,13 @@ Entry format:
 - Marked the M5 address-calculation item complete in `docs/compiler-opt.md`.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Next: remaining M3/M4 spilling and loop benchmarks.
+
+### 2026-11-14 09:24:27 -08:00 — Compiler M5 member address folding
+
+- Constant member offsets of local structs now fold directly into the frame
+  displacement: `p.y` becomes one `LEA R0, [R4-...]` instead of `LEA` plus
+  `ADD`.
+- Added a pattern and differential execution test for the struct member case.
+- Extended the M5 address-folding note in `docs/compiler-opt.md`.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Next: remaining M3/M4 spilling and loop benchmarks.

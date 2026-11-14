@@ -231,8 +231,8 @@ Test plan:
 - [x] Avoid `PUSH`/`POP` shuffling for simple one-to-three-argument calls,
   including simple binary argument expressions.
 - [x] Fold remaining address calculations.
-  Constant indexes into local arrays fold to a single `LEA` (no push, scale,
-  or add).
+  Constant indexes into local arrays and constant member offsets of local
+  structs fold to a single `LEA` (no push, scale, or add).
 - [ ] Consider loop-invariant code motion and induction-variable strength
   reduction.
 
@@ -278,6 +278,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 
