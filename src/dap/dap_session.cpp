@@ -881,6 +881,8 @@ struct DapSession::Impl {
     std::vector<std::string> handle_scopes(const JsonValue& request);
     std::vector<std::string> handle_variables(const JsonValue& request,
                                               const JsonValue* arguments);
+    std::vector<std::string> handle_set_variable(const JsonValue& request,
+                                                const JsonValue* arguments);
     std::vector<std::string> handle_read_memory(const JsonValue& request,
                                                  const JsonValue* arguments);
     std::vector<std::string> handle_disassemble(const JsonValue& request,
@@ -912,7 +914,7 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
     body.set("supportsFunctionBreakpoints", JsonValue::boolean(true));
     body.set("supportsStepBack", JsonValue::boolean(false));
     body.set("supportsRestartRequest", JsonValue::boolean(true));
-    body.set("supportsSetVariable", JsonValue::boolean(false));
+    body.set("supportsSetVariable", JsonValue::boolean(true));
     body.set("supportsLoadedSourcesRequest", JsonValue::boolean(true));
     body.set("supportsDelayedStackTraceLoading", JsonValue::boolean(false));
     body.set("exceptionBreakpointFilters", JsonValue::array());
@@ -1389,6 +1391,96 @@ std::vector<std::string> DapSession::Impl::handle_variables(
     return out;
 }
 
+std::vector<std::string> DapSession::Impl::handle_set_variable(
+    const JsonValue& request, const JsonValue* arguments) {
+    std::vector<std::string> out;
+    if (!launched) {
+        append_response(out, request, "setVariable", false, JsonValue::null(),
+                        "program is not loaded");
+        return out;
+    }
+    const auto reference = integer_or(arguments, "variablesReference", 0);
+    const std::string name = string_or(arguments, "name", {});
+    const auto value = parse_address(arguments != nullptr
+                                         ? arguments->find("value")
+                                         : nullptr);
+    if (name.empty() || !value.has_value()) {
+        append_response(out, request, "setVariable", false, JsonValue::null(),
+                        "invalid variable name or value");
+        return out;
+    }
+    bool found = false;
+    if (reference == kRegistersReference) {
+        if (name == "R0" || name == "r0") {
+            cpu.set_reg(0, *value);
+        } else if (name == "R1" || name == "r1") {
+            cpu.set_reg(1, *value);
+        } else if (name == "R2" || name == "r2") {
+            cpu.set_reg(2, *value);
+        } else if (name == "R3" || name == "r3") {
+            cpu.set_reg(3, *value);
+        } else if (name == "R4" || name == "r4") {
+            cpu.set_reg(4, *value);
+        } else if (name == "SP" || name == "sp") {
+            cpu.set_sp(*value);
+        } else if (name == "SR" || name == "sr") {
+            cpu.set_sr(*value);
+        } else if (name == "PC" || name == "pc") {
+            cpu.set_pc(*value);
+        } else {
+            append_response(out, request, "setVariable", false,
+                            JsonValue::null(), "unknown register");
+            return out;
+        }
+        found = true;
+    } else if (reference == kGlobalsReference && has_container) {
+        for (const auto& symbol : container.symbols) {
+            if (symbol.name != name || symbol.section == 0 ||
+                symbol.section > container.sections.size()) {
+                continue;
+            }
+            const auto& section = container.sections[symbol.section - 1];
+            if (section.name != ".data" && section.name != ".bss") {
+                continue;
+            }
+            machine.write8(symbol.value,
+                           static_cast<std::uint8_t>(*value & 0xFF));
+            machine.write8(static_cast<std::uint16_t>(symbol.value + 1),
+                           static_cast<std::uint8_t>(*value >> 8));
+            found = true;
+            break;
+        }
+    } else if (reference == kLocalsReference && has_container) {
+        const std::string function =
+            debug_function_at(container, cpu.pc());
+        for (const auto& local : parse_debug_vars(container)) {
+            if (local.function != function || local.name != name) {
+                continue;
+            }
+            const auto address = static_cast<std::uint16_t>(
+                cpu.reg(4) - local.offset);
+            machine.write8(address,
+                           static_cast<std::uint8_t>(*value & 0xFF));
+            if (local.size > 1) {
+                machine.write8(static_cast<std::uint16_t>(address + 1),
+                               static_cast<std::uint8_t>(*value >> 8));
+            }
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        append_response(out, request, "setVariable", false, JsonValue::null(),
+                        "variable not found");
+        return out;
+    }
+    JsonValue body = JsonValue::object();
+    body.set("value", JsonValue::string(format_hex(*value)));
+    body.set("type", JsonValue::string("uint16"));
+    body.set("variablesReference", JsonValue::integer(0));
+    append_response(out, request, "setVariable", true, std::move(body));
+    return out;
+}
 std::vector<std::string> DapSession::Impl::handle_read_memory(
     const JsonValue& request, const JsonValue* arguments) {
     std::vector<std::string> out;
@@ -1735,6 +1827,9 @@ std::vector<std::string> DapSession::Impl::handle_message(
     if (command == "variables") {
         return handle_variables(request, arguments);
     }
+    if (command == "setVariable") {
+        return handle_set_variable(request, arguments);
+    }
     if (command == "readMemory") {
         return handle_read_memory(request, arguments);
     }
@@ -1797,6 +1892,8 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
+
 
 
 

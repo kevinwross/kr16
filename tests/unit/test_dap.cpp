@@ -204,9 +204,26 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
         }
     }
     CHECK(conditional_hit);
+    const auto set_value = session.handle_message(
+        "{\"seq\":10,\"type\":\"request\",\"command\":\"setVariable\","
+        "\"arguments\":{\"variablesReference\":1,\"name\":\"R0\","
+        "\"value\":\"0x1234\"}}");
+    REQUIRE(set_value.size() == 1);
+    CHECK(kr16::dap::JsonValue::parse(set_value[0])
+              .find("success")
+              ->as_boolean());
+    const auto read_back = session.handle_message(
+        "{\"seq\":11,\"type\":\"request\",\"command\":\"evaluate\","
+        "\"arguments\":{\"expression\":\"$r0\",\"context\":\"repl\"}}");
+    REQUIRE(read_back.size() == 1);
+    CHECK(kr16::dap::JsonValue::parse(read_back[0])
+              .find("body")
+              ->find("result")
+              ->as_string() == "0x1234");
     std::filesystem::remove(path);
     std::filesystem::remove(source_file);
 }
+
 
 
 

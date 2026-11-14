@@ -2623,3 +2623,15 @@ Entry format:
   verifies it stops with reason `breakpoint`.
 - Tests: Windows 51/51 CTest; Linux 51/51 after one flaky DAP-smoke rerun.
 - Next: `setVariable`, delayed stack traces, or the remaining compiler spills.
+
+### 2026-11-14 10:01:15 -08:00 — DAP setVariable
+
+- Added `supportsSetVariable` and a `setVariable` handler for registers
+  (`R0`–`R4`, `SP`, `SR`, `PC`), globals in `.data`/`.bss`, and locals from
+  `.debug_vars`.
+- Added a DAP test that writes `R0`, reads it back through `evaluate`, and
+  verifies `0x1234`.
+- Updated the final plan and VS Code README; remaining debugger gaps are
+  hit-count breakpoints, step back, and delayed stack traces.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Paused after this gate at the user's request.
