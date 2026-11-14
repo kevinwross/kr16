@@ -730,3 +730,12 @@ TEST_CASE("compiler emits source line information with -g") {
 
 
 
+
+TEST_CASE("constant array indexes fold into the frame address") {
+    const auto assembly = compile_text(
+        "int main(void) { int values[3]; values[2] = 7; return values[2]; }\n");
+    CHECK(assembly.find("LEA R0, [R4-") != std::string::npos);
+    CHECK(assembly.find("SHL R0, #1") == std::string::npos);
+    CHECK(run_c("int main(void) { int values[3]; values[2] = 7; "
+                "return values[2]; }\n") == 7);
+}

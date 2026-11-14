@@ -2544,3 +2544,13 @@ Entry format:
   heap, fileio, and stdio all pass.
 - Remaining stdio gaps: `fscanf`, `freopen`, `tmpfile`, interactive stdin
   buffering.
+
+### 2026-11-14 09:20:43 -08:00 — Compiler M5 address folding
+
+- Constant indexes into local arrays now fold directly into the frame
+  displacement: `values[2]` becomes one `LEA R0, [R4-...]` instead of
+  push/scale/pop/add.
+- Added a pattern and differential execution test for constant array indexes.
+- Marked the M5 address-calculation item complete in `docs/compiler-opt.md`.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Next: remaining M3/M4 spilling and loop benchmarks.

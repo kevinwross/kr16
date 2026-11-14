@@ -230,7 +230,9 @@ Test plan:
 - [x] Branch directly on simple comparison conditions in the fallback emitter.
 - [x] Avoid `PUSH`/`POP` shuffling for simple one-to-three-argument calls,
   including simple binary argument expressions.
-- [ ] Fold remaining address calculations.
+- [x] Fold remaining address calculations.
+  Constant indexes into local arrays fold to a single `LEA` (no push, scale,
+  or add).
 - [ ] Consider loop-invariant code motion and induction-variable strength
   reduction.
 
@@ -276,4 +278,6 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
+
 
