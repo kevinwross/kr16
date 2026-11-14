@@ -1044,9 +1044,9 @@ int run_build_command(int argc, char** argv) {
             options.debug = true;
         } else if (flag == "--no-debug") {
             options.debug = false;
-        } else if (flag == "-O0") {
+        } else if (flag == "-o0") {
             options.optimize = false;
-        } else if (flag == "-O1") {
+        } else if (flag == "-o1") {
             options.optimize = true;
         } else if (flag == "--run") {
             run_after = true;
@@ -1235,6 +1235,7 @@ int run(int argc, char** argv) {
 }
 
 }  // namespace kr16::cli
+
 
 
 

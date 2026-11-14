@@ -37,6 +37,9 @@ Measurements to record before and after each milestone:
 
 Corpus:
 
+- [`tests/benchmarks/loops.c`](../tests/benchmarks/loops.c) — repeatable loop benchmark;
+  see [`tests/benchmarks/README.md`](../tests/benchmarks/README.md) for recorded O0/O1 stats.
+
 - `tests/kevin/smalltest.c`
 - `tests/integration/heap.c` and `tests/support/heap_stress.s`
 - `tests/unit/test_compiler.cpp` programs
@@ -278,6 +281,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

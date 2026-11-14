@@ -2572,3 +2572,14 @@ Entry format:
 - Marked the M5 loop benchmark suite item complete in `docs/compiler-opt.md`.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Next: remaining M3/M4 spill/select coloring and copy propagation.
+
+### 2026-11-14 09:28:39 -08:00 — Compiler benchmark corpus
+
+- Added `tests/benchmarks/loops.c` and a README with `-O0`/`-O1` VM stats.
+- Recorded: 2,503 instructions / 4,055 cycles at `-O0` versus 1,237 / 2,033 at
+  `-O1`; text 11,882 versus 11,794 bytes.
+- Fixed `kr16 build -O0/-O1`: option matching lowercased the argument but
+  compared against uppercase `-O`, so both flags were rejected.
+- Tests: full Windows and Linux suites remain green; benchmark commands now
+  work.
+- Next: remaining M3/M4 spill/select coloring and copy propagation.
