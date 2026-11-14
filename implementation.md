@@ -2529,3 +2529,18 @@ Entry format:
 - Tests: new `stdio_buffered.c` write/read/seek/`fprintf`/`ungetc` test;
   Windows 50/50 CTest, Linux 50/50 CTest.
 - Next: finish stdio parity or start compiler optimization M3–M5.
+
+### 2026-11-14 09:16:21 -08:00 — printf parity and stdio follow-up
+
+- Moved formatted output to the buffered C stdio layer: `printf` now calls the
+  same `format_stream` helper as `fprintf`, so both support `%d`/`%i`/`%u`/
+  `%x`/`%X`/`%o`/`%p`/`%c`/`%s`/`%%`, width, `-`, and `0` padding.
+- Removed the older assembly `printf`; `libc.s` now provides console primitives
+  and the C runtime owns formatting.
+- Compiler calls to `printf`/`fprintf` use the all-stack variadic convention.
+- Updated C-for-U’s generated calls to `printf` to use that convention.
+- Updated the heap and printf CTest links to include the runtime fileio object.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest; `printf_hex`, C-for-U,
+  heap, fileio, and stdio all pass.
+- Remaining stdio gaps: `fscanf`, `freopen`, `tmpfile`, interactive stdin
+  buffering.

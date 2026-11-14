@@ -5052,7 +5052,7 @@ private:
         }
         const auto local_function = function_map_.find(expr->text);
         const bool all_stack_variadic =
-            expr->text == "fprintf" ||
+            (expr->text == "fprintf" || expr->text == "printf") ||
             (local_function != function_map_.end() &&
              local_function->second->variadic);
         if (all_stack_variadic) {
@@ -5219,6 +5219,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

@@ -564,7 +564,7 @@ Assembly runtime. The linker places `.crt0` (emitted by the C compiler) at
 | Group | Symbols |
 |---|---|
 | Console | `putchar`, `puts`, `getchar` |
-| Formatted output | `printf` (`%d`, `%x`, `%s`, `%c`, `%%`) |
+| Formatted output | `printf`/`fprintf`: `%d`, `%i`, `%u`, `%x`, `%X`, `%o`, `%p`, `%c`, `%s`, `%%`, width/padding |
 | Strings | `strlen`, `strcpy`, `strcat`, `strcmp`, `memset`, `memcpy` |
 | Conversion | `atoi`, `abs` |
 | Heap | `malloc`, `calloc`, `realloc`, `free`, `__kr16_heap_used`, `__kr16_heap_peak` |
@@ -850,10 +850,10 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 
 ### Deliberately deferred
 
-- Remaining stdio work: `fscanf`, `freopen`, `tmpfile`, and full format parity
-  between the assembly `printf` and the buffered `fprintf`. `fprintf`,
-  `setvbuf`, `ungetc`, standard streams, `%p`, `%u`, `%o`, width and padding
-  are implemented.
+- Remaining stdio work: `fscanf`, `freopen`, `tmpfile`, and interactive stdin
+  buffering. `fprintf`, `setvbuf`, `ungetc`, standard streams, `%p`, `%u`,
+  `%o`, width and padding, and the buffered `printf`/`fprintf` formats are
+  implemented.
 - `errno`, `ctype.h`, `qsort`, `bsearch`, and broad POSIX wrappers.
 - Function pointers, floating point, `setjmp`/`longjmp`, signals, locale, wide
   characters.

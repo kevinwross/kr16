@@ -621,6 +621,30 @@ int parse_primary(void) {
             if (tkind[tpos] != ')') err("expected )");
             tpos = tpos + 1;
             if (count > 3) err("more than three arguments");
+            if (same(name, "printf")) {
+                r = count;
+                while (r > 0) {
+                    outs("  POP R");
+                    outn(r);
+                    outs("\n");
+                    r = r - 1;
+                }
+                r = count;
+                while (r > 0) {
+                    outs("  PUSH R");
+                    outn(r);
+                    outs("\n");
+                    r = r - 1;
+                }
+                add_call(name);
+                outs("  CALL printf\n");
+                if (count > 0) {
+                    outs("  ADD SP, #");
+                    outn(count * 2);
+                    outs("\n");
+                }
+                return 1;
+            }
             r = count;
             while (r > 0) {
                 outs("  POP R");
@@ -1590,6 +1614,7 @@ int main(int argc, char *argv[]) {
     outs("\n");
     return 0;
 }
+
 
 
 

@@ -239,14 +239,22 @@ add_test(NAME kr16.as.heap
 set_tests_properties(kr16.as.heap PROPERTIES LABELS "integration"
   DEPENDS kr16.cc.heap)
 
+add_test(NAME kr16.cc.runtime_fileio
+  COMMAND kr16 cc "${CMAKE_SOURCE_DIR}/resources/fileio.c" -c
+    -I "${CMAKE_SOURCE_DIR}/include"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/fileio-runtime.o"
+)
+set_tests_properties(kr16.cc.runtime_fileio PROPERTIES LABELS "integration")
+
 add_test(NAME kr16.ld.heap
   COMMAND kr16 ld "${CMAKE_CURRENT_BINARY_DIR}/heapcheck.o"
     "${CMAKE_CURRENT_BINARY_DIR}/libc.o"
+    "${CMAKE_CURRENT_BINARY_DIR}/fileio-runtime.o"
     "${CMAKE_CURRENT_BINARY_DIR}/heap.o"
     -o "${CMAKE_CURRENT_BINARY_DIR}/heap.kex"
 )
 set_tests_properties(kr16.ld.heap PROPERTIES LABELS "integration"
-  DEPENDS "kr16.as.heapcheck;kr16.as.libc;kr16.as.heap")
+  DEPENDS "kr16.as.heapcheck;kr16.as.libc;kr16.as.heap;kr16.cc.runtime_fileio")
 
 add_test(NAME kr16.vm.heap
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/heap.kex"
@@ -395,6 +403,7 @@ if(KR16_NODE_EXECUTABLE)
   set_tests_properties(kr16.dap.smoke PROPERTIES LABELS "integration"
     DEPENDS kr16.ld.hello)
 endif()
+
 
 
 

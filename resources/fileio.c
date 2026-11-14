@@ -617,13 +617,26 @@ static void print_number(FILE *stream, int value, int base, int upper,
         value = -value;
     }
     length = 0;
-    do {
-        int digit = value % base;
-        digits[length] = (char)(digit < 10 ? '0' + digit
-                                           : (upper ? 'A' : 'a') + digit - 10);
-        ++length;
-        value /= base;
-    } while (value != 0);
+    if (value < 0 && (base == 8 || base == 16)) {
+        int bits = base == 16 ? 4 : 3;
+        int mask = (1 << bits) - 1;
+        int maximum = 16 / bits;
+        while (length < maximum) {
+            int digit = value & mask;
+            digits[length] = (char)(digit < 10 ? '0' + digit
+                                               : (upper ? 'A' : 'a') + digit - 10);
+            ++length;
+            value = (value >> bits) & ((1 << (16 - bits)) - 1);
+        }
+    } else {
+        do {
+            int digit = value % base;
+            digits[length] = (char)(digit < 10 ? '0' + digit
+                                               : (upper ? 'A' : 'a') + digit - 10);
+            ++length;
+            value /= base;
+        } while (value != 0);
+    }
     if (negative) {
         digits[length] = '-';
         ++length;
@@ -645,8 +658,7 @@ static void print_number(FILE *stream, int value, int base, int upper,
         print_char(stream, digits[i], count);
     }
 }
-int fprintf(FILE *stream, const char *format, ...) {
-    va_list args;
+static int format_stream(FILE *stream, const char *format, va_list args) {
     int count;
     int width;
     int pad;
@@ -659,7 +671,6 @@ int fprintf(FILE *stream, const char *format, ...) {
         return KR16_EOF;
     }
     count = 0;
-    va_start(args, format);
     cursor = format;
     while (*cursor != '\0') {
         if (*cursor != '%') {
@@ -727,8 +738,25 @@ int fprintf(FILE *stream, const char *format, ...) {
             ++cursor;
         }
     }
-    va_end(args);
     return count;
+}
+
+int fprintf(FILE *stream, const char *format, ...) {
+    va_list args;
+    int result;
+    va_start(args, format);
+    result = format_stream(stream, format, args);
+    va_end(args);
+    return result;
+}
+
+int printf(const char *format, ...) {
+    va_list args;
+    int result;
+    va_start(args, format);
+    result = format_stream(KR16_STDOUT, format, args);
+    va_end(args);
+    return result;
 }
 
 char *fgets(char *buffer, int size, FILE *stream) {
@@ -891,6 +919,8 @@ int rename(const char *old_path, const char *new_path) {
     args.new_path = (char *)new_path;
     return sys_rename(&args) == SYS_OK ? 0 : KR16_EOF;
 }
+
+
 
 
 

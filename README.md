@@ -40,10 +40,11 @@ local/global/static variables, qualifiers, `if`/`else`, `while`, `do`/`while`,
 parameters/returns and aggregate initializers), compound assignments, casts,
 and `goto` labels. The assembler relaxes branches that leave the 8-bit `Bcc`
 range, so large C functions assemble without splitting. A small `libc.s`
-provides `putchar`, `puts`, `getchar`, `printf` (`%d`, `%x`, `%s`, `%c`,
-`%%`), string functions, `atoi`, `abs`, a first-fit heap allocator (`malloc`,
-`calloc`, `realloc`, `free`), `exit`, and an unbuffered `fopen`/`fread`/
-`fwrite`/`fclose` file layer over the sandboxed `SYS` services.
+provides `putchar`, `puts`, `getchar`, buffered `fopen`/`fread`/`fwrite`/
+`fclose`, `fprintf`, and `printf` with `%d`, `%i`, `%u`, `%x`, `%X`, `%o`,
+`%p`, `%c`, `%s`, `%%`, width and padding, plus string functions, `atoi`,
+`abs`, a first-fit heap allocator (`malloc`, `calloc`, `realloc`, `free`),
+and `exit`.
 
 `long` is a **16-bit alias** for `int`; see
 [`docs/decisions/0001-16-bit-long.md`](docs/decisions/0001-16-bit-long.md).
@@ -51,8 +52,8 @@ provides `putchar`, `puts`, `getchar`, `printf` (`%d`, `%x`, `%s`, `%c`,
 and a scalar IR/graph-coloring backend where supported); `-O0` keeps the
 straightforward stack-based codegen for stepping and teaching. Debug builds
 (`-g`) use the simpler backend so frame-based debug variables stay valid.
-Strict C99 conformance, the full preprocessor (`#line`, pragmas), and the full
-`printf` family are deferred beyond 1.0.
+Strict C99 conformance, the full preprocessor (`#line`, pragmas), and
+`fscanf`/`freopen`/`tmpfile` remain deferred beyond 1.0.
 
 The DAP TCP server, live VS Code debug session, locals/globals scopes,
 multi-frame stack walking, memory/disassembly/evaluate views, and terminal

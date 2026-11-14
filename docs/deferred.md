@@ -10,8 +10,9 @@ release.
   `SYS_OPEN`/`SYS_CLOSE`/`SYS_READ`/`SYS_WRITE`/`SYS_SEEK`/`SYS_STAT`,
   directory and namespace services, and buffered `fopen`/`fread`/`fwrite`/
   `fclose` with `fprintf`, `ungetc`, `setvbuf`, and standard streams.
-- Remaining stdio gaps: `fscanf`, `freopen`, `tmpfile`, full parity between the
-  assembly `printf` and `fprintf` formats, and interactive stdin buffering.
+- Remaining stdio gaps: `fscanf`, `freopen`, `tmpfile`, and interactive stdin
+  buffering. `printf`/`fprintf` formatting, `setvbuf`, and `ungetc` are
+  implemented.
 - BIOS RAM loading, embedded release BIOS selection, and linker scripts.
 - `--gc-all`, relocatable `-r` links, weak/common symbols, and arm64 hosts.
 - Real-time pacing accuracy and the full interactive monitor.

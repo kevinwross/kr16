@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -62,7 +63,22 @@ std::string run_c_with_libc(const std::string& source,
     const auto libc = kr16::assemble_file(
         std::string(KR16_SOURCE_DIR) + "/resources/libc.s", kr16::AsmOptions{});
     REQUIRE(libc.ok);
-    const auto linked = kr16::link_objects({libc.object, assembled.object});
+    std::ifstream fileio_file(std::string(KR16_SOURCE_DIR) + "/resources/fileio.c",
+                             std::ios::binary);
+    REQUIRE(fileio_file.good());
+    const std::string fileio_source(
+        (std::istreambuf_iterator<char>(fileio_file)),
+        std::istreambuf_iterator<char>());
+    kr16::CompileOptions fileio_options;
+    fileio_options.source_name = "fileio.c";
+    fileio_options.include_paths.push_back(std::string(KR16_SOURCE_DIR) + "/include");
+    const auto fileio_compiled = kr16::compile_c(fileio_source, fileio_options);
+    REQUIRE(fileio_compiled.ok);
+    const auto fileio_assembled =
+        kr16::assemble_text(fileio_compiled.assembly, kr16::AsmOptions{});
+    REQUIRE(fileio_assembled.ok);
+    const auto linked = kr16::link_objects(
+        {libc.object, fileio_assembled.object, assembled.object});
     REQUIRE(linked.ok);
     static int counter = 0;
     const auto path = std::filesystem::current_path() /
@@ -90,7 +106,22 @@ int run_c_libc_exit(const std::string& source) {
     const auto libc = kr16::assemble_file(
         std::string(KR16_SOURCE_DIR) + "/resources/libc.s", kr16::AsmOptions{});
     REQUIRE(libc.ok);
-    const auto linked = kr16::link_objects({libc.object, assembled.object});
+    std::ifstream fileio_file(std::string(KR16_SOURCE_DIR) + "/resources/fileio.c",
+                             std::ios::binary);
+    REQUIRE(fileio_file.good());
+    const std::string fileio_source(
+        (std::istreambuf_iterator<char>(fileio_file)),
+        std::istreambuf_iterator<char>());
+    kr16::CompileOptions fileio_options;
+    fileio_options.source_name = "fileio.c";
+    fileio_options.include_paths.push_back(std::string(KR16_SOURCE_DIR) + "/include");
+    const auto fileio_compiled = kr16::compile_c(fileio_source, fileio_options);
+    REQUIRE(fileio_compiled.ok);
+    const auto fileio_assembled =
+        kr16::assemble_text(fileio_compiled.assembly, kr16::AsmOptions{});
+    REQUIRE(fileio_assembled.ok);
+    const auto linked = kr16::link_objects(
+        {libc.object, fileio_assembled.object, assembled.object});
     REQUIRE(linked.ok);
     static int counter = 0;
     const auto path = std::filesystem::current_path() /
@@ -326,14 +357,14 @@ TEST_CASE("fallback constant arithmetic uses immediates") {
 
 TEST_CASE("simple multi-argument calls use argument registers directly") {
     const auto assembly = compile_text(
-        "int printf(const char *, ...);\n"
+        "int show(char *fmt, int value) { return value; }\n"
         "int main(void) { int result = 5; "
-        "printf(\"%d\\n\", result); return 0; }\n");
+        "return show(\"%d\\n\", result); }\n");
     CHECK(assembly.find("PUSH R0") == std::string::npos);
     CHECK(assembly.find("POP R1") == std::string::npos);
     CHECK(assembly.find("MOV R1, #.Lstr") != std::string::npos);
     CHECK(assembly.find("LD R2,") != std::string::npos);
-    CHECK(assembly.find("CALL printf") != std::string::npos);
+    CHECK(assembly.find("CALL show") != std::string::npos);
 }
 
 TEST_CASE("fallback conditions branch directly on comparisons") {
@@ -696,4 +727,6 @@ TEST_CASE("compiler emits source line information with -g") {
     REQUIRE(linked_line != nullptr);
     CHECK(!kr16::parse_debug_line(linked_line->data).empty());
 }
+
+
 
