@@ -34,3 +34,8 @@ tests/kevin/*.kex
 # Local UI settings fallback
 /kr16-settings.ini
 tests/kevin/C-for-U.s
+
+# Generated benchmark intermediates
+tests/benchmarks/*.s
+tests/benchmarks/*.o
+
