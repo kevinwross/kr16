@@ -180,6 +180,30 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
     CHECK(source_body.find("success")->as_boolean());
     CHECK(source_body.find("body")->find("content")->as_string().find(
               "return 0") != std::string::npos);
+    const std::string breakpoint_request =
+        "{\"seq\":8,\"type\":\"request\",\"command\":\"setBreakpoints\","
+        "\"arguments\":{\"source\":{\"path\":\"" + escaped_path +
+        "\"},\"breakpoints\":[{\"address\":\"0x0100\","
+        "\"condition\":\"$pc == 0x0100\"}]}}";
+    const auto conditional = session.handle_message(breakpoint_request);
+    REQUIRE(conditional.size() == 1);
+    CHECK(kr16::dap::JsonValue::parse(conditional[0])
+              .find("success")
+              ->as_boolean());
+    const auto conditional_restart = session.handle_message(
+        "{\"seq\":9,\"type\":\"request\",\"command\":\"restart\","
+        "\"arguments\":{}}");
+    bool conditional_hit = false;
+    for (const auto& message : conditional_restart) {
+        const auto parsed = kr16::dap::JsonValue::parse(message);
+        if (parsed.find("type")->as_string() == "event" &&
+            parsed.find("event")->as_string() == "stopped" &&
+            parsed.find("body")->find("reason")->as_string() ==
+                "breakpoint") {
+            conditional_hit = true;
+        }
+    }
+    CHECK(conditional_hit);
     std::filesystem::remove(path);
     std::filesystem::remove(source_file);
 }

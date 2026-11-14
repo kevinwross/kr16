@@ -344,10 +344,108 @@ std::string load_source_path(const Container& container) {
     return {};
 }
 
+std::optional<std::uint16_t> condition_value(const Cpu& cpu,
+                                             std::string_view text) {
+    while (!text.empty() && text.front() == ' ') {
+        text.remove_prefix(1);
+    }
+    while (!text.empty() && text.back() == ' ') {
+        text.remove_suffix(1);
+    }
+    if (!text.empty() && text.front() == '$') {
+        text.remove_prefix(1);
+        if (text == "pc") {
+            return cpu.pc();
+        }
+        if (text == "sp") {
+            return cpu.sp();
+        }
+        if (text == "sr") {
+            return cpu.sr();
+        }
+        if (text.size() == 2 && (text[0] == 'r' || text[0] == 'R') &&
+            text[1] >= '0' && text[1] <= '4') {
+            return cpu.reg(static_cast<std::uint8_t>(text[1] - '0'));
+        }
+        return std::nullopt;
+    }
+    unsigned value = 0;
+    const auto* begin = text.data();
+    const auto* end = begin + text.size();
+    int base = 10;
+    if (text.size() > 2 && text[0] == '0' &&
+        (text[1] == 'x' || text[1] == 'X')) {
+        begin += 2;
+        base = 16;
+    }
+    const auto result = std::from_chars(begin, end, value, base);
+    if (result.ec != std::errc{} || result.ptr != end || value > 0xFFFF) {
+        return std::nullopt;
+    }
+    return static_cast<std::uint16_t>(value);
+}
+
+bool breakpoint_condition(const Cpu& cpu, std::string_view condition) {
+    std::size_t begin = 0;
+    while (begin < condition.size() && condition[begin] == ' ') {
+        ++begin;
+    }
+    std::size_t end = condition.size();
+    while (end > begin && condition[end - 1] == ' ') {
+        --end;
+    }
+    condition = condition.substr(begin, end - begin);
+    if (condition.empty()) {
+        return true;
+    }
+    std::size_t op = std::string::npos;
+    std::string operation;
+    for (std::size_t i = 0; i < condition.size(); ++i) {
+        if (i + 1 < condition.size() &&
+            (condition.substr(i, 2) == "==" ||
+             condition.substr(i, 2) == "!=" ||
+             condition.substr(i, 2) == "<=" ||
+             condition.substr(i, 2) == ">=")) {
+            op = i;
+            operation = std::string(condition.substr(i, 2));
+            break;
+        }
+        if (condition[i] == '<' || condition[i] == '>') {
+            op = i;
+            operation = std::string(1, condition[i]);
+            break;
+        }
+    }
+    if (op == std::string::npos) {
+        return false;
+    }
+    const auto lhs = condition_value(cpu, condition.substr(0, op));
+    const auto rhs = condition_value(cpu, condition.substr(op + operation.size()));
+    if (!lhs.has_value() || !rhs.has_value()) {
+        return false;
+    }
+    if (operation == "==") {
+        return *lhs == *rhs;
+    }
+    if (operation == "!=") {
+        return *lhs != *rhs;
+    }
+    if (operation == "<") {
+        return *lhs < *rhs;
+    }
+    if (operation == "<=") {
+        return *lhs <= *rhs;
+    }
+    if (operation == ">") {
+        return *lhs > *rhs;
+    }
+    return *lhs >= *rhs;
+}
 struct Breakpoint {
     int id = 0;
     std::uint16_t address = 0;
     int line = 0;
+    std::string condition;
 };
 
 enum class RunKind {
@@ -479,20 +577,26 @@ struct DapSession::Impl {
         if (iteration == breakpoints.end()) {
             return false;
         }
+        if (!breakpoint_condition(cpu, iteration->second.condition)) {
+            return false;
+        }
         result = iteration->second;
         return true;
     }
 
-    int add_breakpoint(std::uint16_t address, int line) {
+    int add_breakpoint(std::uint16_t address, int line,
+                       std::string condition = {}) {
         const auto existing = breakpoints.find(address);
         if (existing != breakpoints.end()) {
             existing->second.line = line;
+            existing->second.condition = std::move(condition);
             return existing->second.id;
         }
         Breakpoint breakpoint;
         breakpoint.id = next_breakpoint_id++;
         breakpoint.address = address;
         breakpoint.line = line;
+        breakpoint.condition = std::move(condition);
         breakpoints.emplace(address, breakpoint);
         return breakpoint.id;
     }
@@ -803,7 +907,7 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
     body.set("supportsEvaluateForHovers", JsonValue::boolean(true));
     body.set("supportsSingleThreadExecutionRequests",
              JsonValue::boolean(true));
-    body.set("supportsConditionalBreakpoints", JsonValue::boolean(false));
+    body.set("supportsConditionalBreakpoints", JsonValue::boolean(true));
     body.set("supportsHitConditionalBreakpoints", JsonValue::boolean(false));
     body.set("supportsFunctionBreakpoints", JsonValue::boolean(true));
     body.set("supportsStepBack", JsonValue::boolean(false));
@@ -956,11 +1060,12 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
     breakpoints.clear();
     JsonValue reported = JsonValue::array();
 
-    auto report_line_breakpoint = [&](int line) {
+    auto report_line_breakpoint = [&](int line, std::string condition) {
         JsonValue breakpoint_json = JsonValue::object();
         const auto address = address_for_line(line_rows, line);
         if (address.has_value()) {
-            const auto id = add_breakpoint(*address, line);
+            const auto id = add_breakpoint(*address, line,
+                                          std::move(condition));
             breakpoint_json.set("id", JsonValue::integer(id));
             breakpoint_json.set("verified", JsonValue::boolean(true));
             breakpoint_json.set("line", JsonValue::integer(line));
@@ -990,13 +1095,15 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
             if (line > 0 && line <= 0xFFFF) {
                 line_number = static_cast<int>(line);
             }
+            const std::string condition = string_or(&item, "condition", {});
             const auto address = parse_address(item.find("address"));
             if (address.has_value()) {
                 const auto id = add_breakpoint(
                     *address,
                     line_number > 0
                         ? line_number
-                        : line_for_address(line_rows, *address));
+                        : line_for_address(line_rows, *address),
+                    condition);
                 JsonValue breakpoint_json = JsonValue::object();
                 breakpoint_json.set("id", JsonValue::integer(id));
                 breakpoint_json.set("verified", JsonValue::boolean(true));
@@ -1007,7 +1114,7 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
                                                        line_rows, *address)));
                 reported.push(std::move(breakpoint_json));
             } else if (line_number > 0) {
-                report_line_breakpoint(line_number);
+                report_line_breakpoint(line_number, condition);
             } else {
                 JsonValue breakpoint_json = JsonValue::object();
                 breakpoint_json.set("verified", JsonValue::boolean(false));
@@ -1026,7 +1133,7 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
                 }
                 const auto value = line.as_integer();
                 if (value > 0 && value <= 0xFFFF) {
-                    report_line_breakpoint(static_cast<int>(value));
+                    report_line_breakpoint(static_cast<int>(value), {});
                 }
             }
         }
@@ -1690,6 +1797,10 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
+
+
+
 
 
 

@@ -2611,3 +2611,15 @@ Entry format:
 - Updated the final plan and VS Code README capability tables.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Next: conditional breakpoints and setVariable.
+
+### 2026-11-14 09:52:53 -08:00 — DAP conditional breakpoints
+
+- Added simple conditional breakpoints: `$r0`–`$r4`, `$pc`, `$sp`, and `$sr`
+  compared with `==`, `!=`, `<`, `<=`, `>`, or `>=` against decimal or `0x`
+  literals.
+- Breakpoint conditions are stored with line/address breakpoints and checked
+  before reporting a hit; `supportsConditionalBreakpoints` is now true.
+- Added a DAP test that sets an entry breakpoint with `$pc == 0x0100` and
+  verifies it stops with reason `breakpoint`.
+- Tests: Windows 51/51 CTest; Linux 51/51 after one flaky DAP-smoke rerun.
+- Next: `setVariable`, delayed stack traces, or the remaining compiler spills.
