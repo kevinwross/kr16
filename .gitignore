@@ -27,6 +27,8 @@ tests/kevin/*.kex
 
 # Generated example and resource artifacts
 /examples/*.s
+!/examples/sum_loop.s
+!/examples/putchar.s
 /examples/*.o
 /examples/*.kex
 /resources/*.o
@@ -38,4 +40,5 @@ tests/kevin/C-for-U.s
 # Generated benchmark intermediates
 tests/benchmarks/*.s
 tests/benchmarks/*.o
+
 
