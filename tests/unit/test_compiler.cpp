@@ -880,6 +880,7 @@ TEST_CASE("pointer conditions branch directly without boolean materialization") 
         "b[0] = 65; b[1] = 66; b[2] = 0; "
         "return same(a, b); }\n";
     const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("LD R3, [R4-") != std::string::npos);
     CHECK(assembly.find("CMP R0, #0") != std::string::npos);
     CHECK(assembly.find("CMP R0, R1") != std::string::npos);
     CHECK(run_c(source) == 1);

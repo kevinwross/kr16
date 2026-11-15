@@ -2960,3 +2960,13 @@ Entry format:
 - Parameter caching is disabled for debug builds.
 - Added a pattern/differential test asserting the store is absent.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 03:41:12 -08:00 — Return-aware pointer loop cache
+
+- The while-pointer cache now permits returns inside the loop: before returning,
+  the cached pointer is written back to its frame slot.
+- This lets `same(char *a, char *b)` keep `a` in R3 across the loop and its
+  early mismatch return, while `b` stays frame-backed.
+- Added an assertion that the `same` function contains an R3 cache load; the
+  differential check still returns 1 for matching strings.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

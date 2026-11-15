@@ -4540,12 +4540,17 @@ private:
     }
 
     bool stmt_cache_unsafe(const Stmt* stmt, const std::string& name,
-                           bool allow_writes = false) const {
+                           bool allow_writes = false,
+                           bool allow_returns = false) const {
         if (stmt == nullptr) {
             return false;
         }
         switch (stmt->kind) {
             case Stmt::Kind::Return:
+                if (!allow_returns) {
+                    return true;
+                }
+                break;
             case Stmt::Kind::Goto:
             case Stmt::Kind::Label:
             case Stmt::Kind::Switch:
@@ -4566,13 +4571,13 @@ private:
             return true;
         }
         for (const auto& child : stmt->statements) {
-            if (stmt_cache_unsafe(child.get(), name, allow_writes)) {
+            if (stmt_cache_unsafe(child.get(), name, allow_writes, allow_returns)) {
                 return true;
             }
         }
-        if (stmt_cache_unsafe(stmt->body.get(), name, allow_writes) ||
-            stmt_cache_unsafe(stmt->else_body.get(), name, allow_writes) ||
-            stmt_cache_unsafe(stmt->init.get(), name, allow_writes)) {
+        if (stmt_cache_unsafe(stmt->body.get(), name, allow_writes, allow_returns) ||
+            stmt_cache_unsafe(stmt->else_body.get(), name, allow_writes, allow_returns) ||
+            stmt_cache_unsafe(stmt->init.get(), name, allow_writes, allow_returns)) {
             return true;
         }
         for (const auto& declaration : stmt->declarations) {
@@ -4649,7 +4654,7 @@ private:
             local->second.type->kind != TypeKind::Pointer ||
             expr_has_call(stmt->expr.get()) ||
             expr_takes_address_of(stmt->expr.get(), name) ||
-            stmt_cache_unsafe(stmt->body.get(), name, true)) {
+            stmt_cache_unsafe(stmt->body.get(), name, true, true)) {
             return false;
         }
         const auto start = new_label("while");
@@ -4718,6 +4723,11 @@ private:
                 return;
             }
             case Stmt::Kind::Return:
+                if (cached_loop_local_) {
+                    out << (cached_loop_character_ ? "  STB [R4-"
+                                                  : "  ST [R4-")
+                        << cached_loop_offset_ << "], R3\n";
+                }
                 if (current_return_symbol_.empty()) {
                     if (stmt->expr && optimize_ &&
                         stmt->expr->kind == Expr::Kind::Binary &&
@@ -6616,6 +6626,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 
