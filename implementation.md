@@ -3233,3 +3233,10 @@ Entry format:
 - This lets cached parameters in the middle of the frame remove their slots and
   shift later locals down.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:38:02 -08:00 — Frame compaction test
+
+- Added a test with a cached middle parameter and later locals to verify slot
+  removal and offset shifts: `SUB SP, #6`, no store to the removed `x` slot,
+  and `z` shifted into `[R4-4]`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

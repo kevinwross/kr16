@@ -1276,3 +1276,15 @@ TEST_CASE("call-heavy cache shapes use fewer cycles at O1") {
     CHECK(optimized.cycles < plain.cycles);
     CHECK(optimized.instructions < plain.instructions);
 }
+
+TEST_CASE("cached parameter frame compaction shifts later locals") {
+    const std::string source =
+        "int f(char *p, int x, int z) { int y = z + 1; "
+        "return x + y + z; }\n"
+        "int main(void) { char b[1]; return f(b, 4, 5); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("SUB SP, #6") != std::string::npos);
+    CHECK(assembly.find("ST [R4-4], R2") == std::string::npos);
+    CHECK(assembly.find("ST [R4-4], R3") != std::string::npos);
+    CHECK(run_c(source) == 15);
+}
