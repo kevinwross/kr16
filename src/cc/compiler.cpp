@@ -2038,7 +2038,8 @@ std::string apply_adjacent_peepholes(const std::string& text) {
     return result.str();
 }
 std::optional<std::string> cache_readonly_local_loads(
-    const std::string& text, int offset, bool character) {
+    const std::string& text, int offset, bool character,
+    const std::string& cache_register = "R3") {
     std::istringstream input(text);
     std::vector<std::string> lines;
     std::string line;
@@ -2050,6 +2051,7 @@ std::optional<std::string> cache_readonly_local_loads(
     const std::string store =
         std::string(character ? "STB [R4-" : "ST [R4-") +
         std::to_string(offset) + "]";
+    const char cache_digit = cache_register[1];
     bool activated = false;
     bool replaced = false;
     std::vector<std::string> output;
@@ -2058,7 +2060,8 @@ std::optional<std::string> cache_readonly_local_loads(
         if (!activated && trimmed.rfind(store, 0) == 0) {
             output.push_back(entry);
             output.push_back(std::string("  ") +
-                             (character ? "LDB R3, [R4-" : "LD R3, [R4-") +
+                             (character ? "LDB " : "LD ") +
+                             cache_register + ", [R4-" +
                              std::to_string(offset) + "]");
             activated = true;
             continue;
@@ -2071,10 +2074,12 @@ std::optional<std::string> cache_readonly_local_loads(
         if (activated && trimmed.rfind("CALL ", 0) == 0) {
             output.push_back(std::string("  ") +
                              (character ? "STB [R4-" : "ST [R4-") +
-                             std::to_string(offset) + "], R3");
+                             std::to_string(offset) + "], " +
+                             cache_register);
             output.push_back(entry);
             output.push_back(std::string("  ") +
-                             (character ? "LDB R3, [R4-" : "LD R3, [R4-") +
+                             (character ? "LDB " : "LD ") +
+                             cache_register + ", [R4-" +
                              std::to_string(offset) + "]");
             continue;
         }
@@ -2085,8 +2090,9 @@ std::optional<std::string> cache_readonly_local_loads(
                 trimmed[reg_position + 1] >= '0' &&
                 trimmed[reg_position + 1] <= '3') {
                 const char source = trimmed[reg_position + 1];
-                if (source != '3') {
-                    output.push_back(std::string("  MOV R3, R") + source);
+                if (source != cache_digit) {
+                    output.push_back(std::string("  MOV ") +
+                                     cache_register + ", R" + source);
                 }
                 replaced = true;
                 continue;
@@ -2103,8 +2109,10 @@ std::optional<std::string> cache_readonly_local_loads(
                     trimmed[reg_position + 1] >= '0' &&
                     trimmed[reg_position + 1] <= '2') {
                     const char target = trimmed[reg_position + 1];
-                    output.push_back(std::string("  MOV R") + target +
-                                     ", R3");
+                    if (target != cache_digit) {
+                        output.push_back(std::string("  MOV R") + target +
+                                         ", " + cache_register);
+                    }
                     replaced = true;
                     continue;
                 }
@@ -4641,14 +4649,79 @@ private:
                     cached_local_character = variable.type->is_char();
                 }
             }
+            std::string cached_local2;
+            int cached_local2_offset = 0;
+            bool cached_local2_character = false;
+            if (!cached_local.empty() &&
+                stmt_calls_fit_argument_registers(function.body.get(), 1)) {
+                for (const auto& [name, variable] : locals_) {
+                    if (name == cached_local) {
+                        continue;
+                    }
+                    bool is_parameter = false;
+                    for (const auto& parameter : function.parameters) {
+                        if (parameter.name == name) {
+                            is_parameter = true;
+                            break;
+                        }
+                    }
+                    if (is_parameter || variable.indirect ||
+                        variable.global || !variable.symbol.empty() ||
+                        !variable.type ||
+                        (variable.type->kind != TypeKind::Int &&
+                         variable.type->kind != TypeKind::Char &&
+                         variable.type->kind != TypeKind::Pointer) ||
+                        !stmt_mentions_name(function.body.get(), name) ||
+                        !parameter_cache_safe(function.body.get(), name,
+                                               true, true, true)) {
+                        continue;
+                    }
+                    if (cached_local2.empty() ||
+                        variable.offset < cached_local2_offset) {
+                        cached_local2 = name;
+                        cached_local2_offset = variable.offset;
+                        cached_local2_character = variable.type->is_char();
+                    }
+                }
+            }
             if (!cached_local.empty()) {
                 std::ostringstream trial;
                 gen_stmt(function.body.get(), trial);
-                const auto transformed = cache_readonly_local_loads(
-                    trial.str(), cached_local_offset,
+                std::string transformed_text = trial.str();
+                bool transformed_ok = false;
+                const auto first = cache_readonly_local_loads(
+                    transformed_text, cached_local_offset,
                     cached_local_character);
-                if (transformed && !assembly_clobbers_r3(*transformed)) {
-                    out << *transformed;
+                if (first) {
+                    transformed_text = *first;
+                    transformed_ok = true;
+                }
+                bool second_ok = false;
+                if (transformed_ok && !cached_local2.empty()) {
+                    const auto second = cache_readonly_local_loads(
+                        transformed_text, cached_local2_offset,
+                        cached_local2_character, "R2");
+                    if (second) {
+                        transformed_text = *second;
+                        second_ok = true;
+                    }
+                }
+                bool clobbered = false;
+                if (transformed_ok) {
+                    clobbered = assembly_clobbers_r3(transformed_text);
+                    if (second_ok) {
+                        std::string r2_text = transformed_text;
+                        for (std::size_t pos = r2_text.find("R2");
+                             pos != std::string::npos;
+                             pos = r2_text.find("R2", pos + 2)) {
+                            r2_text.replace(pos, 2, "R3");
+                        }
+                        clobbered =
+                            clobbered || assembly_clobbers_r3(r2_text);
+                    }
+                }
+                if (transformed_ok && !clobbered) {
+                    out << transformed_text;
                 } else {
                     out << trial.str();
                 }
@@ -7030,6 +7103,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

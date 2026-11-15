@@ -3072,3 +3072,15 @@ Entry format:
 - Updated the local-cache documentation and test expectation for the cached
   call argument (`MOV R2, R3`).
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 07:12:52 -08:00 — Two live locals in R3/R2
+
+- The local cache now holds up to two locals: the lowest frame offset goes to
+  R3, the next to R2.
+- Both locals get load/store redirection and per-call spill/reload. Two-local
+  caching requires every call to use at most one argument so R2 is not consumed
+  as an argument.
+- The second transform is applied only if the first succeeded; the combined
+  body is rejected if either register is unexpectedly clobbered.
+- Added a differential/pattern test where `x` and `y` both stay live.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

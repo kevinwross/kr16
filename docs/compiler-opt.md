@@ -251,10 +251,11 @@ Test plan:
   address-taking. Call-free functions skip its frame store and remove its
   top slot; call-bearing functions keep the slot and spill/reload R3 around
   each call. The body is rejected if it clobbers R3.
-- [x] A local with an initializer caches its loads in R3 and redirects its
-  stores to R3 across straight-line code, `if`, and `switch`; calls spill and
-  reload R3 when every call uses at most two arguments, and the body is
-  rejected if it clobbers R3 or takes the local address.
+- [x] One or two locals with initializers cache their loads in R3 (and R2 for
+  the second), redirect stores to those registers across straight-line code,
+  `if`, and `switch`, and spill/reload around calls using at most two
+  arguments. Two-local caching requires one-argument calls so R2 stays free.
+  The body is rejected if it clobbers a cache register or takes an address.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
 - [x] Indexed address generation loads a simple base directly into `R1`,
@@ -368,6 +369,7 @@ so they are intentionally left in place rather than special-cased.
 
 The push/pop shuffles that were not real stack arguments have been removed;
 only the ABI-required argument slots remain.
+
 
 
 

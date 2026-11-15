@@ -1070,3 +1070,14 @@ TEST_CASE("cached locals spill and reload around calls") {
 
 
 
+
+TEST_CASE("two live locals use R3 and R2") {
+    const std::string source =
+        "int f(char *p) { int x = 1; int y = 2; x = x + 1; "
+        "y = y + x; return x + y; }\n"
+        "int main(void) { char b[1]; return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("LD R2, [R4-6]") != std::string::npos);
+    CHECK(run_c(source) == 6);
+}
