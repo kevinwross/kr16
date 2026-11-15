@@ -4153,6 +4153,55 @@ private:
         out << "  RET\n";
     }
 
+    bool stmt_mentions_name(const Stmt* stmt, const std::string& name) const {
+        if (stmt == nullptr) {
+            return false;
+        }
+        if (expr_mentions_name(stmt->expr.get(), name) ||
+            expr_mentions_name(stmt->expr2.get(), name)) {
+            return true;
+        }
+        for (const auto& child : stmt->statements) {
+            if (stmt_mentions_name(child.get(), name)) {
+                return true;
+            }
+        }
+        return stmt_mentions_name(stmt->body.get(), name) ||
+               stmt_mentions_name(stmt->else_body.get(), name) ||
+               stmt_mentions_name(stmt->init.get(), name);
+    }
+    bool parameter_cache_safe(const Stmt* stmt, const std::string& name) const {
+        if (stmt == nullptr) {
+            return true;
+        }
+        switch (stmt->kind) {
+            case Stmt::Kind::While:
+            case Stmt::Kind::DoWhile:
+            case Stmt::Kind::For:
+            case Stmt::Kind::Label:
+            case Stmt::Kind::Goto:
+            case Stmt::Kind::Switch:
+                return false;
+            default:
+                break;
+        }
+        if (expr_has_call(stmt->expr.get()) ||
+            expr_has_call(stmt->expr2.get()) ||
+            expr_takes_address_of(stmt->expr.get(), name) ||
+            expr_takes_address_of(stmt->expr2.get(), name) ||
+            expr_writes_name(stmt->expr.get(), name) ||
+            expr_writes_name(stmt->expr2.get(), name)) {
+            return false;
+        }
+        for (const auto& child : stmt->statements) {
+            if (!parameter_cache_safe(child.get(), name)) {
+                return false;
+            }
+        }
+        return parameter_cache_safe(stmt->body.get(), name) &&
+               parameter_cache_safe(stmt->else_body.get(), name) &&
+               parameter_cache_safe(stmt->init.get(), name);
+    }
     void compile_function(Function& function, std::ostringstream& out) {
         locals_.clear();
         frame_size_ = 0;
@@ -4289,7 +4338,55 @@ private:
                     << "[R4-" << it->second.offset << "], R0\n";
             }
         }
-        gen_stmt(function.body.get(), out);
+        std::string cached_parameter;
+        int cached_parameter_register = 0;
+        if (!function.variadic) {
+            for (std::size_t i = 0;
+                 i < function.parameters.size() && i < 3; ++i) {
+                const auto& parameter = function.parameters[i];
+                const auto local = locals_.find(parameter.name);
+                if (local == locals_.end() || local->second.indirect ||
+                    local->second.global || !local->second.symbol.empty() ||
+                    !local->second.type ||
+                    (local->second.type->kind != TypeKind::Int &&
+                     local->second.type->kind != TypeKind::Char &&
+                     local->second.type->kind != TypeKind::Pointer) ||
+                    !stmt_mentions_name(function.body.get(),
+                                        parameter.name) ||
+                    !parameter_cache_safe(function.body.get(),
+                                           parameter.name)) {
+                    continue;
+                }
+                cached_parameter = parameter.name;
+                cached_parameter_register = static_cast<int>(i) + 1;
+                break;
+            }
+        }
+        if (!cached_parameter.empty()) {
+            cached_loop_local_ = true;
+            cached_loop_name_ = cached_parameter;
+            cached_loop_offset_ = locals_[cached_parameter].offset;
+            cached_loop_character_ =
+                locals_[cached_parameter].type->is_char();
+            std::ostringstream trial;
+            trial << "  MOV R3, R" << cached_parameter_register << "\n";
+            gen_stmt(function.body.get(), trial);
+            cached_loop_local_ = false;
+            cached_loop_name_.clear();
+            const std::string trial_text = trial.str();
+            const auto newline = trial_text.find('\n');
+            const std::string trial_body =
+                newline == std::string::npos
+                    ? std::string()
+                    : trial_text.substr(newline + 1);
+            if (!assembly_clobbers_r3(trial_body)) {
+                out << trial_text;
+            } else {
+                gen_stmt(function.body.get(), out);
+            }
+        } else {
+            gen_stmt(function.body.get(), out);
+        }
         out << "  MOV R0, #0\n";
         out << return_label_ << ":\n";
         out << "  MOV SP, R4\n";
@@ -6516,6 +6613,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 

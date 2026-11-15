@@ -920,7 +920,7 @@ TEST_CASE("indexed base loads directly into R1") {
     REQUIRE(start != std::string::npos);
     REQUIRE(end != std::string::npos);
     const auto body = assembly.substr(start, end - start);
-    CHECK(body.find("LD R1, [R4-2]") != std::string::npos);
+    CHECK(body.find("MOV R1, R3") != std::string::npos);
     CHECK(body.find("MOV R1, R0") == std::string::npos);
     CHECK(run_c(source) == 0);
 }
@@ -977,5 +977,18 @@ TEST_CASE("single-update while pointer loop caches R3") {
     CHECK(assembly.find("MOV R3, R0") != std::string::npos);
     CHECK(run_c(source) == 0);
 }
+
+
+
+TEST_CASE("read-only parameters are cached in R3") {
+    const std::string source =
+        "int f(char *p, int x) { return x + 1; }\n"
+        "int main(void) { char b[1]; return f(b, 4); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("MOV R3, R2") != std::string::npos);
+    CHECK(assembly.find("LD R0, [R4-4]") == std::string::npos);
+    CHECK(run_c(source) == 5);
+}
+
 
 

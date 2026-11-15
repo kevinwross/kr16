@@ -2939,3 +2939,14 @@ Entry format:
   cycles, 9,386 -> 9,238 text bytes from `-O0` to `-O1`.
 - Added the commands and table to `tests/benchmarks/README.md`.
 - No compiler behavior changed in this step.
+
+### 2026-11-15 03:29:36 -08:00 — Read-only parameter cache
+
+- Added a fallback-backend parameter cache: the first used, read-only scalar or
+  pointer parameter is copied to R3 and read from there for the function body.
+- Cached only for functions with no calls, loops, address-taking, or writes to
+  that parameter.
+- The body is generated into a temporary stream; if it writes R3 unexpectedly,
+  the cache is discarded and the body is generated normally.
+- Added a differential/pattern test for a read-only `int` parameter.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
