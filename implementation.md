@@ -3191,3 +3191,12 @@ Entry format:
   declaration order.
 - Existing pointer/local/call tests remain green.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:21:07 -08:00 — Live-span local ranking
+
+- Added linear live-span analysis over the fallback AST: the first and last
+  identifier positions determine each local's span.
+- Local cache selection now ranks by span, then use count, then frame offset.
+- This is a broader allocation heuristic than declaration order, though it is
+  still an AST linear approximation rather than CFG liveness.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

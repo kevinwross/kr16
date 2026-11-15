@@ -4627,6 +4627,7 @@ private:
             std::string cached_local;
             int cached_local_offset = 0;
             int cached_local_uses = -1;
+            int cached_local_span = -1;
             bool cached_local_character = false;
             for (const auto& [name, variable] : locals_) {
                 bool is_parameter = false;
@@ -4649,18 +4650,28 @@ private:
                 }
                 const int uses =
                     stmt_name_uses(function.body.get(), name);
-                if (cached_local.empty() || uses > cached_local_uses ||
-                    (uses == cached_local_uses &&
-                     variable.offset < cached_local_offset)) {
+                int position = 0;
+                int first = -1;
+                int last = -1;
+                stmt_name_positions(function.body.get(), name, position,
+                                    first, last);
+                const int span = first >= 0 ? last - first : 0;
+                if (cached_local.empty() || span > cached_local_span ||
+                    (span == cached_local_span &&
+                     (uses > cached_local_uses ||
+                      (uses == cached_local_uses &&
+                       variable.offset < cached_local_offset)))) {
                     cached_local = name;
                     cached_local_offset = variable.offset;
                     cached_local_uses = uses;
+                    cached_local_span = span;
                     cached_local_character = variable.type->is_char();
                 }
             }
             std::string cached_local2;
             int cached_local2_offset = 0;
             int cached_local2_uses = -1;
+            int cached_local2_span = -1;
             bool cached_local2_character = false;
             if (!cached_local.empty() &&
                 stmt_calls_fit_argument_registers(function.body.get(), 1)) {
@@ -4688,12 +4699,22 @@ private:
                     }
                     const int uses =
                         stmt_name_uses(function.body.get(), name);
-                    if (cached_local2.empty() || uses > cached_local2_uses ||
-                        (uses == cached_local2_uses &&
-                         variable.offset < cached_local2_offset)) {
+                    int position = 0;
+                    int first = -1;
+                    int last = -1;
+                    stmt_name_positions(function.body.get(), name, position,
+                                        first, last);
+                    const int span = first >= 0 ? last - first : 0;
+                    if (cached_local2.empty() ||
+                        span > cached_local2_span ||
+                        (span == cached_local2_span &&
+                         (uses > cached_local2_uses ||
+                          (uses == cached_local2_uses &&
+                           variable.offset < cached_local2_offset)))) {
                         cached_local2 = name;
                         cached_local2_offset = variable.offset;
                         cached_local2_uses = uses;
+                        cached_local2_span = span;
                         cached_local2_character = variable.type->is_char();
                     }
                 }
@@ -4972,6 +4993,44 @@ private:
         return uses;
     }
 
+    void expr_name_positions(const Expr* expr, const std::string& name,
+                             int& position, int& first, int& last) const {
+        if (expr == nullptr) {
+            return;
+        }
+        if (expr->kind == Expr::Kind::Identifier && expr->text == name) {
+            if (first < 0) {
+                first = position;
+            }
+            last = position;
+        }
+        ++position;
+        for (const auto& child : expr->children) {
+            expr_name_positions(child.get(), name, position, first, last);
+        }
+    }
+
+    void stmt_name_positions(const Stmt* stmt, const std::string& name,
+                             int& position, int& first, int& last) const {
+        if (stmt == nullptr) {
+            return;
+        }
+        expr_name_positions(stmt->expr.get(), name, position, first, last);
+        expr_name_positions(stmt->expr2.get(), name, position, first, last);
+        for (const auto& child : stmt->statements) {
+            stmt_name_positions(child.get(), name, position, first, last);
+        }
+        for (const auto& case_stmt : stmt->cases) {
+            stmt_name_positions(case_stmt.get(), name, position, first, last);
+        }
+        for (const auto& declaration : stmt->declarations) {
+            expr_name_positions(declaration.init.get(), name, position,
+                                first, last);
+        }
+        stmt_name_positions(stmt->body.get(), name, position, first, last);
+        stmt_name_positions(stmt->else_body.get(), name, position, first, last);
+        stmt_name_positions(stmt->init.get(), name, position, first, last);
+    }
     int stmt_name_uses(const Stmt* stmt, const std::string& name) const {
         if (stmt == nullptr) {
             return 0;
@@ -7200,6 +7259,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 
