@@ -3216,6 +3216,64 @@ private:
         return changed;
     }
 
+    bool ir_copy_propagate() {
+        bool changed = false;
+        for (auto& block : ir_blocks_) {
+            std::unordered_map<int, int> alias;
+            const auto resolve = [&](int value) {
+                int current = value;
+                for (int depth = 0; depth < 32; ++depth) {
+                    const auto it = alias.find(current);
+                    if (it == alias.end() || it->second == current) {
+                        break;
+                    }
+                    current = it->second;
+                }
+                return current;
+            };
+            for (std::size_t i = 0; i < block.insts.size();) {
+                auto& inst = block.insts[i];
+                if (inst.lhs >= 0) {
+                    inst.lhs = resolve(inst.lhs);
+                }
+                if (inst.rhs >= 0 && !inst.immediate) {
+                    inst.rhs = resolve(inst.rhs);
+                }
+                const bool defines =
+                    inst.op == IrOp::Const || inst.op == IrOp::Move ||
+                    inst.op == IrOp::Binary || inst.op == IrOp::Unary ||
+                    inst.op == IrOp::Char || inst.op == IrOp::Assign ||
+                    inst.op == IrOp::Param;
+                if (defines && inst.dst >= 0) {
+                    for (auto it = alias.begin(); it != alias.end();) {
+                        if (it->first == inst.dst ||
+                            it->second == inst.dst) {
+                            it = alias.erase(it);
+                        } else {
+                            ++it;
+                        }
+                    }
+                }
+                const bool copy = inst.op == IrOp::Move ||
+                                  inst.op == IrOp::Assign;
+                if (copy && inst.dst >= 0 && inst.lhs >= 0 &&
+                    inst.dst != inst.lhs &&
+                    !ir_values_[static_cast<std::size_t>(inst.dst)]
+                         .character) {
+                    const int source = resolve(inst.lhs);
+                    alias[inst.dst] = source;
+                    if (block.live_out.count(inst.dst) == 0) {
+                        block.insts.erase(block.insts.begin() +
+                                          static_cast<std::ptrdiff_t>(i));
+                        changed = true;
+                        continue;
+                    }
+                }
+                ++i;
+            }
+        }
+        return changed;
+    }
     bool ir_color(int colors = 5, bool allow_spill = false) {
         const int count = static_cast<int>(ir_values_.size());
         for (auto& value : ir_values_) {
@@ -3522,6 +3580,10 @@ private:
         ir_compute_liveness();
         if (ir_dead_store_elimination()) {
             ir_dead_code_elimination();
+            ir_successors();
+            ir_compute_liveness();
+        }
+        if (ir_copy_propagate()) {
             ir_successors();
             ir_compute_liveness();
         }
@@ -5497,6 +5559,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 

@@ -184,12 +184,14 @@ the M1/M2 emitter, so behavior is always preserved.
 - [x] Handle pressure above five registers with IR spill slots; unsupported
   functions still fall back to M2.
 - [x] Run the existing test suite and differential tests against `-O0`.
-- [x] Coalesce assignment copies; broader copy propagation is future work.
+- [x] Basic-block copy propagation replaces aliases until either value is
+  redefined, and removes non-live alias assignments.
 
 Test plan:
 
 - [x] IR tests for arithmetic, assignment, branches, loops, `break`, and
   `continue`.
+- [x] Copy-propagation pattern test removes an alias chain.
 - [x] Liveness/interference validation through deterministic execution tests.
 - [x] Every compiler test passes with the new backend; targeted `-O0`/`-O1`
   differential tests also pass.
@@ -284,6 +286,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

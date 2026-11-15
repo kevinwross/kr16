@@ -824,3 +824,18 @@ TEST_CASE("loops keep pressure values correct across spill stores") {
         "int main(void) { return f(3); }\n";
     CHECK(run_c(source) == 63);
 }
+
+TEST_CASE("basic-block copy propagation removes alias chains") {
+    const std::string source =
+        "int f(int x) { int a = x; int b = a; int c = b; return c; }\n"
+        "int main(void) { return f(3); }\n";
+    const auto assembly = compile_text(source, true);
+    const auto start = assembly.find(".global f");
+    const auto end = assembly.find(".global main");
+    REQUIRE(start != std::string::npos);
+    REQUIRE(end != std::string::npos);
+    const auto body = assembly.substr(start, end - start);
+    CHECK(body.find("MOV R0, R1") != std::string::npos);
+    CHECK(body.find("MOV R1, R0") == std::string::npos);
+    CHECK(run_c(source) == 3);
+}

@@ -2738,3 +2738,16 @@ Entry format:
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Commits `6ee82b4` and `0a79b35` are on `origin/main`; this follow-up is
   ready to commit.
+
+### 2026-11-14 19:16:12 -08:00 — Basic-block copy propagation
+
+- Added `ir_copy_propagate`: aliases `Move`/`Assign` destinations within a basic
+  block, rewrites later uses, kills aliases when either value is redefined, and
+  removes alias assignments whose destination is not live out.
+- Runs after dead-store elimination and before coloring; refreshes liveness when
+  it changes the IR.
+- Added a pattern test: `a = x; b = a; c = b; return c` now emits the alias
+  chain as one `MOV R0, R1`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Benchmark remains 1,237 instructions / 2,033 cycles at `-O1`.
+- Next: induction-variable strength reduction.
