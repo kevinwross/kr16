@@ -247,9 +247,10 @@ Test plan:
 - [x] `while` loops with pointer updates cache up to two pointers in R3/R2;
   returns write them back, and a loop followed immediately by a call-free
   return keeps the cache live so the post-loop return does not reload.
-- [x] A read-only parameter is cached in R3 for functions without calls,
-  loops, or address-taking; its frame store is skipped, its top-of-frame slot
-  is removed, and the body is rejected if it clobbers R3.
+- [x] A read-only parameter is cached in R3 for functions without loops or
+  address-taking. Call-free functions skip its frame store and remove its
+  top slot; call-bearing functions keep the slot and spill/reload R3 around
+  each call. The body is rejected if it clobbers R3.
 - [x] A local with an initializer caches its loads in R3 and redirects its
   stores to R3 across straight-line code, `if`, and `switch`; the generated
   body is rejected if it clobbers R3 or takes the local address.
@@ -366,4 +367,5 @@ so they are intentionally left in place rather than special-cased.
 
 The push/pop shuffles that were not real stack arguments have been removed;
 only the ABI-required argument slots remain.
+
 

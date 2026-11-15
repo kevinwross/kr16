@@ -1044,3 +1044,14 @@ TEST_CASE("updated locals stay cached across switch") {
     CHECK(assembly.find("MOV R3, R0") != std::string::npos);
     CHECK(run_c(source) == 3);
 }
+
+TEST_CASE("cached parameters spill and reload around calls") {
+    const std::string source =
+        "int inc(int n) { return n + 1; }\n"
+        "int f(char *p, int x) { int y = inc(x); return x + y; }\n"
+        "int main(void) { char b[1]; return f(b, 4); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("ST [R4-4], R3") != std::string::npos);
+    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(run_c(source) == 9);
+}

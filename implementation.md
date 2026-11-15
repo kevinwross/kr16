@@ -3039,3 +3039,14 @@ Entry format:
 - Documented the remaining fourth-argument `PUSH R0` instructions as
   ABI-required in `docs/compiler-opt.md`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 04:47:47 -08:00 — Call-aware parameter cache
+
+- Read-only parameter caching now permits calls when every call uses at most
+  three arguments.
+- The parameter keeps a frame slot; each `CALL` is surrounded by a spill
+  (`ST [R4-slot], R3`) and reload (`LD R3, [R4-slot]`).
+- Added call detection for declaration initializers and switch cases, plus a
+  call-arity check so `R3` is not used for a fourth argument before the spill.
+- Added a test where `x` stays cached across `inc(x)` and the result is 9.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

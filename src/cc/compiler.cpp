@@ -2111,6 +2111,29 @@ std::optional<std::string> cache_readonly_local_loads(
     }
     return result.str();
 }
+std::string spill_cached_value_around_calls(const std::string& text,
+                                             int offset, bool character) {
+    std::istringstream input(text);
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(input, line)) {
+        lines.push_back(line);
+    }
+    std::ostringstream result;
+    for (const auto& entry : lines) {
+        const std::string trimmed = trim_copy(entry);
+        if (trimmed.rfind("CALL ", 0) == 0) {
+            result << (character ? "  STB [R4-" : "  ST [R4-") << offset
+                   << "], R3\n";
+            result << entry << '\n';
+            result << (character ? "  LDB R3, [R4-" : "  LD R3, [R4-")
+                   << offset << "]\n";
+        } else {
+            result << entry << '\n';
+        }
+    }
+    return result.str();
+}
 bool assembly_clobbers_r3(const std::string& text) {
     std::istringstream input(text);
     std::string line;
@@ -4244,9 +4267,80 @@ private:
                stmt_mentions_name(stmt->else_body.get(), name) ||
                stmt_mentions_name(stmt->init.get(), name);
     }
+    bool stmt_has_call(const Stmt* stmt) const {
+        if (stmt == nullptr) {
+            return false;
+        }
+        if (expr_has_call(stmt->expr.get()) ||
+            expr_has_call(stmt->expr2.get())) {
+            return true;
+        }
+        for (const auto& child : stmt->statements) {
+            if (stmt_has_call(child.get())) {
+                return true;
+            }
+        }
+        for (const auto& case_stmt : stmt->cases) {
+            if (stmt_has_call(case_stmt.get())) {
+                return true;
+            }
+        }
+        for (const auto& declaration : stmt->declarations) {
+            if (expr_has_call(declaration.init.get())) {
+                return true;
+            }
+        }
+        return stmt_has_call(stmt->body.get()) ||
+               stmt_has_call(stmt->else_body.get()) ||
+               stmt_has_call(stmt->init.get());
+    }
+
+    bool calls_fit_argument_registers(const Expr* expr) const {
+        if (expr == nullptr) {
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Call && expr->children.size() > 3) {
+            return false;
+        }
+        for (const auto& child : expr->children) {
+            if (!calls_fit_argument_registers(child.get())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool stmt_calls_fit_argument_registers(const Stmt* stmt) const {
+        if (stmt == nullptr) {
+            return true;
+        }
+        if (!calls_fit_argument_registers(stmt->expr.get()) ||
+            !calls_fit_argument_registers(stmt->expr2.get())) {
+            return false;
+        }
+        for (const auto& child : stmt->statements) {
+            if (!stmt_calls_fit_argument_registers(child.get())) {
+                return false;
+            }
+        }
+        for (const auto& case_stmt : stmt->cases) {
+            if (!stmt_calls_fit_argument_registers(case_stmt.get())) {
+                return false;
+            }
+        }
+        for (const auto& declaration : stmt->declarations) {
+            if (!calls_fit_argument_registers(declaration.init.get())) {
+                return false;
+            }
+        }
+        return stmt_calls_fit_argument_registers(stmt->body.get()) &&
+               stmt_calls_fit_argument_registers(stmt->else_body.get()) &&
+               stmt_calls_fit_argument_registers(stmt->init.get());
+    }
     bool parameter_cache_safe(const Stmt* stmt, const std::string& name,
                               bool allow_writes = false,
-                              bool allow_switch = false) const {
+                              bool allow_switch = false,
+                              bool allow_calls = false) const {
         if (stmt == nullptr) {
             return true;
         }
@@ -4265,8 +4359,9 @@ private:
             default:
                 break;
         }
-        if (expr_has_call(stmt->expr.get()) ||
-            expr_has_call(stmt->expr2.get()) ||
+        if ((!allow_calls &&
+             (expr_has_call(stmt->expr.get()) ||
+              expr_has_call(stmt->expr2.get()))) ||
             expr_takes_address_of(stmt->expr.get(), name) ||
             expr_takes_address_of(stmt->expr2.get(), name) ||
             (!allow_writes &&
@@ -4275,19 +4370,27 @@ private:
             return false;
         }
         for (const auto& child : stmt->statements) {
-            if (!parameter_cache_safe(child.get(), name, allow_writes, allow_switch)) {
+            if (!parameter_cache_safe(child.get(), name, allow_writes, allow_switch, allow_calls)) {
                 return false;
             }
         }
         for (const auto& case_stmt : stmt->cases) {
             if (!parameter_cache_safe(case_stmt.get(), name, allow_writes,
-                                      allow_switch)) {
+                                      allow_switch, allow_calls)) {
                 return false;
             }
         }
-        return parameter_cache_safe(stmt->body.get(), name, allow_writes, allow_switch) &&
-               parameter_cache_safe(stmt->else_body.get(), name, allow_writes, allow_switch) &&
-               parameter_cache_safe(stmt->init.get(), name, allow_writes, allow_switch);
+        for (const auto& declaration : stmt->declarations) {
+            if ((!allow_calls && expr_has_call(declaration.init.get())) ||
+                expr_takes_address_of(declaration.init.get(), name) ||
+                (!allow_writes &&
+                 expr_writes_name(declaration.init.get(), name))) {
+                return false;
+            }
+        }
+        return parameter_cache_safe(stmt->body.get(), name, allow_writes, allow_switch, allow_calls) &&
+               parameter_cache_safe(stmt->else_body.get(), name, allow_writes, allow_switch, allow_calls) &&
+               parameter_cache_safe(stmt->init.get(), name, allow_writes, allow_switch, allow_calls);
     }
     void compile_function(Function& function, std::ostringstream& out) {
         locals_.clear();
@@ -4399,8 +4502,11 @@ private:
                      local->second.type->kind != TypeKind::Pointer) ||
                     !stmt_mentions_name(function.body.get(),
                                         parameter.name) ||
+                    !stmt_calls_fit_argument_registers(
+                        function.body.get()) ||
                     !parameter_cache_safe(function.body.get(),
-                                           parameter.name)) {
+                                           parameter.name, false, false,
+                                           true)) {
                     continue;
                 }
                 cached_parameter = parameter.name;
@@ -4408,9 +4514,12 @@ private:
                 break;
             }
         }
+        cached_call_spill_ =
+            !cached_parameter.empty() && stmt_has_call(function.body.get());
         if (!cached_parameter.empty()) {
             const auto local = locals_.find(cached_parameter);
-            if (local != locals_.end() && local->second.type &&
+            if (!cached_call_spill_ && local != locals_.end() &&
+                local->second.type &&
                 local->second.offset == frame_size_) {
                 frame_size_ -= local->second.type->size();
             }
@@ -4424,7 +4533,7 @@ private:
         }
         for (std::size_t i = 0; i < function.parameters.size(); ++i) {
             const auto& parameter = function.parameters[i];
-            if (parameter.name == cached_parameter) {
+            if (parameter.name == cached_parameter && !cached_call_spill_) {
                 continue;
             }
             const auto it = locals_.find(parameter.name);
@@ -4472,7 +4581,13 @@ private:
             cached_loop_local_ = false;
             cached_loop_name_.clear();
             cached_parameter_active_ = false;
-            const std::string trial_text = trial.str();
+            std::string trial_text = trial.str();
+            if (cached_call_spill_) {
+                trial_text = spill_cached_value_around_calls(
+                    trial_text, cached_loop_offset_,
+                    cached_loop_character_);
+            }
+            cached_call_spill_ = false;
             const auto newline = trial_text.find('\n');
             const std::string trial_body =
                 newline == std::string::npos
@@ -6834,6 +6949,7 @@ private:
     bool cached_parameter_active_ = false;
     bool cached_loop_clean_ = false;
     bool retain_loop_cache_after_ = false;
+    bool cached_call_spill_ = false;
     std::vector<IrValue> ir_values_;
     std::unordered_map<std::string, int> ir_vars_;
     std::vector<IrBlock> ir_blocks_;
@@ -6895,6 +7011,13 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
+
+
 
 
 
