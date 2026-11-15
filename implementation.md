@@ -2656,3 +2656,15 @@ Entry format:
   debugger roadmap.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Next: compiler spills or step back, then release pipeline parity.
+
+### 2026-11-14 17:32:38 -08:00 — Release pipeline parity
+
+- Added a `vscode` release job that packages `kr16-debug.vsix` with
+  `@vscode/vsce`.
+- The publish job now waits for the VSIX, writes `SHA256SUMS` for the exe,
+  both AppImages, and the VSIX, and attaches all five assets to the release.
+- Added `kr16.release.workflow` as a policy test that guards the workflow
+  contents.
+- Updated the final plan, README, and deferred list.
+- Tests: Windows 52/52 CTest; Linux 52/52 CTest.
+- Next: curriculum examples and the remaining compiler spills.

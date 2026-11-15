@@ -826,10 +826,11 @@ ctest -L integration
   `libc.s`, so it runs without a `resources/` directory.
 - **Linux**: AppImage built by `packaging/linux/package-appimage.sh`, writing
   `dist/KR16-<arch>.AppImage`; contains the GUI, CLI, fonts, and `libc.s`.
-- **Release** (`.github/workflows/release.yml`, on a tag): builds Windows x64
-  and AppImages for Linux x64 and ARM64, then publishes them with
-  `gh release create`.
-- **1.0.0** is published with the Windows zip, VS Code VSIX, and `SHA256SUMS`.
+- **Release** (`.github/workflows/release.yml`, on a tag): builds Windows x64,
+  AppImages for Linux x64 and ARM64, and the VS Code VSIX; writes
+  `SHA256SUMS`; then publishes all four assets with `gh release create`.
+- **1.0.0** is published with the Windows zip, VS Code VSIX, and `SHA256SUMS`;
+  the tagged workflow now produces the same asset set.
 
 Build presets: `windows-vs2026`, `windows-ninja`, `windows-ninja-release`,
 `linux-gcc`, `linux-gcc-release`, `linux-gcc-sanitize`, `linux-clang`,
@@ -885,10 +886,7 @@ Ordered by value to the teaching story:
    benchmark suite in `docs/compiler-opt.md`.
 2. **Debugger polish.** Step back remains; the rest of the VS Code
    experience is in place.
-3. **Release pipeline parity.** The workflow publishes the exe and AppImages;
-   the 1.0.0 tag also carried a VSIX and `SHA256SUMS`, which the automated
-   workflow does not yet produce.
-4. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
+3. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
    directory still needs the assembly exercises it describes.
 
 The linker-sized heap is complete: `libc.s` uses `[__heap_start,

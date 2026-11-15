@@ -37,8 +37,8 @@ release.
 
 - Checked-in prebuilt BIOS/runtime resources and `manifest.json`.
 - `bootstrap-check`/`bootstrap-update` and resource hash gates.
-- Deterministic Windows zip, Linux tar.gz, VSIX, and `SHA256SUMS` packaging.
-- Marketplace publishing, code signing, installers, and arm64 releases.
+- Marketplace publishing, code signing, deterministic Windows zip/Linux tar.gz
+  packaging, installers, and arm64 releases.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).

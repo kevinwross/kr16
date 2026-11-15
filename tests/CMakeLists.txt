@@ -407,3 +407,9 @@ endif()
 
 
 
+
+add_test(NAME kr16.release.workflow
+  COMMAND ${CMAKE_COMMAND}
+    "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/release_check.cmake")
+set_tests_properties(kr16.release.workflow PROPERTIES LABELS "policy")

@@ -176,7 +176,7 @@ the embedded fonts and `resources/libc.s`, so it needs no separate resource
 directory. The Windows `kr16.exe` is also self-contained: it embeds the fonts
 and falls back to an embedded `libc.s` when no `resources/` directory is
 present. The tag workflow in `.github/workflows/release.yml` publishes the
-Windows exe and both AppImages.
+Windows exe, both AppImages, the VS Code VSIX, and `SHA256SUMS`.
 
 The interactive shell remains available explicitly:
 
