@@ -3148,3 +3148,11 @@ Entry format:
   the cached pointer still reject the cache and fall back.
 - Added a one-argument loop-call test.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 08:58:39 -08:00 — Cache state struct
+
+- Grouped each loop-cache register's state into `CachedRegister`
+  (`active`, `name`, `offset`, `character`) instead of eight separate fields.
+- No intended code-generation change; this is the first structural step toward a
+  single liveness/allocation layer.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

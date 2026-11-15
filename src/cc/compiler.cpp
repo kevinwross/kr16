@@ -4595,22 +4595,22 @@ private:
         }
         if (!cached_parameter.empty()) {
             cached_parameter_active_ = true;
-            cached_loop_local_ = true;
-            cached_loop_name_ = cached_parameter;
-            cached_loop_offset_ = locals_[cached_parameter].offset;
-            cached_loop_character_ =
+            cached_loop_.active = true;
+            cached_loop_.name = cached_parameter;
+            cached_loop_.offset = locals_[cached_parameter].offset;
+            cached_loop_.character =
                 locals_[cached_parameter].type->is_char();
             std::ostringstream trial;
             trial << "  MOV R3, R" << cached_parameter_register << "\n";
             gen_stmt(function.body.get(), trial);
-            cached_loop_local_ = false;
-            cached_loop_name_.clear();
+            cached_loop_.active = false;
+            cached_loop_.name.clear();
             cached_parameter_active_ = false;
             std::string trial_text = trial.str();
             if (cached_call_spill_) {
                 trial_text = spill_cached_value_around_calls(
-                    trial_text, cached_loop_offset_,
-                    cached_loop_character_);
+                    trial_text, cached_loop_.offset,
+                    cached_loop_.character);
             }
             cached_call_spill_ = false;
             const auto newline = trial_text.find('\n');
@@ -4729,10 +4729,10 @@ private:
                 gen_stmt(function.body.get(), out);
             }
         }
-        cached_loop_local_ = false;
-        cached_loop_name_.clear();
-        cached_loop2_local_ = false;
-        cached_loop2_name_.clear();
+        cached_loop_.active = false;
+        cached_loop_.name.clear();
+        cached_loop2_.active = false;
+        cached_loop2_.name.clear();
         cached_loop_clean_ = false;
         retain_loop_cache_after_ = false;
         out << "  MOV R0, #0\n";
@@ -5064,20 +5064,20 @@ private:
 
         const auto start = new_label("while");
         const auto end = new_label("endwhile");
-        cached_loop_local_ = true;
-        cached_loop_name_ = name;
-        cached_loop_offset_ = local->second.offset;
-        cached_loop_character_ = false;
+        cached_loop_.active = true;
+        cached_loop_.name = name;
+        cached_loop_.offset = local->second.offset;
+        cached_loop_.character = false;
         if (!name2.empty()) {
-            cached_loop2_local_ = true;
-            cached_loop2_name_ = name2;
-            cached_loop2_offset_ = local2->second.offset;
-            cached_loop2_character_ = false;
+            cached_loop2_.active = true;
+            cached_loop2_.name = name2;
+            cached_loop2_.offset = local2->second.offset;
+            cached_loop2_.character = false;
         }
         std::ostringstream trial;
-        trial << "  LD R3, [R4-" << cached_loop_offset_ << "]\n";
+        trial << "  LD R3, [R4-" << cached_loop_.offset << "]\n";
         if (!name2.empty()) {
-            trial << "  LD R2, [R4-" << cached_loop2_offset_ << "]\n";
+            trial << "  LD R2, [R4-" << cached_loop2_.offset << "]\n";
         }
         trial << start << ":\n";
         if (!emit_simple_condition(stmt->expr.get(), end, false, trial)) {
@@ -5088,14 +5088,14 @@ private:
         gen_stmt(stmt->body.get(), trial);
         trial << "  BRA " << start << "\n";
         trial << end << ":\n";
-        trial << "  ST [R4-" << cached_loop_offset_ << "], R3\n";
+        trial << "  ST [R4-" << cached_loop_.offset << "], R3\n";
         if (!name2.empty()) {
-            trial << "  ST [R4-" << cached_loop2_offset_ << "], R2\n";
+            trial << "  ST [R4-" << cached_loop2_.offset << "], R2\n";
         }
-        cached_loop_local_ = false;
-        cached_loop_name_.clear();
-        cached_loop2_local_ = false;
-        cached_loop2_name_.clear();
+        cached_loop_.active = false;
+        cached_loop_.name.clear();
+        cached_loop2_.active = false;
+        cached_loop2_.name.clear();
         std::string trial_text = trial.str();
         if (assembly_clobbers_r3(trial_text) ||
             (!name2.empty() &&
@@ -5104,15 +5104,15 @@ private:
             return false;
         }
         if (retain_after) {
-            cached_loop_local_ = true;
-            cached_loop_name_ = name;
-            cached_loop_offset_ = local->second.offset;
-            cached_loop_character_ = false;
+            cached_loop_.active = true;
+            cached_loop_.name = name;
+            cached_loop_.offset = local->second.offset;
+            cached_loop_.character = false;
             if (!name2.empty()) {
-                cached_loop2_local_ = true;
-                cached_loop2_name_ = name2;
-                cached_loop2_offset_ = local2->second.offset;
-                cached_loop2_character_ = false;
+                cached_loop2_.active = true;
+                cached_loop2_.name = name2;
+                cached_loop2_.offset = local2->second.offset;
+                cached_loop2_.character = false;
             }
             cached_loop_clean_ = true;
         } else {
@@ -5133,25 +5133,25 @@ private:
             case Stmt::Kind::Empty:
                 return;
             case Stmt::Kind::Expr: {
-                if (!cached_parameter_active_ && cached_loop_local_ &&
+                if (!cached_parameter_active_ && cached_loop_.active &&
                     stmt->expr && expr_has_call(stmt->expr.get()) &&
                     !expr_mentions_name(stmt->expr.get(),
-                                        cached_loop_name_)) {
-                    out << (cached_loop_character_ ? "  STB [R4-"
+                                        cached_loop_.name)) {
+                    out << (cached_loop_.character ? "  STB [R4-"
                                                   : "  ST [R4-")
-                        << cached_loop_offset_ << "], R3\n";
+                        << cached_loop_.offset << "], R3\n";
                     gen_expr(stmt->expr.get(), out);
-                    out << (cached_loop_character_ ? "  LDB R3, [R4-"
+                    out << (cached_loop_.character ? "  LDB R3, [R4-"
                                                    : "  LD R3, [R4-")
-                        << cached_loop_offset_ << "]\n";
+                        << cached_loop_.offset << "]\n";
                     return;
                 }
-                if (cached_loop_local_ && stmt->expr) {
+                if (cached_loop_.active && stmt->expr) {
                     if (stmt->expr->kind == Expr::Kind::Assign &&
                         stmt->expr->children.size() == 2 &&
                         stmt->expr->children[0]->kind ==
                             Expr::Kind::Identifier &&
-                        stmt->expr->children[0]->text == cached_loop_name_) {
+                        stmt->expr->children[0]->text == cached_loop_.name) {
                         gen_expr(stmt->expr->children[1].get(), out);
                         out << "  MOV R3, R0\n";
                         return;
@@ -5162,29 +5162,29 @@ private:
                         stmt->expr->children.size() == 1 &&
                         stmt->expr->children[0]->kind ==
                             Expr::Kind::Identifier &&
-                        stmt->expr->children[0]->text == cached_loop_name_) {
+                        stmt->expr->children[0]->text == cached_loop_.name) {
                         out << "  " << (stmt->expr->op == "++" ? "ADD" : "SUB")
                             << " R3, #1\n";
                         return;
                     }
-                    if (cached_loop2_local_ &&
+                    if (cached_loop2_.active &&
                         stmt->expr->kind == Expr::Kind::Assign &&
                         stmt->expr->children.size() == 2 &&
                         stmt->expr->children[0]->kind ==
                             Expr::Kind::Identifier &&
-                        stmt->expr->children[0]->text == cached_loop2_name_) {
+                        stmt->expr->children[0]->text == cached_loop2_.name) {
                         gen_expr(stmt->expr->children[1].get(), out);
                         out << "  MOV R2, R0\n";
                         return;
                     }
-                    if (cached_loop2_local_ &&
+                    if (cached_loop2_.active &&
                         stmt->expr->kind == Expr::Kind::Unary &&
                         (stmt->expr->op == "++" ||
                          stmt->expr->op == "--") &&
                         stmt->expr->children.size() == 1 &&
                         stmt->expr->children[0]->kind ==
                             Expr::Kind::Identifier &&
-                        stmt->expr->children[0]->text == cached_loop2_name_) {
+                        stmt->expr->children[0]->text == cached_loop2_.name) {
                         out << "  " << (stmt->expr->op == "++" ? "ADD" : "SUB")
                             << " R2, #1\n";
                         return;
@@ -5197,17 +5197,17 @@ private:
                 return;
             }
             case Stmt::Kind::Return:
-                if (cached_loop_local_ && !cached_parameter_active_ &&
+                if (cached_loop_.active && !cached_parameter_active_ &&
                     !cached_loop_clean_) {
-                    out << (cached_loop_character_ ? "  STB [R4-"
+                    out << (cached_loop_.character ? "  STB [R4-"
                                                   : "  ST [R4-")
-                        << cached_loop_offset_ << "], R3\n";
+                        << cached_loop_.offset << "], R3\n";
                 }
-                if (cached_loop2_local_ && !cached_parameter_active_ &&
+                if (cached_loop2_.active && !cached_parameter_active_ &&
                     !cached_loop_clean_) {
-                    out << (cached_loop2_character_ ? "  STB [R4-"
+                    out << (cached_loop2_.character ? "  STB [R4-"
                                                    : "  ST [R4-")
-                        << cached_loop2_offset_ << "], R2\n";
+                        << cached_loop2_.offset << "], R2\n";
                 }
                 if (current_return_symbol_.empty()) {
                     if (stmt->expr && optimize_ &&
@@ -5576,13 +5576,13 @@ private:
                 }
                 if (!cached_name.empty()) {
                     const auto local = locals_.find(cached_name);
-                    cached_loop_local_ = true;
-                    cached_loop_name_ = cached_name;
-                    cached_loop_offset_ = local->second.offset;
-                    cached_loop_character_ = local->second.type->is_char();
-                    out << (cached_loop_character_ ? "  LDB R3, [R4-"
+                    cached_loop_.active = true;
+                    cached_loop_.name = cached_name;
+                    cached_loop_.offset = local->second.offset;
+                    cached_loop_.character = local->second.type->is_char();
+                    out << (cached_loop_.character ? "  LDB R3, [R4-"
                                                   : "  LD R3, [R4-")
-                        << cached_loop_offset_ << "]\n";
+                        << cached_loop_.offset << "]\n";
                 }
                 break_labels_.push_back(end);
                 continue_labels_.push_back(next);
@@ -5615,13 +5615,13 @@ private:
                 out << "  BRA " << start << "\n";
                 out << end << ":\n";
                 if (!cached_name.empty()) {
-                    out << (cached_loop_character_ ? "  STB [R4-"
+                    out << (cached_loop_.character ? "  STB [R4-"
                                                    : "  ST [R4-")
-                        << cached_loop_offset_ << "], R3\n";
-                    cached_loop_local_ = false;
-                    cached_loop_name_.clear();
-                    cached_loop_character_ = false;
-                    cached_loop_offset_ = 0;
+                        << cached_loop_.offset << "], R3\n";
+                    cached_loop_.active = false;
+                    cached_loop_.name.clear();
+                    cached_loop_.character = false;
+                    cached_loop_.offset = 0;
                 }
                 break_labels_.pop_back();
                 continue_labels_.pop_back();
@@ -6418,16 +6418,16 @@ private:
                 gen_call(expr, out);
                 return;
             case Expr::Kind::Assign: {
-                if (cached_loop_local_ && expr->children.size() == 2 &&
+                if (cached_loop_.active && expr->children.size() == 2 &&
                     expr->children[0]->kind == Expr::Kind::Identifier &&
-                    expr->children[0]->text == cached_loop_name_) {
+                    expr->children[0]->text == cached_loop_.name) {
                     gen_expr(expr->children[1].get(), out);
                     out << "  MOV R3, R0\n";
                     return;
                 }
-                if (cached_loop2_local_ && expr->children.size() == 2 &&
+                if (cached_loop2_.active && expr->children.size() == 2 &&
                     expr->children[0]->kind == Expr::Kind::Identifier &&
-                    expr->children[0]->text == cached_loop2_name_) {
+                    expr->children[0]->text == cached_loop2_.name) {
                     gen_expr(expr->children[1].get(), out);
                     out << "  MOV R2, R0\n";
                     return;
@@ -6558,13 +6558,13 @@ private:
 
     void gen_load_identifier(const std::string& name, std::ostringstream& out,
                              int target = 0) {
-        if (cached_loop_local_ && name == cached_loop_name_) {
+        if (cached_loop_.active && name == cached_loop_.name) {
             if (target != 3) {
                 out << "  MOV R" << target << ", R3\n";
             }
             return;
         }
-        if (cached_loop2_local_ && name == cached_loop2_name_) {
+        if (cached_loop2_.active && name == cached_loop2_.name) {
             if (target != 2) {
                 out << "  MOV R" << target << ", R2\n";
             }
@@ -6744,21 +6744,21 @@ private:
     }
 
     void gen_unary(const Expr* expr, std::ostringstream& out) {
-        if (cached_loop_local_ &&
+        if (cached_loop_.active &&
             (expr->op == "++" || expr->op == "--") &&
             expr->children.size() == 1 &&
             expr->children[0]->kind == Expr::Kind::Identifier &&
-            expr->children[0]->text == cached_loop_name_) {
+            expr->children[0]->text == cached_loop_.name) {
             out << "  " << (expr->op == "++" ? "ADD" : "SUB")
                 << " R3, #1\n";
             out << "  MOV R0, R3\n";
             return;
         }
-        if (cached_loop2_local_ &&
+        if (cached_loop2_.active &&
             (expr->op == "++" || expr->op == "--") &&
             expr->children.size() == 1 &&
             expr->children[0]->kind == Expr::Kind::Identifier &&
-            expr->children[0]->text == cached_loop2_name_) {
+            expr->children[0]->text == cached_loop2_.name) {
             out << "  " << (expr->op == "++" ? "ADD" : "SUB")
                 << " R2, #1\n";
             out << "  MOV R0, R2\n";
@@ -7084,14 +7084,14 @@ private:
     bool debug_ = false;
     bool optimize_ = true;
     bool expression_statement_ = false;
-    bool cached_loop_local_ = false;
-    std::string cached_loop_name_;
-    int cached_loop_offset_ = 0;
-    bool cached_loop_character_ = false;
-    bool cached_loop2_local_ = false;
-    std::string cached_loop2_name_;
-    int cached_loop2_offset_ = 0;
-    bool cached_loop2_character_ = false;
+    struct CachedRegister {
+        bool active = false;
+        std::string name;
+        int offset = 0;
+        bool character = false;
+    };
+    CachedRegister cached_loop_;
+    CachedRegister cached_loop2_;
     bool cached_parameter_active_ = false;
     bool cached_loop_clean_ = false;
     bool retain_loop_cache_after_ = false;
@@ -7157,6 +7157,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 
