@@ -238,8 +238,8 @@ Test plan:
 - [x] Branch directly on simple comparison conditions in the fallback emitter,
   including pointer dereferences, variable indexes, and arithmetic right
   operands such as `n - 1`.
-- [x] Simple indexed/pointer stores keep the address in `R2` instead of
-  pushing and popping it around the value expression.
+- [x] Simple indexed/pointer stores evaluate the value directly into R1,
+  keeping the address in R0 instead of pushing or moving it.
 - [x] Indexed address generation loads a simple base directly into `R1`,
   avoiding a `LD R0` + `MOV R1, R0` pair.
 - [x] Short-circuit `&&`/`||` conditions emit direct branches instead of
@@ -302,6 +302,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

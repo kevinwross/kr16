@@ -4247,9 +4247,13 @@ private:
         switch (stmt->kind) {
             case Stmt::Kind::Empty:
                 return;
-            case Stmt::Kind::Expr:
+            case Stmt::Kind::Expr: {
+                const bool previous = expression_statement_;
+                expression_statement_ = true;
                 gen_expr(stmt->expr.get(), out);
+                expression_statement_ = previous;
                 return;
+            }
             case Stmt::Kind::Return:
                 if (current_return_symbol_.empty()) {
                     if (stmt->expr) {
@@ -5380,11 +5384,21 @@ private:
                     optimize_ && is_simple_leaf(expr->children[1].get());
                 gen_addr(expr->children[0].get(), out);
                 if (simple_value) {
-                    out << "  MOV R2, R0\n";
-                    gen_expr(expr->children[1].get(), out);
+                    if (!emit_simple_leaf(expr->children[1].get(), 1, out)) {
+                        out << "  PUSH R0\n";
+                        gen_expr(expr->children[1].get(), out);
+                        out << "  MOV R1, R0\n";
+                        out << "  POP R0\n";
+                        out << (expression_type(expr->children[0].get())->is_char()
+                                    ? "  STB [R0], R1\n"
+                                    : "  ST [R0], R1\n");
+                        out << "  MOV R0, R1\n";
+                        return;
+                    }
                     out << (expression_type(expr->children[0].get())->is_char()
-                                ? "  STB [R2], R0\n"
-                                : "  ST [R2], R0\n");
+                                ? "  STB [R0], R1\n"
+                                : "  ST [R0], R1\n");
+                    out << "  MOV R0, R1\n";
                     return;
                 }
                 out << "  PUSH R0\n";
@@ -5947,6 +5961,7 @@ private:
     std::string source_name_;
     bool debug_ = false;
     bool optimize_ = true;
+    bool expression_statement_ = false;
     std::vector<IrValue> ir_values_;
     std::unordered_map<std::string, int> ir_vars_;
     std::vector<IrBlock> ir_blocks_;
@@ -6008,6 +6023,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 

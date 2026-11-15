@@ -2838,3 +2838,18 @@ Entry format:
 - `C-for-U.S` `PUSH R0` count dropped from 112 to 52.
 - Added a differential test for a four-argument call.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-14 21:23:34 -08:00 — Store value pairing and remaining call pushes
+
+- Simple indexed stores now evaluate the value directly into R1 and keep the
+  destination address in R0; `d[i] = 0` emits `MOV R1, #0; STB [R0], R1`
+  rather than preserving a copy of the address in R2.
+- Extended multi-argument call setup to cover four-or-more argument calls
+  whose first three expressions are register-safe, and the common form where
+  argument 0 is complex while arguments 1–2 are register-safe.
+- Restricted the simple-argument predicate to supported unary operations,
+  fixing a temporary fileio/stdout regression from address-of arguments.
+- `C-for-U.S` `PUSH R0` count is 52.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining priority items: loop-local pointer/induction registers, broader
+  redundant load/store peepholes, and direct boolean returns.
