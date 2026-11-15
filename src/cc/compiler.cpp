@@ -4937,6 +4937,45 @@ private:
         }
         return false;
     }
+    int expr_call_count(const Expr* expr) const {
+        if (expr == nullptr) {
+            return 0;
+        }
+        int count = expr->kind == Expr::Kind::Call ? 1 : 0;
+        for (const auto& child : expr->children) {
+            count += expr_call_count(child.get());
+        }
+        return count;
+    }
+
+    bool loop_calls_safe(const Stmt* stmt, const std::string& name) const {
+        if (stmt == nullptr) {
+            return true;
+        }
+        if (stmt->kind == Stmt::Kind::Expr && stmt->expr &&
+            expr_has_call(stmt->expr.get())) {
+            return expr_call_count(stmt->expr.get()) == 1 &&
+                   !expr_mentions_name(stmt->expr.get(), name) &&
+                   !expr_writes_name(stmt->expr.get(), name);
+        }
+        if (expr_has_call(stmt->expr.get()) ||
+            expr_has_call(stmt->expr2.get())) {
+            return false;
+        }
+        for (const auto& child : stmt->statements) {
+            if (!loop_calls_safe(child.get(), name)) {
+                return false;
+            }
+        }
+        for (const auto& case_stmt : stmt->cases) {
+            if (!loop_calls_safe(case_stmt.get(), name)) {
+                return false;
+            }
+        }
+        return loop_calls_safe(stmt->body.get(), name) &&
+               loop_calls_safe(stmt->else_body.get(), name) &&
+               loop_calls_safe(stmt->init.get(), name);
+    }
     std::string find_updated_pointer(const Stmt* stmt,
                                      const std::string& excluded = {}) const {
         if (stmt == nullptr) {
@@ -5001,8 +5040,9 @@ private:
             local->second.indirect || local->second.global ||
             !local->second.symbol.empty() || !local->second.type ||
             local->second.type->kind != TypeKind::Pointer ||
-            !calls_fit_argument_registers(stmt->expr.get(), 0) ||
-            !stmt_calls_fit_argument_registers(stmt->body.get(), 0) ||
+            expr_has_call(stmt->expr.get()) ||
+            (stmt_has_call(stmt->body.get()) &&
+             !loop_calls_safe(stmt->body.get(), name)) ||
             expr_takes_address_of(stmt->expr.get(), name) ||
             stmt_cache_unsafe(stmt->body.get(), name, true, true,
                               true)) {
@@ -5015,7 +5055,7 @@ private:
             !local2->second.symbol.empty() || !local2->second.type ||
             local2->second.type->kind != TypeKind::Pointer ||
             expr_takes_address_of(stmt->expr.get(), name2) ||
-            stmt_cache_unsafe(stmt->body.get(), name2, true, true)) {
+            stmt_cache_unsafe(stmt->body.get(), name2, true, true, true)) {
             name2.clear();
         }
         if (stmt_has_call(stmt->body.get())) {
@@ -5057,10 +5097,6 @@ private:
         cached_loop2_local_ = false;
         cached_loop2_name_.clear();
         std::string trial_text = trial.str();
-        if (stmt_has_call(stmt->body.get())) {
-            trial_text = spill_cached_value_around_calls(
-                trial_text, cached_loop_offset_, false);
-        }
         if (assembly_clobbers_r3(trial_text) ||
             (!name2.empty() &&
              assembly_clobbers_register(trial_text, "R2"))) {
@@ -5097,6 +5133,19 @@ private:
             case Stmt::Kind::Empty:
                 return;
             case Stmt::Kind::Expr: {
+                if (!cached_parameter_active_ && cached_loop_local_ &&
+                    stmt->expr && expr_has_call(stmt->expr.get()) &&
+                    !expr_mentions_name(stmt->expr.get(),
+                                        cached_loop_name_)) {
+                    out << (cached_loop_character_ ? "  STB [R4-"
+                                                  : "  ST [R4-")
+                        << cached_loop_offset_ << "], R3\n";
+                    gen_expr(stmt->expr.get(), out);
+                    out << (cached_loop_character_ ? "  LDB R3, [R4-"
+                                                   : "  LD R3, [R4-")
+                        << cached_loop_offset_ << "]\n";
+                    return;
+                }
                 if (cached_loop_local_ && stmt->expr) {
                     if (stmt->expr->kind == Expr::Kind::Assign &&
                         stmt->expr->children.size() == 2 &&
@@ -7108,6 +7157,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 

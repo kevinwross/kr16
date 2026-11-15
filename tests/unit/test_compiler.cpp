@@ -1181,3 +1181,16 @@ TEST_CASE("benchmark gate covers call-heavy cache shapes") {
         CHECK(run_c(test.source) == test.expected);
     }
 }
+
+TEST_CASE("cached loop pointers spill around one-argument calls") {
+    const std::string source =
+        "int tick(int n) { return n; }\n"
+        "int f(char *p) { int n = 0; while (*p) { p = p + 1; "
+        "n = tick(n) + 1; } return n; }\n"
+        "int main(void) { char b[3]; b[0]=1; b[1]=1; b[2]=0; "
+        "return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("ST [R4-2], R3") != std::string::npos);
+    CHECK(assembly.find("LD R3, [R4-2]") != std::string::npos);
+    CHECK(run_c(source) == 2);
+}

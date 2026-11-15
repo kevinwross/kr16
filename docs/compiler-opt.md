@@ -247,8 +247,9 @@ Test plan:
 - [x] `while` loops with pointer updates cache up to two pointers in R3/R2;
   returns write them back, and a loop followed immediately by a call-free
   return keeps the cache live so the post-loop return does not reload.
-  Loops whose bodies call zero-argument functions spill/reload R3 around each
-  call; other call-bearing loops fall back to the no-call path.
+  Loops whose call expressions do not mention the cached pointer spill/reload
+  R3 at statement entry around that expression; other call-bearing loops fall
+  back to the no-call path.
 - [x] A read-only parameter is cached in R3 for functions without loops or
   address-taking. Call-free functions skip its frame store and remove its
   top slot; call-bearing functions keep the slot and spill/reload R3 around
@@ -393,5 +394,6 @@ the right-to-left stack layout and caller-cleanup contract. Reusing a frame slot
 is not valid because the callee addresses stack arguments at `[FP+4]` and later,
 above the caller's frame. The existing `PUSH` sequence is therefore already the
 minimal ABI-preserving encoding; no code change is worthwhile.
+
 
 

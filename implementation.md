@@ -3136,3 +3136,15 @@ Entry format:
 - Both cases require -O1 to use fewer instructions than -O0 and check their
   runtime result.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 08:48:20 -08:00 — Statement-entry spill for cached loop pointers
+
+- Replaced loop-body call spill text insertion with statement-entry spill:
+  before evaluating an expression that contains exactly one call and does not
+  mention the cached pointer, R3 is stored; after the expression it is reloaded.
+- This happens before argument evaluation, so one-argument loop calls now keep
+  the pointer cache safely. C-for-U and its self-hosted generated test pass.
+- Calls in loop conditions, returns, declarations, or expressions that mention
+  the cached pointer still reject the cache and fall back.
+- Added a one-argument loop-call test.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
