@@ -244,9 +244,9 @@ Test plan:
   pushing it around the value evaluation.
 - [x] Counted `for` loops cache a safe scalar induction variable in R3,
   updating it in the latch and writing it back at loop exit.
-- [x] `while` loops with a pointer update cache the pointer in R3; returns
-  write the cached pointer back, and the generated body is rejected if it
-  unexpectedly writes R3.
+- [x] `while` loops with pointer updates cache up to two pointers in R3/R2;
+  returns write them back, and the generated body is rejected if it
+  unexpectedly writes R3 or R2.
 - [x] A read-only parameter is cached in R3 for functions without calls,
   loops, or address-taking; its frame store is skipped and the body is
   rejected if it clobbers R3.
@@ -314,6 +314,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

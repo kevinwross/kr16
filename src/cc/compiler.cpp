@@ -4590,7 +4590,8 @@ private:
         }
         return false;
     }
-    std::string find_updated_pointer(const Stmt* stmt) const {
+    std::string find_updated_pointer(const Stmt* stmt,
+                                     const std::string& excluded = {}) const {
         if (stmt == nullptr) {
             return {};
         }
@@ -4610,7 +4611,7 @@ private:
                        expr->children[0]->kind == Expr::Kind::Identifier) {
                 candidate = expr->children[0]->text;
             }
-            if (!candidate.empty()) {
+            if (!candidate.empty() && candidate != excluded) {
                 const auto local = locals_.find(candidate);
                 if (local != locals_.end() && local->second.type &&
                     local->second.type->kind == TypeKind::Pointer &&
@@ -4633,14 +4634,14 @@ private:
         }
         for (const auto& child : stmt->statements) {
             if (found.empty()) {
-                found = find_updated_pointer(child.get());
+                found = find_updated_pointer(child.get(), excluded);
             }
         }
         if (found.empty()) {
-            found = find_updated_pointer(stmt->body.get());
+            found = find_updated_pointer(stmt->body.get(), excluded);
         }
         if (found.empty()) {
-            found = find_updated_pointer(stmt->else_body.get());
+            found = find_updated_pointer(stmt->else_body.get(), excluded);
         }
         return found;
     }
@@ -4657,14 +4658,33 @@ private:
             stmt_cache_unsafe(stmt->body.get(), name, true, true)) {
             return false;
         }
+        std::string name2 = find_updated_pointer(stmt->body.get(), name);
+        const auto local2 = locals_.find(name2);
+        if (name2.empty() || local2 == locals_.end() ||
+            local2->second.indirect || local2->second.global ||
+            !local2->second.symbol.empty() || !local2->second.type ||
+            local2->second.type->kind != TypeKind::Pointer ||
+            expr_takes_address_of(stmt->expr.get(), name2) ||
+            stmt_cache_unsafe(stmt->body.get(), name2, true, true)) {
+            name2.clear();
+        }
         const auto start = new_label("while");
         const auto end = new_label("endwhile");
         cached_loop_local_ = true;
         cached_loop_name_ = name;
         cached_loop_offset_ = local->second.offset;
         cached_loop_character_ = false;
+        if (!name2.empty()) {
+            cached_loop2_local_ = true;
+            cached_loop2_name_ = name2;
+            cached_loop2_offset_ = local2->second.offset;
+            cached_loop2_character_ = false;
+        }
         std::ostringstream trial;
         trial << "  LD R3, [R4-" << cached_loop_offset_ << "]\n";
+        if (!name2.empty()) {
+            trial << "  LD R2, [R4-" << cached_loop2_offset_ << "]\n";
+        }
         trial << start << ":\n";
         if (!emit_simple_condition(stmt->expr.get(), end, false, trial)) {
             gen_expr(stmt->expr.get(), trial);
@@ -4675,15 +4695,27 @@ private:
         trial << "  BRA " << start << "\n";
         trial << end << ":\n";
         trial << "  ST [R4-" << cached_loop_offset_ << "], R3\n";
+        if (!name2.empty()) {
+            trial << "  ST [R4-" << cached_loop2_offset_ << "], R2\n";
+        }
         cached_loop_local_ = false;
         cached_loop_name_.clear();
-        if (assembly_clobbers_r3(trial.str())) {
+        cached_loop2_local_ = false;
+        cached_loop2_name_.clear();
+        std::string trial_text = trial.str();
+        std::string r2_text = trial_text;
+        for (std::size_t pos = r2_text.find("R2");
+             pos != std::string::npos;
+             pos = r2_text.find("R2", pos + 2)) {
+            r2_text.replace(pos, 2, "R3");
+        }
+        if (assembly_clobbers_r3(trial_text) ||
+            assembly_clobbers_r3(r2_text)) {
             return false;
         }
-        out << trial.str();
+        out << trial_text;
         return true;
-    }
-    void gen_stmt(const Stmt* stmt, std::ostringstream& out) {
+    }    void gen_stmt(const Stmt* stmt, std::ostringstream& out) {
         if (stmt == nullptr) {
             return;
         }
@@ -4715,6 +4747,28 @@ private:
                             << " R3, #1\n";
                         return;
                     }
+                    if (cached_loop2_local_ &&
+                        stmt->expr->kind == Expr::Kind::Assign &&
+                        stmt->expr->children.size() == 2 &&
+                        stmt->expr->children[0]->kind ==
+                            Expr::Kind::Identifier &&
+                        stmt->expr->children[0]->text == cached_loop2_name_) {
+                        gen_expr(stmt->expr->children[1].get(), out);
+                        out << "  MOV R2, R0\n";
+                        return;
+                    }
+                    if (cached_loop2_local_ &&
+                        stmt->expr->kind == Expr::Kind::Unary &&
+                        (stmt->expr->op == "++" ||
+                         stmt->expr->op == "--") &&
+                        stmt->expr->children.size() == 1 &&
+                        stmt->expr->children[0]->kind ==
+                            Expr::Kind::Identifier &&
+                        stmt->expr->children[0]->text == cached_loop2_name_) {
+                        out << "  " << (stmt->expr->op == "++" ? "ADD" : "SUB")
+                            << " R2, #1\n";
+                        return;
+                    }
                 }
                 const bool previous = expression_statement_;
                 expression_statement_ = true;
@@ -4727,6 +4781,11 @@ private:
                     out << (cached_loop_character_ ? "  STB [R4-"
                                                   : "  ST [R4-")
                         << cached_loop_offset_ << "], R3\n";
+                }
+                if (cached_loop2_local_) {
+                    out << (cached_loop2_character_ ? "  STB [R4-"
+                                                   : "  ST [R4-")
+                        << cached_loop2_offset_ << "], R2\n";
                 }
                 if (current_return_symbol_.empty()) {
                     if (stmt->expr && optimize_ &&
@@ -5934,6 +5993,13 @@ private:
                     out << "  MOV R3, R0\n";
                     return;
                 }
+                if (cached_loop2_local_ && expr->children.size() == 2 &&
+                    expr->children[0]->kind == Expr::Kind::Identifier &&
+                    expr->children[0]->text == cached_loop2_name_) {
+                    gen_expr(expr->children[1].get(), out);
+                    out << "  MOV R2, R0\n";
+                    return;
+                }
                 const auto target_type = expression_type(expr->children[0].get());
                 if (target_type->kind == TypeKind::Struct ||
                     target_type->kind == TypeKind::Union) {
@@ -6063,6 +6129,12 @@ private:
         if (cached_loop_local_ && name == cached_loop_name_) {
             if (target != 3) {
                 out << "  MOV R" << target << ", R3\n";
+            }
+            return;
+        }
+        if (cached_loop2_local_ && name == cached_loop2_name_) {
+            if (target != 2) {
+                out << "  MOV R" << target << ", R2\n";
             }
             return;
         }
@@ -6248,6 +6320,16 @@ private:
             out << "  " << (expr->op == "++" ? "ADD" : "SUB")
                 << " R3, #1\n";
             out << "  MOV R0, R3\n";
+            return;
+        }
+        if (cached_loop2_local_ &&
+            (expr->op == "++" || expr->op == "--") &&
+            expr->children.size() == 1 &&
+            expr->children[0]->kind == Expr::Kind::Identifier &&
+            expr->children[0]->text == cached_loop2_name_) {
+            out << "  " << (expr->op == "++" ? "ADD" : "SUB")
+                << " R2, #1\n";
+            out << "  MOV R0, R2\n";
             return;
         }
         if (expr->op == "&") {
@@ -6574,6 +6656,10 @@ private:
     std::string cached_loop_name_;
     int cached_loop_offset_ = 0;
     bool cached_loop_character_ = false;
+    bool cached_loop2_local_ = false;
+    std::string cached_loop2_name_;
+    int cached_loop2_offset_ = 0;
+    bool cached_loop2_character_ = false;
     std::vector<IrValue> ir_values_;
     std::unordered_map<std::string, int> ir_vars_;
     std::vector<IrBlock> ir_blocks_;
@@ -6635,6 +6721,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 

@@ -881,6 +881,7 @@ TEST_CASE("pointer conditions branch directly without boolean materialization") 
         "return same(a, b); }\n";
     const auto assembly = compile_text(source, true);
     CHECK(assembly.find("LD R3, [R4-") != std::string::npos);
+    CHECK(assembly.find("LD R2, [R4-") != std::string::npos);
     CHECK(assembly.find("CMP R0, #0") != std::string::npos);
     CHECK(assembly.find("CMP R0, R1") != std::string::npos);
     CHECK(run_c(source) == 1);
@@ -1005,3 +1006,4 @@ TEST_CASE("call-free complex stores stage the address in R2") {
     CHECK(assembly.find("PUSH R0") == std::string::npos);
     CHECK(run_c(source) == 2);
 }
+

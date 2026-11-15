@@ -2980,3 +2980,15 @@ Entry format:
 - `C-for-U.S`: `PUSH R0` count 52 -> 51, text 89,804 -> 89,785 bytes.
 - Added a differential/pattern test.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 03:55:08 -08:00 — Two-register loop cache
+
+- Extended the while-pointer cache to two loop-carried pointers: the first is
+  kept in R3 and the second in R2. `same(char *a, char *b)` now keeps both `a`
+  and `b` in registers across the loop.
+- Assignment and `++`/`--` interception handle both cached names; returns write
+  both registers back before leaving.
+- The generated body is scanned for unexpected R3 writes and, via an R2->R3
+  substitution scan, unexpected R2 writes.
+- Added an assertion that `same` loads both R3 and R2.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
