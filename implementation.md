@@ -2864,3 +2864,16 @@ Entry format:
 - This is the first part of the redundant copy/store peephole priority item.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining: loop-local pointer/induction registers and direct boolean returns.
+
+### 2026-11-14 21:52:09 -08:00 — Loop induction cache
+
+- Added a constrained loop-local cache for counted `for` loops: a scalar
+  induction variable is loaded into R3, read from R3 through the condition and
+  body, incremented directly in the latch, and stored back at loop exit.
+- The cache is only enabled when the body has no calls, returns, nested loops,
+  address-taking, or other writes to the induction variable.
+- Added a differential/pattern test; `C-for-U.S` now contains 21 loop-cache
+  load/update sites.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining priority items: broader redundant load/store peepholes and direct
+  boolean returns.

@@ -4237,6 +4237,123 @@ private:
         return make_type(TypeKind::Int);
     }
 
+    bool expr_has_call(const Expr* expr) const {
+        if (expr == nullptr) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Call) {
+            return true;
+        }
+        for (const auto& child : expr->children) {
+            if (expr_has_call(child.get())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool expr_mentions_name(const Expr* expr, const std::string& name) const {
+        if (expr == nullptr) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Identifier && expr->text == name) {
+            return true;
+        }
+        for (const auto& child : expr->children) {
+            if (expr_mentions_name(child.get(), name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool expr_takes_address_of(const Expr* expr,
+                               const std::string& name) const {
+        if (expr == nullptr) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Unary && expr->op == "&" &&
+            expr->children.size() == 1 &&
+            expr->children[0]->kind == Expr::Kind::Identifier &&
+            expr->children[0]->text == name) {
+            return true;
+        }
+        for (const auto& child : expr->children) {
+            if (expr_takes_address_of(child.get(), name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool expr_writes_name(const Expr* expr, const std::string& name) const {
+        if (expr == nullptr) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Assign &&
+            !expr->children.empty() &&
+            expr->children[0]->kind == Expr::Kind::Identifier &&
+            expr->children[0]->text == name) {
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Unary &&
+            (expr->op == "++" || expr->op == "--") &&
+            expr->children.size() == 1 &&
+            expr->children[0]->kind == Expr::Kind::Identifier &&
+            expr->children[0]->text == name) {
+            return true;
+        }
+        for (const auto& child : expr->children) {
+            if (expr_writes_name(child.get(), name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool stmt_cache_unsafe(const Stmt* stmt, const std::string& name) const {
+        if (stmt == nullptr) {
+            return false;
+        }
+        switch (stmt->kind) {
+            case Stmt::Kind::Return:
+            case Stmt::Kind::Goto:
+            case Stmt::Kind::Label:
+            case Stmt::Kind::Switch:
+            case Stmt::Kind::While:
+            case Stmt::Kind::DoWhile:
+            case Stmt::Kind::For:
+                return true;
+            default:
+                break;
+        }
+        if (expr_has_call(stmt->expr.get()) ||
+            expr_has_call(stmt->expr2.get()) ||
+            expr_takes_address_of(stmt->expr.get(), name) ||
+            expr_takes_address_of(stmt->expr2.get(), name) ||
+            expr_writes_name(stmt->expr.get(), name) ||
+            expr_writes_name(stmt->expr2.get(), name)) {
+            return true;
+        }
+        for (const auto& child : stmt->statements) {
+            if (stmt_cache_unsafe(child.get(), name)) {
+                return true;
+            }
+        }
+        if (stmt_cache_unsafe(stmt->body.get(), name) ||
+            stmt_cache_unsafe(stmt->else_body.get(), name) ||
+            stmt_cache_unsafe(stmt->init.get(), name)) {
+            return true;
+        }
+        for (const auto& declaration : stmt->declarations) {
+            if (expr_has_call(declaration.init.get()) ||
+                expr_takes_address_of(declaration.init.get(), name) ||
+                expr_writes_name(declaration.init.get(), name)) {
+                return true;
+            }
+        }
+        return false;
+    }
     void gen_stmt(const Stmt* stmt, std::ostringstream& out) {
         if (stmt == nullptr) {
             return;
@@ -4537,11 +4654,67 @@ private:
                     }
                     return;
                 }
+                std::string cached_name;
+                int cached_delta = 0;
+                if (optimize_ && stmt->expr2) {
+                    if (stmt->expr2->kind == Expr::Kind::Unary &&
+                        (stmt->expr2->op == "++" ||
+                         stmt->expr2->op == "--") &&
+                        stmt->expr2->children.size() == 1 &&
+                        stmt->expr2->children[0]->kind ==
+                            Expr::Kind::Identifier) {
+                        cached_name = stmt->expr2->children[0]->text;
+                        cached_delta = stmt->expr2->op == "++" ? 1 : -1;
+                    } else if (stmt->expr2->kind == Expr::Kind::Assign &&
+                               stmt->expr2->children.size() == 2 &&
+                               stmt->expr2->children[0]->kind ==
+                                   Expr::Kind::Identifier &&
+                               stmt->expr2->children[1]->kind ==
+                                   Expr::Kind::Binary &&
+                               stmt->expr2->children[1]->children.size() == 2 &&
+                               stmt->expr2->children[1]->children[0]->kind ==
+                                   Expr::Kind::Identifier &&
+                               stmt->expr2->children[1]->children[0]->text ==
+                                   stmt->expr2->children[0]->text &&
+                               stmt->expr2->children[1]->children[1]->kind ==
+                                   Expr::Kind::Number) {
+                        cached_name = stmt->expr2->children[0]->text;
+                        const auto& rhs = stmt->expr2->children[1];
+                        if (rhs->op == "+" || rhs->op == "-") {
+                            cached_delta =
+                                static_cast<int>(rhs->children[1]->value) *
+                                (rhs->op == "+" ? 1 : -1);
+                        }
+                    }
+                }
+                if (!cached_name.empty() && stmt->body && stmt->expr) {
+                    const auto local = locals_.find(cached_name);
+                    if (local == locals_.end() || local->second.indirect ||
+                        local->second.global || !local->second.symbol.empty() ||
+                        !local->second.type ||
+                        (local->second.type->kind != TypeKind::Int &&
+                         local->second.type->kind != TypeKind::Char) ||
+                        expr_has_call(stmt->expr.get()) ||
+                        expr_takes_address_of(stmt->expr.get(), cached_name) ||
+                        stmt_cache_unsafe(stmt->body.get(), cached_name)) {
+                        cached_name.clear();
+                    }
+                }
                 const auto start = new_label("for");
                 const auto next = new_label("fornext");
                 const auto end = new_label("endfor");
                 if (stmt->init) {
                     gen_stmt(stmt->init.get(), out);
+                }
+                if (!cached_name.empty()) {
+                    const auto local = locals_.find(cached_name);
+                    cached_loop_local_ = true;
+                    cached_loop_name_ = cached_name;
+                    cached_loop_offset_ = local->second.offset;
+                    cached_loop_character_ = local->second.type->is_char();
+                    out << (cached_loop_character_ ? "  LDB R3, [R4-"
+                                                  : "  LD R3, [R4-")
+                        << cached_loop_offset_ << "]\n";
                 }
                 break_labels_.push_back(end);
                 continue_labels_.push_back(next);
@@ -4558,10 +4731,30 @@ private:
                 gen_stmt(stmt->body.get(), out);
                 out << next << ":\n";
                 if (stmt->expr2) {
-                    gen_expr(stmt->expr2.get(), out);
+                    if (!cached_name.empty()) {
+                        if (cached_delta == 1 || cached_delta == -1) {
+                            out << "  " << (cached_delta > 0 ? "ADD" : "SUB")
+                                << " R3, #1\n";
+                        } else if (cached_delta > 0) {
+                            out << "  ADD R3, #" << cached_delta << "\n";
+                        } else {
+                            out << "  SUB R3, #" << -cached_delta << "\n";
+                        }
+                    } else {
+                        gen_expr(stmt->expr2.get(), out);
+                    }
                 }
                 out << "  BRA " << start << "\n";
                 out << end << ":\n";
+                if (!cached_name.empty()) {
+                    out << (cached_loop_character_ ? "  STB [R4-"
+                                                   : "  ST [R4-")
+                        << cached_loop_offset_ << "], R3\n";
+                    cached_loop_local_ = false;
+                    cached_loop_name_.clear();
+                    cached_loop_character_ = false;
+                    cached_loop_offset_ = 0;
+                }
                 break_labels_.pop_back();
                 continue_labels_.pop_back();
                 return;
@@ -5474,6 +5667,12 @@ private:
 
     void gen_load_identifier(const std::string& name, std::ostringstream& out,
                              int target = 0) {
+        if (cached_loop_local_ && name == cached_loop_name_) {
+            if (target != 3) {
+                out << "  MOV R" << target << ", R3\n";
+            }
+            return;
+        }
         const auto local = locals_.find(name);
         if (local != locals_.end()) {
             if (!local->second.symbol.empty()) {
@@ -5968,6 +6167,10 @@ private:
     bool debug_ = false;
     bool optimize_ = true;
     bool expression_statement_ = false;
+    bool cached_loop_local_ = false;
+    std::string cached_loop_name_;
+    int cached_loop_offset_ = 0;
+    bool cached_loop_character_ = false;
     std::vector<IrValue> ir_values_;
     std::unordered_map<std::string, int> ir_vars_;
     std::vector<IrBlock> ir_blocks_;
@@ -6029,6 +6232,11 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
 
 
 

@@ -944,3 +944,15 @@ TEST_CASE("multi-argument calls keep the first three arguments in registers") {
 }
 
 
+
+TEST_CASE("for-loop induction variable is cached in R3") {
+    const std::string source =
+        "int f(char *p, int n) { int i; int s = 0; "
+        "for (i = 0; i < n; i++) { s = s + i; } return s; }\n"
+        "int main(void) { char b[1]; return f(b, 4); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("LD R3, [R4-") != std::string::npos);
+    CHECK(assembly.find("ADD R3, #1") != std::string::npos);
+    CHECK(run_c(source) == 6);
+}
+
