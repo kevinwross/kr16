@@ -2063,6 +2063,25 @@ std::optional<std::string> cache_readonly_local_loads(
             activated = true;
             continue;
         }
+        if (activated && trimmed.rfind("LEA R", 0) == 0 &&
+            trimmed.find("[R4-" + std::to_string(offset) + "]") !=
+                std::string::npos) {
+            return std::nullopt;
+        }
+        if (activated && trimmed.rfind(store, 0) == 0) {
+            const auto reg_position = trimmed.rfind('R');
+            if (reg_position != std::string::npos &&
+                reg_position + 1 < trimmed.size() &&
+                trimmed[reg_position + 1] >= '0' &&
+                trimmed[reg_position + 1] <= '3') {
+                const char source = trimmed[reg_position + 1];
+                if (source != '3') {
+                    output.push_back(std::string("  MOV R3, R") + source);
+                }
+                replaced = true;
+                continue;
+            }
+        }
         if (activated && trimmed.rfind(load, 0) == 0) {
             const auto comma = trimmed.find(',');
             if (comma != std::string::npos &&
@@ -4225,7 +4244,9 @@ private:
                stmt_mentions_name(stmt->else_body.get(), name) ||
                stmt_mentions_name(stmt->init.get(), name);
     }
-    bool parameter_cache_safe(const Stmt* stmt, const std::string& name) const {
+    bool parameter_cache_safe(const Stmt* stmt, const std::string& name,
+                              bool allow_writes = false,
+                              bool allow_switch = false) const {
         if (stmt == nullptr) {
             return true;
         }
@@ -4235,8 +4256,12 @@ private:
             case Stmt::Kind::For:
             case Stmt::Kind::Label:
             case Stmt::Kind::Goto:
-            case Stmt::Kind::Switch:
                 return false;
+            case Stmt::Kind::Switch:
+                if (!allow_switch) {
+                    return false;
+                }
+                break;
             default:
                 break;
         }
@@ -4244,18 +4269,25 @@ private:
             expr_has_call(stmt->expr2.get()) ||
             expr_takes_address_of(stmt->expr.get(), name) ||
             expr_takes_address_of(stmt->expr2.get(), name) ||
-            expr_writes_name(stmt->expr.get(), name) ||
-            expr_writes_name(stmt->expr2.get(), name)) {
+            (!allow_writes &&
+             (expr_writes_name(stmt->expr.get(), name) ||
+              expr_writes_name(stmt->expr2.get(), name)))) {
             return false;
         }
         for (const auto& child : stmt->statements) {
-            if (!parameter_cache_safe(child.get(), name)) {
+            if (!parameter_cache_safe(child.get(), name, allow_writes, allow_switch)) {
                 return false;
             }
         }
-        return parameter_cache_safe(stmt->body.get(), name) &&
-               parameter_cache_safe(stmt->else_body.get(), name) &&
-               parameter_cache_safe(stmt->init.get(), name);
+        for (const auto& case_stmt : stmt->cases) {
+            if (!parameter_cache_safe(case_stmt.get(), name, allow_writes,
+                                      allow_switch)) {
+                return false;
+            }
+        }
+        return parameter_cache_safe(stmt->body.get(), name, allow_writes, allow_switch) &&
+               parameter_cache_safe(stmt->else_body.get(), name, allow_writes, allow_switch) &&
+               parameter_cache_safe(stmt->init.get(), name, allow_writes, allow_switch);
     }
     void compile_function(Function& function, std::ostringstream& out) {
         locals_.clear();
@@ -4469,7 +4501,7 @@ private:
                      variable.type->kind != TypeKind::Char &&
                      variable.type->kind != TypeKind::Pointer) ||
                     !stmt_mentions_name(function.body.get(), name) ||
-                    !parameter_cache_safe(function.body.get(), name)) {
+                    !parameter_cache_safe(function.body.get(), name, true, true)) {
                     continue;
                 }
                 cached_local = name;
@@ -6863,6 +6895,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 

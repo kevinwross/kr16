@@ -18,6 +18,17 @@ int pointer_loop(char *p) {
     return n;
 }
 
+int same(char *a, char *b) {
+    while (*a != 0 && *b != 0) {
+        if (*a != *b) {
+            return 0;
+        }
+        a = a + 1;
+        b = b + 1;
+    }
+    return *a == *b;
+}
+
 int main(void) {
     char text[8];
     int i;
@@ -25,5 +36,5 @@ int main(void) {
         text[i] = 1;
     }
     text[7] = 0;
-    return (induction(7) + pointer_loop(text)) & 255;
+    return (induction(7) + pointer_loop(text) + same(text, text)) & 255;
 }

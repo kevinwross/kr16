@@ -1021,3 +1021,26 @@ TEST_CASE("read-only locals are cached in R3") {
     CHECK(run_c(source) == 5);
 }
 
+
+TEST_CASE("updated locals stay cached across if") {
+    const std::string source =
+        "int f(char *p) { p = p + 0; int x = 1; if (p) { x = 2; } "
+        "return x; }\n"
+        "int main(void) { char b[1]; return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
+    CHECK(run_c(source) == 2);
+}
+
+TEST_CASE("updated locals stay cached across switch") {
+    const std::string source =
+        "int f(char *p) { p = p + 0; int x = 1; "
+        "switch (p[0]) { case 1: x = 3; break; default: x = 4; } "
+        "return x; }\n"
+        "int main(void) { char b[1]; b[0] = 1; return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
+    CHECK(run_c(source) == 3);
+}

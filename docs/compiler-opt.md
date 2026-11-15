@@ -250,8 +250,9 @@ Test plan:
 - [x] A read-only parameter is cached in R3 for functions without calls,
   loops, or address-taking; its frame store is skipped, its top-of-frame slot
   is removed, and the body is rejected if it clobbers R3.
-- [x] A read-only local with an initializer caches its post-initialization loads
-  in R3; the generated body is rejected if it clobbers R3.
+- [x] A local with an initializer caches its loads in R3 and redirects its
+  stores to R3 across straight-line code, `if`, and `switch`; the generated
+  body is rejected if it clobbers R3 or takes the local address.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
 - [x] Indexed address generation loads a simple base directly into `R1`,
@@ -347,4 +348,22 @@ Test plan:
 
 
 
+
+
+
+## Remaining fourth-argument pushes
+
+The KR16 C ABI passes arguments 0-2 in `R1`-`R3` and arguments 3 and later on
+the stack; the caller cleans them (`docs/curriculum.md`). The fallback emitter
+therefore still emits one `PUSH R0` for each fourth argument, even when the
+first three arguments are simple.
+
+`C-for-U.S` currently has 51 `PUSH R0` instructions, mostly the fourth argument
+of `addtok(type, value, 0, token_number)`. There is no free argument register:
+`R0` carries the call result and `R4` is the frame pointer. Removing these
+pushes would change the calling convention and the compiler/runtime call sites,
+so they are intentionally left in place rather than special-cased.
+
+The push/pop shuffles that were not real stack arguments have been removed;
+only the ABI-required argument slots remain.
 

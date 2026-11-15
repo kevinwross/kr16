@@ -3024,3 +3024,18 @@ Entry format:
   function.
 - Added an assertion that `same` has no `LD R0, [R4-2]` reload.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 04:41:02 -08:00 — Updated-local cache and refreshed benchmarks
+
+- Local R3 caching now covers updated locals, not just read-only ones: stores
+  after initialization become `MOV R3, R0`, and later loads use R3.
+- Allowed straight-line code, `if`, and `switch`; loops, calls, address-taking,
+  and indirect stores (for example `i++` via `LEA`) reject the cache.
+- Added tests for updated locals across `if` and `switch`; fixed a switch-case
+  recursion hole in the safety scanner that could cache loop locals.
+- Extended `tests/benchmarks/opt_loops.c` with a `same()` pointer loop and
+  refreshed the Windows Debug results: 1,232 -> 478 instructions,
+  1,957 -> 671 cycles, 9,358 -> 9,122 text bytes.
+- Documented the remaining fourth-argument `PUSH R0` instructions as
+  ABI-required in `docs/compiler-opt.md`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
