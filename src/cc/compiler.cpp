@@ -5251,7 +5251,9 @@ private:
         std::vector<int> successors;
     };
 
-    int block_live_span(const Stmt* body, const std::string& name) const {
+    int block_live_span(const Stmt* body, const std::string& name,
+                        int* first_block = nullptr,
+                        int* last_block = nullptr) const {
         if (body == nullptr) {
             return -1;
         }
@@ -5350,10 +5352,22 @@ private:
             }
         }
         int span = 0;
+        int first = -1;
+        int last = -1;
         for (std::size_t i = 0; i < block_count; ++i) {
             if (live_in[i] || live_out[i]) {
+                if (first < 0) {
+                    first = static_cast<int>(i);
+                }
+                last = static_cast<int>(i);
                 ++span;
             }
+        }
+        if (first_block != nullptr) {
+            *first_block = first;
+        }
+        if (last_block != nullptr) {
+            *last_block = last;
         }
         return span;
     }
@@ -7739,6 +7753,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

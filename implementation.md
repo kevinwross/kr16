@@ -3406,3 +3406,10 @@ Entry format:
 - All three exercise the current cache/spill paths without changing generated
   behavior.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 15:08:51 -08:00 — Block live interval bounds
+
+- `block_live_span` now optionally returns the first and last live block for a
+  candidate, providing the start/end data needed by a future linear scan.
+- Current cache ranking still uses the live-block count; behavior is unchanged.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
