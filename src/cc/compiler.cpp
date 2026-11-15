@@ -2324,6 +2324,14 @@ private:
     }
 
     int ir_const(std::int64_t value, int line) {
+        if (ir_current_ >= 0 &&
+            ir_current_ < static_cast<int>(ir_blocks_.size())) {
+            for (const auto& inst : ir_blocks_[ir_current_].insts) {
+                if (inst.op == IrOp::Const && inst.imm == value) {
+                    return inst.dst;
+                }
+            }
+        }
         const int dst = ir_temp();
         IrInst inst;
         inst.op = IrOp::Const;
@@ -5559,6 +5567,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

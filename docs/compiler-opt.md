@@ -241,6 +241,8 @@ Test plan:
 - [x] Fold remaining address calculations.
   Constant indexes into local arrays and constant member offsets of local
   structs fold to a single `LEA` (no push, scale, or add).
+- [x] Reuse an existing `Const` value within a basic block instead of
+  emitting duplicate constant definitions.
 - [x] Evaluate loop-invariant and induction-variable opportunities; the
   teaching backend keeps the readable fallback rather than adding a loop pass.
 
@@ -248,7 +250,8 @@ Test plan:
 
 - [x] Differential execution against `-O0`.
 - [x] Branch relaxation still handles enlarged/shrunk functions.
-- [x] Pattern assertions for comparison fusion and immediate operands.
+- [x] Pattern assertions for comparison fusion, immediate operands, and
+  basic-block constant reuse.
 - [x] Loop-level benchmark suite across several shapes.
 
 ## Optimization levels
@@ -286,6 +289,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

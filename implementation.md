@@ -2751,3 +2751,13 @@ Entry format:
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Benchmark remains 1,237 instructions / 2,033 cycles at `-O1`.
 - Next: induction-variable strength reduction.
+
+### 2026-11-14 19:25:01 -08:00 — Basic-block constant reuse
+
+- `ir_const` now returns an existing constant value when the same immediate has
+  already been defined in the current basic block.
+- Added a pattern test: two `2` literals in one function now share one
+  `MOV ..., #2`; the function still returns 5.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Benchmark remains 1,237 instructions / 2,033 cycles at `-O1`.
+- Next: induction-variable strength reduction.

@@ -839,3 +839,18 @@ TEST_CASE("basic-block copy propagation removes alias chains") {
     CHECK(body.find("MOV R1, R0") == std::string::npos);
     CHECK(run_c(source) == 3);
 }
+
+TEST_CASE("IR reuses constants within a basic block") {
+    const std::string source =
+        "int f(int a) { int x = 2; int y = 2; return a + x + y; }\n"
+        "int main(void) { return f(1); }\n";
+    const auto assembly = compile_text(source, true);
+    const auto start = assembly.find(".global f");
+    const auto end = assembly.find(".global main");
+    REQUIRE(start != std::string::npos);
+    REQUIRE(end != std::string::npos);
+    const auto body = assembly.substr(start, end - start);
+    CHECK(body.find("MOV R0, #2") != std::string::npos);
+    CHECK(body.find("MOV R1, #2") == std::string::npos);
+    CHECK(run_c(source) == 5);
+}
