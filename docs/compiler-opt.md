@@ -256,6 +256,8 @@ Test plan:
   `if`, and `switch`, and spill/reload around calls using at most two
   arguments. Two-local caching requires one-argument calls so R2 stays free.
   The body is rejected if it clobbers a cache register or takes an address.
+- [x] Cache clobber checks share a generic register scanner; R2 and R3 use the
+  same allowed-write rules instead of R2-to-R3 text substitution.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
 - [x] Indexed address generation loads a simple base directly into `R1`,
@@ -389,3 +391,4 @@ the right-to-left stack layout and caller-cleanup contract. Reusing a frame slot
 is not valid because the callee addresses stack arguments at `[FP+4]` and later,
 above the caller's frame. The existing `PUSH` sequence is therefore already the
 minimal ABI-preserving encoding; no code change is worthwhile.
+

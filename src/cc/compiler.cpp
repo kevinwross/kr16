@@ -2152,7 +2152,8 @@ std::string spill_cached_value_around_calls(const std::string& text,
     }
     return result.str();
 }
-bool assembly_clobbers_r3(const std::string& text) {
+bool assembly_clobbers_register(const std::string& text,
+                                const std::string& reg) {
     std::istringstream input(text);
     std::string line;
     while (std::getline(input, line)) {
@@ -2161,14 +2162,14 @@ bool assembly_clobbers_r3(const std::string& text) {
             trimmed.front() == '.' || trimmed.back() == ':') {
             continue;
         }
-        if (trimmed.find("R3") == std::string::npos) {
+        if (trimmed.find(reg) == std::string::npos) {
             continue;
         }
-        if (trimmed.rfind("MOV R3, R0", 0) == 0 ||
-            trimmed.rfind("LD R3, [R4-", 0) == 0 ||
-            trimmed.rfind("LDB R3, [R4-", 0) == 0 ||
-            trimmed.rfind("ADD R3,", 0) == 0 ||
-            trimmed.rfind("SUB R3,", 0) == 0) {
+        if (trimmed.rfind("MOV " + reg + ", R0", 0) == 0 ||
+            trimmed.rfind("LD " + reg + ", [R4-", 0) == 0 ||
+            trimmed.rfind("LDB " + reg + ", [R4-", 0) == 0 ||
+            trimmed.rfind("ADD " + reg + ",", 0) == 0 ||
+            trimmed.rfind("SUB " + reg + ",", 0) == 0) {
             continue;
         }
         const auto space = trimmed.find(' ');
@@ -2180,11 +2181,14 @@ bool assembly_clobbers_r3(const std::string& text) {
                                  comma == std::string::npos
                                      ? std::string::npos
                                      : comma - space - 1);
-        if (first == "R3") {
+        if (first == reg) {
             return true;
         }
     }
     return false;
+}
+bool assembly_clobbers_r3(const std::string& text) {
+    return assembly_clobbers_register(text, "R3");
 }
 class Codegen {
 public:
@@ -4710,14 +4714,10 @@ private:
                 if (transformed_ok) {
                     clobbered = assembly_clobbers_r3(transformed_text);
                     if (second_ok) {
-                        std::string r2_text = transformed_text;
-                        for (std::size_t pos = r2_text.find("R2");
-                             pos != std::string::npos;
-                             pos = r2_text.find("R2", pos + 2)) {
-                            r2_text.replace(pos, 2, "R3");
-                        }
                         clobbered =
-                            clobbered || assembly_clobbers_r3(r2_text);
+                            clobbered ||
+                            assembly_clobbers_register(transformed_text,
+                                                       "R2");
                     }
                 }
                 if (transformed_ok && !clobbered) {
@@ -5051,14 +5051,8 @@ private:
         cached_loop2_local_ = false;
         cached_loop2_name_.clear();
         std::string trial_text = trial.str();
-        std::string r2_text = trial_text;
-        for (std::size_t pos = r2_text.find("R2");
-             pos != std::string::npos;
-             pos = r2_text.find("R2", pos + 2)) {
-            r2_text.replace(pos, 2, "R3");
-        }
         if (assembly_clobbers_r3(trial_text) ||
-            assembly_clobbers_r3(r2_text)) {
+            assembly_clobbers_register(trial_text, "R2")) {
             cached_loop_clean_ = false;
             return false;
         }

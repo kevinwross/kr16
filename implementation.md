@@ -3107,3 +3107,14 @@ Entry format:
 - Measured instruction counts for the shapes: 141 -> 79 (`same`), 50 -> 40
   (call spill), 55 -> 37 (two locals).
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 07:20:42 -08:00 — Generic cache-clobber scanner
+
+- Replaced the R3-only clobber scanner with
+  `assembly_clobbers_register(text, reg)`.
+- Removed both R2-to-R3 text-substitution scans; the loop and local caches now
+  ask the generic scanner about R2 directly.
+- `assembly_clobbers_r3` remains as a thin wrapper.
+- No intended code-generation change; the pointer, local, and call-spill tests
+  still pass.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
