@@ -3050,3 +3050,15 @@ Entry format:
   call-arity check so `R3` is not used for a fourth argument before the spill.
 - Added a test where `x` stays cached across `inc(x)` and the result is 9.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 06:56:40 -08:00 — Call-aware local cache
+
+- Cached locals now survive calls: every call inside the cached region spills R3
+  to the local slot and reloads it afterward.
+- Calls are permitted only when every call uses at most three arguments, so R3
+  is not consumed as a fourth argument before the spill.
+- Declaration initializers and switch cases are included in call discovery.
+- Local candidate selection is deterministic: the lowest frame offset wins
+  instead of unordered_map iteration order.
+- Added a test where `x` survives `inc(x)` across an update and returns 4.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

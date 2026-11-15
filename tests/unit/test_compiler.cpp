@@ -363,7 +363,7 @@ TEST_CASE("simple multi-argument calls use argument registers directly") {
     CHECK(assembly.find("PUSH R0") == std::string::npos);
     CHECK(assembly.find("POP R1") == std::string::npos);
     CHECK(assembly.find("MOV R1, #.Lstr") != std::string::npos);
-    CHECK(assembly.find("LD R2,") != std::string::npos);
+    CHECK(assembly.find("MOV R2, R3") != std::string::npos);
     CHECK(assembly.find("CALL show") != std::string::npos);
 }
 
@@ -1055,3 +1055,16 @@ TEST_CASE("cached parameters spill and reload around calls") {
     CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
     CHECK(run_c(source) == 9);
 }
+
+TEST_CASE("cached locals spill and reload around calls") {
+    const std::string source =
+        "int inc(int n) { return n + 1; }\n"
+        "int f(char *p) { int x = 1; int y = inc(x); x = x + 1; "
+        "return x + y; }\n"
+        "int main(void) { char b[1]; return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("ST [R4-4], R3") != std::string::npos);
+    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(run_c(source) == 4);
+}
+

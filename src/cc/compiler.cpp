@@ -2068,6 +2068,16 @@ std::optional<std::string> cache_readonly_local_loads(
                 std::string::npos) {
             return std::nullopt;
         }
+        if (activated && trimmed.rfind("CALL ", 0) == 0) {
+            output.push_back(std::string("  ") +
+                             (character ? "STB [R4-" : "ST [R4-") +
+                             std::to_string(offset) + "], R3");
+            output.push_back(entry);
+            output.push_back(std::string("  ") +
+                             (character ? "LDB R3, [R4-" : "LD R3, [R4-") +
+                             std::to_string(offset) + "]");
+            continue;
+        }
         if (activated && trimmed.rfind(store, 0) == 0) {
             const auto reg_position = trimmed.rfind('R');
             if (reg_position != std::string::npos &&
@@ -4616,13 +4626,17 @@ private:
                      variable.type->kind != TypeKind::Char &&
                      variable.type->kind != TypeKind::Pointer) ||
                     !stmt_mentions_name(function.body.get(), name) ||
-                    !parameter_cache_safe(function.body.get(), name, true, true)) {
+                    !stmt_calls_fit_argument_registers(function.body.get()) ||
+                     !parameter_cache_safe(function.body.get(), name, true,
+                                            true, true)) {
                     continue;
                 }
-                cached_local = name;
-                cached_local_offset = variable.offset;
-                cached_local_character = variable.type->is_char();
-                break;
+                if (cached_local.empty() ||
+                    variable.offset < cached_local_offset) {
+                    cached_local = name;
+                    cached_local_offset = variable.offset;
+                    cached_local_character = variable.type->is_char();
+                }
             }
             if (!cached_local.empty()) {
                 std::ostringstream trial;
@@ -7011,6 +7025,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 
