@@ -240,6 +240,8 @@ Test plan:
   operands such as `n - 1`.
 - [x] Simple indexed/pointer stores evaluate the value directly into R1,
   keeping the address in R0 instead of pushing or moving it.
+- [x] Call-free complex store values keep the target address in R2 instead of
+  pushing it around the value evaluation.
 - [x] Counted `for` loops cache a safe scalar induction variable in R3,
   updating it in the latch and writing it back at loop exit.
 - [x] `while` loops with a pointer update cache the pointer in R3; returns
@@ -312,6 +314,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

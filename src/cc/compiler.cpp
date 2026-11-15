@@ -5982,6 +5982,15 @@ private:
                     }
                     return;
                 }
+                if (optimize_ &&
+                    !expr_has_call(expr->children[1].get())) {
+                    out << "  MOV R2, R0\n";
+                    gen_expr(expr->children[1].get(), out);
+                    out << (expression_type(expr->children[0].get())->is_char()
+                                ? "  STB [R2], R0\n"
+                                : "  ST [R2], R0\n");
+                    return;
+                }
                 out << "  PUSH R0\n";
                 gen_expr(expr->children[1].get(), out);
                 out << "  MOV R1, R0\n";
@@ -6626,6 +6635,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

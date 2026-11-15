@@ -2970,3 +2970,13 @@ Entry format:
 - Added an assertion that the `same` function contains an R3 cache load; the
   differential check still returns 1 for matching strings.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 03:48:12 -08:00 — R2 staging for complex stores
+
+- Call-free complex assignment values now keep the target address in R2 while
+  the value is evaluated, instead of `PUSH R0` / `POP R0` with an R1 shuffle.
+- Applies only when the right-hand side has no calls; call-bearing stores retain
+  the old push/pop path.
+- `C-for-U.S`: `PUSH R0` count 52 -> 51, text 89,804 -> 89,785 bytes.
+- Added a differential/pattern test.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

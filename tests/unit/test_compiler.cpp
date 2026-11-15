@@ -995,3 +995,13 @@ TEST_CASE("read-only parameters are cached in R3") {
 
 
 
+
+TEST_CASE("call-free complex stores stage the address in R2") {
+    const std::string source =
+        "int f(char *p, int n) { p[n] = n + 1; return p[n]; }\n"
+        "int main(void) { char b[2]; return f(b, 1); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("MOV R2, R0") != std::string::npos);
+    CHECK(assembly.find("PUSH R0") == std::string::npos);
+    CHECK(run_c(source) == 2);
+}
