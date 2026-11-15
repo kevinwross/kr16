@@ -785,3 +785,14 @@ TEST_CASE("high-pressure scalar functions fall back without miscompiling") {
     CHECK(run_c(source) == 36);
 }
 
+
+TEST_CASE("IR spills values when scalar pressure exceeds registers") {
+    const std::string source =
+        "int f(int x) { int a = x + 1; int b = a + 2; int c = b + 3; "
+        "int d = c + 4; int e = d + 5; int g = e + 6; int h = g + 7; "
+        "return a + b + c + d + e + g + h; }\n"
+        "int main(void) { return f(1); }\n";
+    CHECK(run_c(source) == 91);
+}
+
+

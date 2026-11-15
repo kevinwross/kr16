@@ -881,8 +881,8 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 Ordered by value to the teaching story:
 
 1. **Compiler optimization M3–M5.** Scalar IR, graph coloring, address
-   folding, peepholes, and the benchmark suite are complete; high-pressure
-   graphs use the documented M2 fallback.
+   folding, peepholes, and IR spilling are complete; unsupported functions
+   still use the documented M2 fallback.
 2. **Curriculum pass.** `docs/curriculum.md` links the worked assembly
    examples in `examples/`.
 
@@ -952,6 +952,7 @@ Branch conditions: `EQ NE CS/HS CC/LO MI PL VS VC HI LS GE LT GT LE AL/RA`.
 | **DebugSession** | the portable debug model shared by the GUI, DAP, and tests |
 | **sandbox** | the guest-visible filesystem root, quota, and read-only policy |
 | **C-for-U** | the C→assembly compiler written in KR16 C and used as an end-to-end test |
+
 
 
 

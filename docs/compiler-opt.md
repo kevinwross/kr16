@@ -172,7 +172,7 @@ Current M2 limits (used as the fallback outside the scalar IR subset):
 - comparison results still materialize 0/1 before a following `if`; a later
   pass can branch directly on the flags
 
-### M3 — IR, CFG and local register allocation — [x] (scalar core; pressure fallback)
+### M3 — IR, CFG and local register allocation — [x] (scalar core + spills)
 
 Implemented for scalar functions that do not use calls, aggregates, pointers,
 globals, statics, or more than three parameters. Other functions fall back to
@@ -181,8 +181,8 @@ the M1/M2 emitter, so behavior is always preserved.
 - [x] Lower the supported scalar subset to a three-address IR.
 - [x] Add basic blocks, successors, and liveness.
 - [x] Allocate `R0`–`R4` with an interference graph (R4 is saved/restored).
-- [x] Handle pressure above five registers by selecting the safe M2 fallback,
-  whose pure-expression paths spill to the stack.
+- [x] Handle pressure above five registers with IR spill slots; unsupported
+  functions still fall back to M2.
 - [x] Run the existing test suite and differential tests against `-O0`.
 - [x] Coalesce assignment copies; broader copy propagation is future work.
 
@@ -195,7 +195,7 @@ Test plan:
   differential tests also pass.
 - [x] Debug builds and `-g` keep the existing backend and line mapping.
 
-### M4 — Graph coloring / global allocation — [x] (core; fallback policy)
+### M4 — Graph coloring / global allocation — [x] (core + spill selection)
 
 - [x] Build interference graphs from CFG liveness.
 - [x] Greedy color selection with fixed ABI constraints (`R0`–`R4`, `R4`
@@ -204,8 +204,9 @@ Test plan:
   share a register; full move coalescing is still pending.
 - [x] Keep the existing emitter as a safe fallback for unsupported functions
   and uncolorable graphs.
-- [x] Pressure above five registers selects the M2 fallback, which spills pure
-  expression trees; IR spill slots are not emitted.
+- [x] Pressure above five registers uses a two-color spill path: R0–R1 hold
+  candidates, R2–R3 are scratch, and the remaining values get stack slots.
+  Unsupported functions still fall back to M2.
 
 Test plan:
 
@@ -282,6 +283,8 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
+
 
 
 

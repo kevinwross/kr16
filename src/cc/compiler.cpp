@@ -3216,7 +3216,7 @@ private:
         return changed;
     }
 
-    bool ir_color() {
+    bool ir_color(int colors = 5, bool allow_spill = false) {
         const int count = static_cast<int>(ir_values_.size());
         for (auto& value : ir_values_) {
             value.reg = -1;
@@ -3278,14 +3278,18 @@ private:
                 }
             }
             int color = -1;
-            for (int candidate = 0; candidate < 5; ++candidate) {
+            for (int candidate = 0; candidate < colors; ++candidate) {
                 if (!used[candidate]) {
                     color = candidate;
                     break;
                 }
             }
             if (color < 0) {
-                return false;
+                if (!allow_spill) {
+                    return false;
+                }
+                ir_values_[static_cast<std::size_t>(value)].reg = -1;
+                continue;
             }
             ir_values_[static_cast<std::size_t>(value)].reg = color;
         }
@@ -3471,6 +3475,9 @@ private:
         ir_values_.clear();
         ir_vars_.clear();
         ir_blocks_.clear();
+        ir_spill_slots_.clear();
+        ir_spilled_ = false;
+        ir_frame_size_ = 0;
         ir_break_.clear();
         ir_continue_.clear();
         ir_failed_ = false;
@@ -3518,11 +3525,233 @@ private:
             ir_successors();
             ir_compute_liveness();
         }
-        if (!ir_color()) {
-            return false;
+        if (!ir_color(5, false)) {
+            ir_spilled_ = true;
+            if (!ir_color(2, true)) {
+                return false;
+            }
+            ir_spill_slots_.assign(ir_values_.size(), -1);
+            int slots = 0;
+            for (std::size_t i = 0; i < ir_values_.size(); ++i) {
+                if (ir_values_[i].reg < 0) {
+                    ir_spill_slots_[i] = 2 * ++slots;
+                }
+            }
+            ir_frame_size_ = 2 * slots;
+            if (ir_frame_size_ > 240) {
+                return false;
+            }
+        } else {
+            ir_spilled_ = false;
+            ir_spill_slots_.clear();
+            ir_frame_size_ = 0;
         }
-        ir_emit(function, out);
+        if (ir_spilled_) {
+            ir_emit_spilled(function, out);
+        } else {
+            ir_emit(function, out);
+        }
         return true;
+    }
+
+    void ir_emit_spilled(const Function& function, std::ostringstream& out) {
+        out << ".global " << function.name << "\n";
+        out << function.name << ":\n";
+        out << "  PUSH R4\n";
+        out << "  MOV R4, SP\n";
+        if (ir_frame_size_ > 0) {
+            out << "  SUB SP, #" << ir_frame_size_ << "\n";
+        }
+        for (std::size_t block = 0; block < ir_blocks_.size(); ++block) {
+            ir_emit_block_label(out, static_cast<int>(block));
+            for (const auto& inst : ir_blocks_[block].insts) {
+                const auto reg_of = [&](int value) {
+                    return value >= 0
+                               ? ir_values_[static_cast<std::size_t>(value)].reg
+                               : -1;
+                };
+                const auto slot_of = [&](int value) {
+                    return ir_spill_slots_[static_cast<std::size_t>(value)];
+                };
+                const auto load = [&](int value, int scratch) {
+                    const int reg = reg_of(value);
+                    if (reg < 0) {
+                        out << "  LD R" << scratch << ", [R4-"
+                            << slot_of(value) << "]\n";
+                    } else if (reg != scratch) {
+                        out << "  MOV R" << scratch << ", R" << reg << "\n";
+                    }
+                    return scratch;
+                };
+                const auto store = [&](int value, int source) {
+                    const int reg = reg_of(value);
+                    if (reg < 0) {
+                        out << "  ST [R4-" << slot_of(value) << "], R"
+                            << source << "\n";
+                    } else if (reg != source) {
+                        out << "  MOV R" << reg << ", R" << source << "\n";
+                    }
+                };
+                switch (inst.op) {
+                    case IrOp::Const:
+                        out << "  MOV R2, #" << inst.imm << "\n";
+                        store(inst.dst, 2);
+                        break;
+                    case IrOp::Param: {
+                        const int source = static_cast<int>(inst.imm) + 1;
+                        const int dst = reg_of(inst.dst);
+                        if (dst >= 0) {
+                            if (dst != source) {
+                                out << "  MOV R" << dst << ", R" << source
+                                    << "\n";
+                            }
+                            if (ir_values_[static_cast<std::size_t>(inst.dst)]
+                                    .character) {
+                                out << "  AND R" << dst << ", #0xFF\n";
+                            }
+                        } else {
+                            out << "  MOV R2, R" << source << "\n";
+                            if (ir_values_[static_cast<std::size_t>(inst.dst)]
+                                    .character) {
+                                out << "  AND R2, #0xFF\n";
+                            }
+                            store(inst.dst, 2);
+                        }
+                        break;
+                    }
+                    case IrOp::Move:
+                        (void)load(inst.lhs, 2);
+                        store(inst.dst, 2);
+                        break;
+                    case IrOp::Char:
+                        (void)load(inst.lhs, 2);
+                        out << "  AND R2, #0xFF\n";
+                        store(inst.dst, 2);
+                        break;
+                    case IrOp::Unary:
+                        (void)load(inst.lhs, 2);
+                        out << (inst.text == "-" ? "  NEG R2\n" : "  NOT R2\n");
+                        store(inst.dst, 2);
+                        break;
+                    case IrOp::Assign:
+                        (void)load(inst.lhs, 2);
+                        if (ir_values_[static_cast<std::size_t>(inst.dst)]
+                                .character) {
+                            out << "  AND R2, #0xFF\n";
+                        }
+                        store(inst.dst, 2);
+                        break;
+                    case IrOp::Binary: {
+                        const bool compare =
+                            inst.text == "==" || inst.text == "!=" ||
+                            inst.text == "<" || inst.text == ">" ||
+                            inst.text == "<=" || inst.text == ">=";
+                        const char* mnemonic = "ADD";
+                        if (inst.text == "-") {
+                            mnemonic = "SUB";
+                        } else if (inst.text == "*") {
+                            mnemonic = "MUL";
+                        } else if (inst.text == "/") {
+                            mnemonic = "DIV";
+                        } else if (inst.text == "%") {
+                            mnemonic = "MOD";
+                        } else if (inst.text == "&") {
+                            mnemonic = "AND";
+                        } else if (inst.text == "|") {
+                            mnemonic = "OR";
+                        } else if (inst.text == "^") {
+                            mnemonic = "XOR";
+                        } else if (inst.text == "<<") {
+                            mnemonic = "SHL";
+                        } else if (inst.text == ">>") {
+                            mnemonic = "SAR";
+                        }
+                        (void)load(inst.lhs, 2);
+                        if (inst.immediate) {
+                            out << "  " << (compare ? "CMP" : mnemonic)
+                                << " R2, #" << inst.imm << "\n";
+                        } else {
+                            (void)load(inst.rhs, 3);
+                            out << "  " << (compare ? "CMP" : mnemonic)
+                                << " R2, R3\n";
+                        }
+                        if (compare) {
+                            const std::string yes = new_label("ircmp");
+                            const std::string end = new_label("ircmpend");
+                            std::string branch = "BEQ";
+                            if (inst.text == "!=") {
+                                branch = "BNE";
+                            } else if (inst.text == "<") {
+                                branch = "BLT";
+                            } else if (inst.text == ">") {
+                                branch = "BGT";
+                            } else if (inst.text == "<=") {
+                                branch = "BLE";
+                            } else if (inst.text == ">=") {
+                                branch = "BGE";
+                            }
+                            out << "  " << branch << " " << yes << "\n";
+                            out << "  MOV R2, #0\n";
+                            out << "  BRA " << end << "\n";
+                            out << yes << ":\n";
+                            out << "  MOV R2, #1\n";
+                            out << end << ":\n";
+                        }
+                        store(inst.dst, 2);
+                        break;
+                    }
+                    case IrOp::BranchZero:
+                        (void)load(inst.lhs, 2);
+                        out << "  CMP R2, #0\n";
+                        out << "  BEQ .Lir_" << function_label_ << "_"
+                            << inst.target << "\n";
+                        break;
+                    case IrOp::BranchCompare:
+                        (void)load(inst.lhs, 2);
+                        out << "  CMP R2, ";
+                        if (inst.immediate) {
+                            out << "#" << inst.imm;
+                        } else {
+                            (void)load(inst.rhs, 3);
+                            out << "R3";
+                        }
+                        out << "\n";
+                        {
+                            std::string branch = "BEQ";
+                            if (inst.text == "==") {
+                                branch = "BNE";
+                            } else if (inst.text == "!=") {
+                                branch = "BEQ";
+                            } else if (inst.text == "<") {
+                                branch = "BGE";
+                            } else if (inst.text == ">") {
+                                branch = "BLE";
+                            } else if (inst.text == "<=") {
+                                branch = "BGT";
+                            } else if (inst.text == ">=") {
+                                branch = "BLT";
+                            }
+                            out << "  " << branch << " .Lir_"
+                                << function_label_ << "_" << inst.target
+                                << "\n";
+                        }
+                        break;
+                    case IrOp::Jump:
+                        out << "  BRA .Lir_" << function_label_ << "_"
+                            << inst.target << "\n";
+                        break;
+                    case IrOp::Return:
+                        (void)load(inst.lhs, 2);
+                        out << "  MOV R0, R2\n";
+                        out << "  BRA .Lir_ret_" << function_label_ << "\n";
+                        break;
+                }
+            }
+        }
+        out << ".Lir_ret_" << function_label_ << ":\n";
+        out << "  MOV SP, R4\n";
+        out << "  POP R4\n";
+        out << "  RET\n";
     }
 
     void compile_function(Function& function, std::ostringstream& out) {
@@ -5207,6 +5436,9 @@ private:
     std::vector<IrValue> ir_values_;
     std::unordered_map<std::string, int> ir_vars_;
     std::vector<IrBlock> ir_blocks_;
+    std::vector<int> ir_spill_slots_;
+    bool ir_spilled_ = false;
+    int ir_frame_size_ = 0;
     std::vector<int> ir_break_;
     std::vector<int> ir_continue_;
     int ir_current_ = 0;
@@ -5262,6 +5494,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 

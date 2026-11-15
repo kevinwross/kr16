@@ -2713,3 +2713,18 @@ Entry format:
   copy propagation, and a dedicated loop-invariant pass remain future polish.
 - Tests already green: Windows 56/56 CTest; Linux 56/56 CTest.
 - Roadmap items 1–7 are now implemented for the documented 1.x teaching scope.
+
+### 2026-11-14 18:47:00 -08:00 — IR spill/select allocation
+
+- Added a spill path to the scalar IR backend. It first attempts the existing
+  five-color allocation; if that fails it reruns selection with R0–R1 as
+  candidates, R2–R3 as scratch, and stack slots for the remaining values.
+- The spilled emitter sets `R4` as a frame pointer, reserves the spill frame,
+  loads/stores virtual values, and restores SP/R4 on every return.
+- Unsupported functions still use the M2 fallback; `-g` remains on M2.
+- Added an eight-live-local differential test returning 91 and exercised the
+  spill frame (`SUB SP, #20` in the generated function).
+- Verification: Windows 56/56 CTest; Linux 56/56 CTest; loop benchmark
+  unchanged at 1,237 instructions / 2,033 cycles for `-O1`.
+- Remaining: basic-block copy propagation and induction-variable strength
+  reduction.
