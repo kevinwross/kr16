@@ -2992,3 +2992,13 @@ Entry format:
   substitution scan, unexpected R2 writes.
 - Added an assertion that `same` loads both R3 and R2.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 04:03:11 -08:00 — Cached parameters shrink the frame
+
+- When the cached read-only parameter occupies the top frame slot, that slot is
+  removed from the frame size. `f(char *p, int x)` now uses `SUB SP, #2`
+  instead of `#4`.
+- Parameter-cache returns no longer write the cached value back to its (now
+  removed) frame slot.
+- Added a pattern assertion for the reduced frame.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

@@ -990,6 +990,7 @@ TEST_CASE("read-only parameters are cached in R3") {
     CHECK(assembly.find("MOV R3, R2") != std::string::npos);
     CHECK(assembly.find("LD R0, [R4-4]") == std::string::npos);
     CHECK(assembly.find("ST [R4-4], R2") == std::string::npos);
+    CHECK(assembly.find("SUB SP, #2") != std::string::npos);
     CHECK(run_c(source) == 5);
 }
 
@@ -1006,4 +1007,5 @@ TEST_CASE("call-free complex stores stage the address in R2") {
     CHECK(assembly.find("PUSH R0") == std::string::npos);
     CHECK(run_c(source) == 2);
 }
+
 

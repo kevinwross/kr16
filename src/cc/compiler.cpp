@@ -4321,6 +4321,13 @@ private:
                 break;
             }
         }
+        if (!cached_parameter.empty()) {
+            const auto local = locals_.find(cached_parameter);
+            if (local != locals_.end() && local->second.type &&
+                local->second.offset == frame_size_) {
+                frame_size_ -= local->second.type->size();
+            }
+        }
         out << ".global " << function.name << "\n";
         out << function.name << ":\n";
         out << "  PUSH R4\n";
@@ -4366,6 +4373,7 @@ private:
             }
         }
         if (!cached_parameter.empty()) {
+            cached_parameter_active_ = true;
             cached_loop_local_ = true;
             cached_loop_name_ = cached_parameter;
             cached_loop_offset_ = locals_[cached_parameter].offset;
@@ -4376,6 +4384,7 @@ private:
             gen_stmt(function.body.get(), trial);
             cached_loop_local_ = false;
             cached_loop_name_.clear();
+            cached_parameter_active_ = false;
             const std::string trial_text = trial.str();
             const auto newline = trial_text.find('\n');
             const std::string trial_body =
@@ -4777,7 +4786,7 @@ private:
                 return;
             }
             case Stmt::Kind::Return:
-                if (cached_loop_local_) {
+                if (cached_loop_local_ && !cached_parameter_active_) {
                     out << (cached_loop_character_ ? "  STB [R4-"
                                                   : "  ST [R4-")
                         << cached_loop_offset_ << "], R3\n";
@@ -6660,6 +6669,7 @@ private:
     std::string cached_loop2_name_;
     int cached_loop2_offset_ = 0;
     bool cached_loop2_character_ = false;
+    bool cached_parameter_active_ = false;
     std::vector<IrValue> ir_values_;
     std::unordered_map<std::string, int> ir_vars_;
     std::vector<IrBlock> ir_blocks_;
@@ -6721,6 +6731,10 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
 
 
 
