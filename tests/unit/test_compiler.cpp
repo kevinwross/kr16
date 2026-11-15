@@ -868,3 +868,19 @@ TEST_CASE("counted loops strength-reduce constant induction multiplication") {
     CHECK(assembly.substr(start, end - start).find("MUL") == std::string::npos);
     CHECK(run_c(source) == 18);
 }
+
+TEST_CASE("pointer conditions branch directly without boolean materialization") {
+    const std::string source =
+        "int same(char *a, char *b) { "
+        "while (*a != 0 && *b != 0) { "
+        "if (*a != *b) return 0; a = a + 1; b = b + 1; } "
+        "return *a == *b; }\n"
+        "int main(void) { char a[4]; char b[4]; "
+        "a[0] = 65; a[1] = 66; a[2] = 0; "
+        "b[0] = 65; b[1] = 66; b[2] = 0; "
+        "return same(a, b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("CMP R0, #0") != std::string::npos);
+    CHECK(assembly.find("CMP R0, R1") != std::string::npos);
+    CHECK(run_c(source) == 1);
+}

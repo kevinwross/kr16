@@ -2774,3 +2774,18 @@ Entry format:
   `MUL`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Loop benchmark remains 1,237 instructions / 2,033 cycles at `-O1`.
+
+### 2026-11-14 20:05:40 -08:00 — Pointer and logical conditions
+
+- Extended the fallback simple-leaf emitter to handle `*p` and constant-index
+  array/pointer accesses (`p[0]`) with the correct byte/word load.
+- `emit_simple_condition` now emits direct branches for those leaves and
+  short-circuits `&&`/`||` in both true and false branch directions.
+- Added an `is_simple_condition` precheck so unsupported conditions fall back
+  without emitting a partial branch and leaving an undefined label.
+- Added a pointer-condition test; regenerated `C-for-U.S` with the same
+  function; `same` now branches directly in both loop tests and the mismatch
+  check.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- `resources/fileio.c` compiles and assembles again; it now exercises the
+  `mode == 0 || mode[0] == '\0'` form.

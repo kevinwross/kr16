@@ -235,7 +235,10 @@ Test plan:
 - [x] Strength-reduce multiplication by a power of two to a shift.
 - [x] Fold casts/`sizeof` and constant branches, including IR constant
   conditions.
-- [x] Branch directly on simple comparison conditions in the fallback emitter.
+- [x] Branch directly on simple comparison conditions in the fallback emitter,
+  including pointer dereferences and constant array indexes.
+- [x] Short-circuit `&&`/`||` conditions emit direct branches instead of
+  materializing a boolean.
 - [x] Avoid `PUSH`/`POP` shuffling for simple one-to-three-argument calls,
   including simple binary argument expressions.
 - [x] Fold remaining address calculations.
@@ -251,8 +254,8 @@ Test plan:
 
 - [x] Differential execution against `-O0`.
 - [x] Branch relaxation still handles enlarged/shrunk functions.
-- [x] Pattern assertions for comparison fusion, immediate operands, and
-  basic-block constant reuse.
+- [x] Pattern assertions for comparison fusion, immediate operands,
+  basic-block constant reuse, and pointer/logical conditions.
 - [x] Loop-level benchmark suite across several shapes.
 - [x] Pattern test verifies a counted loop has no `MUL` after strength
   reduction and returns the same result.
@@ -292,6 +295,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

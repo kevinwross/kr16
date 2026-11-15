@@ -4603,6 +4603,16 @@ private:
             return expr->children.size() == 1 &&
                    is_simple_leaf(expr->children[0].get());
         }
+        if (expr->kind == Expr::Kind::Unary && expr->op == "*") {
+            return expr->children.size() == 1 &&
+                   is_simple_leaf(expr->children[0].get());
+        }
+        if (expr->kind == Expr::Kind::Index &&
+            expr->children.size() == 2) {
+            return expr->children[1]->kind == Expr::Kind::Number &&
+                   expr->children[1]->value >= 0 &&
+                   is_simple_leaf(expr->children[0].get());
+        }
         return false;
     }
 
@@ -4644,6 +4654,25 @@ private:
             gen_load_identifier(expr->text, out, target);
             return true;
         }
+        if (expr->kind == Expr::Kind::Index &&
+            expr->children.size() == 2) {
+            const auto index = constant_expr_value(expr->children[1].get());
+            if (!index.has_value() || *index < 0 ||
+                !is_simple_leaf(expr->children[0].get())) {
+                return false;
+            }
+            if (!emit_simple_leaf(expr->children[0].get(), target, out)) {
+                return false;
+            }
+            const int offset =
+                static_cast<int>(*index) * expression_type(expr)->size();
+            if (offset != 0) {
+                out << "  ADD R" << target << ", #" << offset << "\n";
+            }
+            out << (expression_type(expr)->is_char() ? "  LDB R" : "  LD R")
+                << target << ", [R" << target << "]\n";
+            return true;
+        }
         if (expr->kind == Expr::Kind::Cast && expr->children.size() == 1) {
             if (!emit_simple_leaf(expr->children[0].get(), target, out)) {
                 return false;
@@ -4651,6 +4680,16 @@ private:
             if (expr->type && expr->type->kind == TypeKind::Char) {
                 out << "  AND R" << target << ", #0xFF\n";
             }
+            return true;
+        }
+        if (expr->kind == Expr::Kind::Unary && expr->op == "*" &&
+            expr->children.size() == 1) {
+            if (!emit_simple_leaf(expr->children[0].get(), target, out)) {
+                return false;
+            }
+            const auto type = expression_type(expr);
+            out << (type->is_char() ? "  LDB R" : "  LD R") << target
+                << ", [R" << target << "]\n";
             return true;
         }
         if (expr->kind == Expr::Kind::Unary && expr->children.size() == 1) {
@@ -4971,11 +5010,81 @@ private:
         return emit_simple_expr_into(expr, 0, out);
     }
 
+    bool is_simple_condition(const Expr* expr) const {
+        if (expr == nullptr) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Binary &&
+            (expr->op == "&&" || expr->op == "||")) {
+            return is_simple_condition(expr->children[0].get()) &&
+                   is_simple_condition(expr->children[1].get());
+        }
+        if (is_simple_leaf(expr)) {
+            return true;
+        }
+        if (expr->kind != Expr::Kind::Binary || !is_simple_binary(expr)) {
+            return false;
+        }
+        return expr->op == "==" || expr->op == "!=" || expr->op == "<" ||
+               expr->op == ">" || expr->op == "<=" || expr->op == ">=";
+    }
+
     bool emit_simple_condition(const Expr* expr, const std::string& target,
                                bool branch_when_true,
                                std::ostringstream& out) {
-        if (expr == nullptr || expr->kind != Expr::Kind::Binary ||
-            !is_simple_binary(expr)) {
+        if (expr == nullptr || !is_simple_condition(expr)) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Binary &&
+            (expr->op == "&&" || expr->op == "||")) {
+            if (expr->op == "&&") {
+                if (branch_when_true) {
+                    const auto skip = new_label("andtrue");
+                    if (!emit_simple_condition(expr->children[0].get(), skip,
+                                               false, out) ||
+                        !emit_simple_condition(expr->children[1].get(), target,
+                                               true, out)) {
+                        return false;
+                    }
+                    out << skip << ":\n";
+                } else {
+                    if (!emit_simple_condition(expr->children[0].get(), target,
+                                               false, out) ||
+                        !emit_simple_condition(expr->children[1].get(), target,
+                                               false, out)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            if (branch_when_true) {
+                if (!emit_simple_condition(expr->children[0].get(), target,
+                                           true, out) ||
+                    !emit_simple_condition(expr->children[1].get(), target,
+                                           true, out)) {
+                    return false;
+                }
+            } else {
+                const auto skip = new_label("orfalse");
+                if (!emit_simple_condition(expr->children[0].get(), skip, true,
+                                           out) ||
+                    !emit_simple_condition(expr->children[1].get(), target,
+                                           false, out)) {
+                    return false;
+                }
+                out << skip << ":\n";
+            }
+            return true;
+        }
+        if (is_simple_leaf(expr)) {
+            if (!emit_simple_leaf(expr, 0, out)) {
+                return false;
+            }
+            out << "  CMP R0, #0\n";
+            out << (branch_when_true ? "  BNE " : "  BEQ ") << target << "\n";
+            return true;
+        }
+        if (expr->kind != Expr::Kind::Binary || !is_simple_binary(expr)) {
             return false;
         }
         const std::string& op = expr->op;
@@ -5765,6 +5874,11 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
 
 
 
