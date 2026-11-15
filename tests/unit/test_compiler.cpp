@@ -956,3 +956,14 @@ TEST_CASE("for-loop induction variable is cached in R3") {
     CHECK(run_c(source) == 6);
 }
 
+
+TEST_CASE("boolean returns branch directly to return values") {
+    const std::string source =
+        "int f(char *p, int a, int b) { return a == b; }\n"
+        "int main(void) { char b[1]; return f(b, 4, 4); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("fastcmp") == std::string::npos);
+    CHECK(assembly.find("purecmp") == std::string::npos);
+    CHECK(assembly.find("rettrue") != std::string::npos);
+    CHECK(run_c(source) == 1);
+}

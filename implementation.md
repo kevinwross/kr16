@@ -2891,3 +2891,15 @@ Entry format:
   cross-basic-block cache bug from the earlier attempt.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining: direct boolean returns.
+
+### 2026-11-14 22:06:36 -08:00 — Direct boolean returns
+
+- `return <comparison>` and `return <logical expression>` now branch directly to
+  two return-value paths instead of materializing a 0/1 temporary through
+  `purecmp`/`fastcmp`.
+- Restricted the optimization to comparison/logical expressions so ordinary
+  values such as `return x;` are unchanged.
+- Added a fallback-backend test covering `return a == b`; it checks that no
+  `purecmp`/`fastcmp` label remains and that the result is 1.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining priority item: extend loop-local caching to while-loop pointers.

@@ -4467,6 +4467,24 @@ private:
             }
             case Stmt::Kind::Return:
                 if (current_return_symbol_.empty()) {
+                    if (stmt->expr && optimize_ &&
+                        stmt->expr->kind == Expr::Kind::Binary &&
+                        (stmt->expr->op == "==" || stmt->expr->op == "!=" ||
+                         stmt->expr->op == "<" || stmt->expr->op == ">" ||
+                         stmt->expr->op == "<=" || stmt->expr->op == ">=" ||
+                         stmt->expr->op == "&&" || stmt->expr->op == "||") &&
+                        is_simple_condition(stmt->expr.get())) {
+                        const auto true_label = new_label("rettrue");
+                        if (emit_simple_condition(stmt->expr.get(), true_label,
+                                                  true, out)) {
+                            out << "  MOV R0, #0\n";
+                            out << "  BRA " << return_label_ << "\n";
+                            out << true_label << ":\n";
+                            out << "  MOV R0, #1\n";
+                            out << "  BRA " << return_label_ << "\n";
+                            return;
+                        }
+                    }
                     if (stmt->expr) {
                         gen_expr(stmt->expr.get(), out);
                     } else {
@@ -6326,6 +6344,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 
