@@ -1310,3 +1310,27 @@ TEST_CASE("cached parameter frame compaction shifts later locals") {
 
 
 
+
+TEST_CASE("unresolved includes are hard errors") {
+    kr16::CompileOptions options;
+    options.source_name =
+        (std::filesystem::current_path() / "kr16_missing_include_main.c")
+            .string();
+    const auto quoted = kr16::compile_c(
+        "#include \"kr16_missing_quoted.h\"\n"
+        "int main(void) { return 0; }\n",
+        options);
+    REQUIRE(!quoted.ok);
+    REQUIRE(!quoted.diagnostics.empty());
+    CHECK(quoted.diagnostics.front().message.find(
+              "cannot resolve #include") != std::string::npos);
+
+    const auto angled = kr16::compile_c(
+        "#include <kr16_missing_angled.h>\n"
+        "int main(void) { return 0; }\n",
+        options);
+    REQUIRE(!angled.ok);
+    REQUIRE(!angled.diagnostics.empty());
+    CHECK(angled.diagnostics.front().message.find(
+              "cannot resolve #include") != std::string::npos);
+}

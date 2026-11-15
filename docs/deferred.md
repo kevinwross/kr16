@@ -23,9 +23,6 @@ release.
 ## C language and runtime
 
 - Full preprocessor: `#error`, `#line`, pragmas, and variadic macros.
-- Diagnostics for an unresolvable `#include`: the preprocessor currently drops
-  the directive silently, so a missing header turns undefined names into 0
-  instead of failing the compile.
 - Function pointers.
 - True 32-bit `long`/`long long` arithmetic and helper routines. In 1.0,
   `long` is a documented 16-bit alias (ADR 0001).

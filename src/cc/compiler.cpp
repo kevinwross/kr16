@@ -446,7 +446,11 @@ std::string preprocess_source_impl(
                 space == std::string::npos ? rest : rest.substr(0, space);
             const std::string argument =
                 space == std::string::npos ? "" : trim_copy(rest.substr(space));
-            if (directive == "include" && active() && depth < 10) {
+            if (directive == "include" && active()) {
+                if (depth >= 10) {
+                    throw CompileError(source_line, 1,
+                                       "#include nesting is too deep");
+                }
                 std::string file;
                 bool system_header = false;
                 if (argument.size() >= 2 && argument.front() == '"' &&
@@ -505,11 +509,14 @@ std::string preprocess_source_impl(
                         }
                     }
                 }
-                if (emitted_include) {
-                    out += "#line " + std::to_string(source_line + 1) + "\n";
-                } else {
-                    out += '\n';
+                if (!emitted_include) {
+                    throw CompileError(
+                        source_line, 1,
+                        file.empty()
+                            ? "cannot resolve #include directive"
+                            : "cannot resolve #include \"" + file + "\"");
                 }
+                out += "#line " + std::to_string(source_line + 1) + "\n";
                 continue;
             }
             if (directive == "define") {

@@ -3272,3 +3272,13 @@ Entry format:
   removed for call-free and call-bearing locals.
 - Updated pattern tests to expect the direct move.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 13:17:45 -08:00 — Unresolved includes are errors
+
+- The preprocessor now raises a `CompileError` when an active `#include` cannot
+  be resolved from the source directory, include paths, or builtin headers.
+- Malformed/empty include directives and include nesting deeper than 10 also
+  fail instead of being silently dropped.
+- Added quoted and angled missing-header tests.
+- Removed the resolved item from `docs/deferred.md`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
