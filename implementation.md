@@ -2804,3 +2804,13 @@ Entry format:
   directly; `PUSH R0` count dropped from 286 to 145.
 - Added a differential pattern test for the arithmetic/indexed condition.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-14 20:31:03 -08:00 — Simple indexed stores
+
+- Assignments whose value is a simple leaf now keep the destination address in
+  R2 and store directly, instead of `PUSH R0` / evaluate / `POP R0`.
+- `d[i] = 0` becomes address calculation, `MOV R2, R0`, `MOV R0, #0`,
+  `STB [R2], R0`.
+- Added a pattern and differential test for `d[2] = 0` / `return d[2]`.
+- Regenerated `C-for-U.S`; the `PUSH R0` count dropped from 145 to 112.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

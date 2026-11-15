@@ -5376,7 +5376,17 @@ private:
                     out << "  MOV R0, #0\n";
                     return;
                 }
+                const bool simple_value =
+                    optimize_ && is_simple_leaf(expr->children[1].get());
                 gen_addr(expr->children[0].get(), out);
+                if (simple_value) {
+                    out << "  MOV R2, R0\n";
+                    gen_expr(expr->children[1].get(), out);
+                    out << (expression_type(expr->children[0].get())->is_char()
+                                ? "  STB [R2], R0\n"
+                                : "  ST [R2], R0\n");
+                    return;
+                }
                 out << "  PUSH R0\n";
                 gen_expr(expr->children[1].get(), out);
                 out << "  MOV R1, R0\n";
@@ -5923,6 +5933,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

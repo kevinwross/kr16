@@ -895,3 +895,17 @@ TEST_CASE("arithmetic and indexed loop conditions branch directly") {
     CHECK(assembly.find("purecmp") == std::string::npos);
     CHECK(run_c(source) == 2);
 }
+
+TEST_CASE("simple indexed stores avoid push-pop address shuffling") {
+    const std::string source =
+        "int f(char *d) { d[2] = 0; return d[2]; }\n"
+        "int main(void) { char b[4]; b[0] = 1; return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    const auto start = assembly.find(".global f");
+    const auto end = assembly.find(".global main");
+    REQUIRE(start != std::string::npos);
+    REQUIRE(end != std::string::npos);
+    CHECK(assembly.substr(start, end - start).find("PUSH R0") ==
+          std::string::npos);
+    CHECK(run_c(source) == 0);
+}
