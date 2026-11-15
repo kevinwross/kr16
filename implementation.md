@@ -2853,3 +2853,14 @@ Entry format:
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining priority items: loop-local pointer/induction registers, broader
   redundant load/store peepholes, and direct boolean returns.
+
+
+### 2026-11-14 21:29:33 -08:00 — Unused assignment results
+
+- Expression statements now suppress the assignment result copy when the value
+  is unused.
+- `d[i] = 0;` now ends at `MOV R1, #0; STB [R0], R1` without the trailing
+  `MOV R0, R1`.
+- This is the first part of the redundant copy/store peephole priority item.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining: loop-local pointer/induction registers and direct boolean returns.

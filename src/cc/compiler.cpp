@@ -5392,13 +5392,17 @@ private:
                         out << (expression_type(expr->children[0].get())->is_char()
                                     ? "  STB [R0], R1\n"
                                     : "  ST [R0], R1\n");
-                        out << "  MOV R0, R1\n";
+                        if (!expression_statement_) {
+                            out << "  MOV R0, R1\n";
+                        }
                         return;
                     }
                     out << (expression_type(expr->children[0].get())->is_char()
                                 ? "  STB [R0], R1\n"
                                 : "  ST [R0], R1\n");
-                    out << "  MOV R0, R1\n";
+                    if (!expression_statement_) {
+                        out << "  MOV R0, R1\n";
+                    }
                     return;
                 }
                 out << "  PUSH R0\n";
@@ -5408,7 +5412,9 @@ private:
                 out << (expression_type(expr->children[0].get())->is_char()
                             ? "  STB [R0], R1\n"
                             : "  ST [R0], R1\n");
-                out << "  MOV R0, R1\n";
+                if (!expression_statement_) {
+                    out << "  MOV R0, R1\n";
+                }
                 return;
             }
             case Expr::Kind::Unary:
