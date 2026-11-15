@@ -3127,3 +3127,12 @@ Entry format:
 - Added a differential/pattern test where `tick()` is called inside the loop and
   the pointer cache is still used.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 08:43:01 -08:00 — Call-heavy benchmark gate
+
+- Added an instruction-count regression gate for:
+  - a cached loop pointer across `tick()` inside the loop
+  - cached locals across `inc(x)` plus an update
+- Both cases require -O1 to use fewer instructions than -O0 and check their
+  runtime result.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

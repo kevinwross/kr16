@@ -1139,3 +1139,45 @@ TEST_CASE("cached loop pointers spill around zero-argument calls") {
     CHECK(assembly.find("LD R3, [R4-2]") != std::string::npos);
     CHECK(run_c(source) == 2);
 }
+
+TEST_CASE("benchmark gate covers call-heavy cache shapes") {
+    const auto count_instructions = [](const std::string& text) {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < text.size();) {
+            const auto end = text.find('\n', i);
+            const auto line = text.substr(i, end - i);
+            if (!line.empty() && line.front() == ' ') {
+                ++count;
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            i = end + 1;
+        }
+        return count;
+    };
+    struct Case {
+        std::string source;
+        int expected;
+    };
+    const std::vector<Case> cases = {
+        {"int tick(void) { return 1; }\n"
+         "int f(char *p) { int n = 0; while (*p) { p = p + 1; "
+         "n = n + tick(); } return n; }\n"
+         "int main(void) { char b[3]; b[0]=1; b[1]=1; b[2]=0; "
+         "return f(b); }\n",
+         2},
+        {"int inc(int n) { return n + 1; }\n"
+         "int f(char *p) { int x = 1; int y = inc(x); "
+         "x = x + 1; return x + y; }\n"
+         "int main(void) { char b[1]; return f(b); }\n",
+         4},
+    };
+    for (const auto& test : cases) {
+        const auto optimized = compile_text(test.source, true);
+        const auto plain = compile_text(test.source, false);
+        CHECK(count_instructions(optimized) <
+              count_instructions(plain));
+        CHECK(run_c(test.source) == test.expected);
+    }
+}
