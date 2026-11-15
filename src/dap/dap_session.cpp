@@ -446,6 +446,8 @@ struct Breakpoint {
     std::uint16_t address = 0;
     int line = 0;
     std::string condition;
+    std::string hit_condition;
+    mutable int hits = 0;
 };
 
 enum class RunKind {
@@ -580,16 +582,32 @@ struct DapSession::Impl {
         if (!breakpoint_condition(cpu, iteration->second.condition)) {
             return false;
         }
+        if (!iteration->second.hit_condition.empty()) {
+            int target = 0;
+            const auto& text = iteration->second.hit_condition;
+            const auto parsed = std::from_chars(text.data(),
+                                             text.data() + text.size(),
+                                             target);
+            if (parsed.ec == std::errc{} && target > 0) {
+                ++iteration->second.hits;
+                if (iteration->second.hits < target) {
+                    return false;
+                }
+            }
+        }
         result = iteration->second;
         return true;
     }
 
     int add_breakpoint(std::uint16_t address, int line,
-                       std::string condition = {}) {
+                       std::string condition = {},
+                       std::string hit_condition = {}) {
         const auto existing = breakpoints.find(address);
         if (existing != breakpoints.end()) {
             existing->second.line = line;
             existing->second.condition = std::move(condition);
+            existing->second.hit_condition = std::move(hit_condition);
+            existing->second.hits = 0;
             return existing->second.id;
         }
         Breakpoint breakpoint;
@@ -597,6 +615,7 @@ struct DapSession::Impl {
         breakpoint.address = address;
         breakpoint.line = line;
         breakpoint.condition = std::move(condition);
+        breakpoint.hit_condition = std::move(hit_condition);
         breakpoints.emplace(address, breakpoint);
         return breakpoint.id;
     }
@@ -910,7 +929,7 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
     body.set("supportsSingleThreadExecutionRequests",
              JsonValue::boolean(true));
     body.set("supportsConditionalBreakpoints", JsonValue::boolean(true));
-    body.set("supportsHitConditionalBreakpoints", JsonValue::boolean(false));
+    body.set("supportsHitConditionalBreakpoints", JsonValue::boolean(true));
     body.set("supportsFunctionBreakpoints", JsonValue::boolean(true));
     body.set("supportsStepBack", JsonValue::boolean(false));
     body.set("supportsRestartRequest", JsonValue::boolean(true));
@@ -1062,12 +1081,14 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
     breakpoints.clear();
     JsonValue reported = JsonValue::array();
 
-    auto report_line_breakpoint = [&](int line, std::string condition) {
+    auto report_line_breakpoint = [&](int line, std::string condition,
+                                      std::string hit_condition) {
         JsonValue breakpoint_json = JsonValue::object();
         const auto address = address_for_line(line_rows, line);
         if (address.has_value()) {
             const auto id = add_breakpoint(*address, line,
-                                          std::move(condition));
+                                          std::move(condition),
+                                          std::move(hit_condition));
             breakpoint_json.set("id", JsonValue::integer(id));
             breakpoint_json.set("verified", JsonValue::boolean(true));
             breakpoint_json.set("line", JsonValue::integer(line));
@@ -1098,6 +1119,8 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
                 line_number = static_cast<int>(line);
             }
             const std::string condition = string_or(&item, "condition", {});
+            const std::string hit_condition =
+                string_or(&item, "hitCondition", {});
             const auto address = parse_address(item.find("address"));
             if (address.has_value()) {
                 const auto id = add_breakpoint(
@@ -1105,7 +1128,7 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
                     line_number > 0
                         ? line_number
                         : line_for_address(line_rows, *address),
-                    condition);
+                    condition, hit_condition);
                 JsonValue breakpoint_json = JsonValue::object();
                 breakpoint_json.set("id", JsonValue::integer(id));
                 breakpoint_json.set("verified", JsonValue::boolean(true));
@@ -1116,7 +1139,7 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
                                                        line_rows, *address)));
                 reported.push(std::move(breakpoint_json));
             } else if (line_number > 0) {
-                report_line_breakpoint(line_number, condition);
+                report_line_breakpoint(line_number, condition, hit_condition);
             } else {
                 JsonValue breakpoint_json = JsonValue::object();
                 breakpoint_json.set("verified", JsonValue::boolean(false));
@@ -1135,7 +1158,7 @@ std::vector<std::string> DapSession::Impl::handle_set_breakpoints(
                 }
                 const auto value = line.as_integer();
                 if (value > 0 && value <= 0xFFFF) {
-                    report_line_breakpoint(static_cast<int>(value), {});
+                    report_line_breakpoint(static_cast<int>(value), {}, {});
                 }
             }
         }
@@ -1892,6 +1915,8 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
+
 
 
 

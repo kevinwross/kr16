@@ -2635,3 +2635,13 @@ Entry format:
   hit-count breakpoints, step back, and delayed stack traces.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Paused after this gate at the user's request.
+
+### 2026-11-14 17:24:22 -08:00 — DAP hit-count breakpoints
+
+- Added numeric `hitCondition` support: a breakpoint stops on its Nth hit.
+- `supportsHitConditionalBreakpoints` is now true.
+- Added a DAP test that sets hit count 2 at the entry address and verifies the
+  first restart reports `entry` while the second reports `breakpoint`.
+- Updated the final plan and VS Code README.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Next: step back and delayed stack traces, or remaining compiler spills.

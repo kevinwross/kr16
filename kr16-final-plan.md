@@ -746,7 +746,7 @@ and accepts `--raw`, `--base`, `--bios`, `--no-bios`.
 | function breakpoints | yes |
 | single-thread execution requests | yes |
 | conditional breakpoints (`$rN`/`$pc` comparisons) | yes |
-| hit counts | no |
+| hit-count breakpoints | yes |
 | step back | no |
 | restart | yes |
 | `setVariable` (registers/globals/locals) | yes |
@@ -865,7 +865,7 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 - Diagnostics for an unresolvable `#include` (currently silent).
 - Linker: `--gc-all`, relocatable `-r` links, weak/common symbols, linker
   scripts, embedded release BIOS selection, BIOS RAM loading.
-- Debugger: hit-count breakpoints, step back, and delayed stack traces.
+- Debugger: step back and delayed stack traces.
 - Distribution: marketplace publication, code signing, installers.
 
 ### Known rough edges
@@ -957,6 +957,7 @@ Branch conditions: `EQ NE CS/HS CC/LO MI PL VS VC HI LS GE LT GT LE AL/RA`.
 | **DebugSession** | the portable debug model shared by the GUI, DAP, and tests |
 | **sandbox** | the guest-visible filesystem root, quota, and read-only policy |
 | **C-for-U** | the C→assembly compiler written in KR16 C and used as an end-to-end test |
+
 
 
 

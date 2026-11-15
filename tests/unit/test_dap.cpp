@@ -204,6 +204,29 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
         }
     }
     CHECK(conditional_hit);
+    const std::string hit_request =
+        "{\"seq\":12,\"type\":\"request\",\"command\":\"setBreakpoints\","
+        "\"arguments\":{\"source\":{\"path\":\"" + escaped_path +
+        "\"},\"breakpoints\":[{\"address\":\"0x0100\","
+        "\"hitCondition\":\"2\"}]}}";
+    (void)session.handle_message(hit_request);
+    auto stopped_reason = [&](const std::string& request) {
+        const auto messages = session.handle_message(request);
+        for (const auto& message : messages) {
+            const auto parsed = kr16::dap::JsonValue::parse(message);
+            if (parsed.find("type")->as_string() == "event" &&
+                parsed.find("event")->as_string() == "stopped") {
+                return parsed.find("body")->find("reason")->as_string();
+            }
+        }
+        return std::string();
+    };
+    CHECK(stopped_reason(
+              "{\"seq\":13,\"type\":\"request\",\"command\":\"restart\","
+              "\"arguments\":{}}") == "entry");
+    CHECK(stopped_reason(
+              "{\"seq\":14,\"type\":\"request\",\"command\":\"restart\","
+              "\"arguments\":{}}") == "breakpoint");
     const auto set_value = session.handle_message(
         "{\"seq\":10,\"type\":\"request\",\"command\":\"setVariable\","
         "\"arguments\":{\"variablesReference\":1,\"name\":\"R0\","
@@ -223,6 +246,7 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
     std::filesystem::remove(path);
     std::filesystem::remove(source_file);
 }
+
 
 
 
