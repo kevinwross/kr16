@@ -15,9 +15,9 @@
 
 namespace {
 
-int run_c(const std::string& source,
-          const std::vector<std::string>& arguments = {},
-          bool optimize = true) {
+kr16::VmResult run_c_stats(const std::string& source,
+                           const std::vector<std::string>& arguments = {},
+                           bool optimize = true) {
     kr16::CompileOptions options;
     options.optimize = optimize;
     const auto compiled = kr16::compile_c(source, options);
@@ -43,7 +43,13 @@ int run_c(const std::string& source,
     }());
     std::filesystem::remove(path);
     REQUIRE(result.ok);
-    return result.exit_code;
+    return result;
+}
+
+int run_c(const std::string& source,
+          const std::vector<std::string>& arguments = {},
+          bool optimize = true) {
+    return run_c_stats(source, arguments, optimize).exit_code;
 }
 
 std::string compile_text(const std::string& source, bool optimize = true) {
@@ -1254,3 +1260,19 @@ TEST_CASE("C-for-U compilation stays within instruction budget") {
     CHECK(assembly.size() < 95000);
 }
 
+
+
+TEST_CASE("call-heavy cache shapes use fewer cycles at O1") {
+    const std::string source =
+        "int tick(void) { return 1; }\n"
+        "int f(char *p) { int n = 0; while (*p) { p = p + 1; "
+        "n = n + tick(); } return n; }\n"
+        "int main(void) { char b[3]; b[0]=1; b[1]=1; b[2]=0; "
+        "return f(b); }\n";
+    const auto plain = run_c_stats(source, {}, false);
+    const auto optimized = run_c_stats(source, {}, true);
+    CHECK(plain.exit_code == 2);
+    CHECK(optimized.exit_code == 2);
+    CHECK(optimized.cycles < plain.cycles);
+    CHECK(optimized.instructions < plain.instructions);
+}

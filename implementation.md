@@ -3217,3 +3217,11 @@ Entry format:
 - Current size: 5,463 instructions; this catches large code-size regressions in
   the self-hosted compiler workload.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:30:52 -08:00 — Cycle-level benchmark gate
+
+- Split the test VM runner into `run_c_stats` (returns the full `VmResult`)
+  and the existing `run_c` exit-code wrapper.
+- Added a call-heavy cache gate requiring both fewer VM instructions and fewer
+  VM cycles at -O1, with runtime results checked.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
