@@ -882,6 +882,7 @@ TEST_CASE("pointer conditions branch directly without boolean materialization") 
     const auto assembly = compile_text(source, true);
     CHECK(assembly.find("LD R3, [R4-") != std::string::npos);
     CHECK(assembly.find("LD R2, [R4-") != std::string::npos);
+    CHECK(assembly.find("LD R0, [R4-2]") == std::string::npos);
     CHECK(assembly.find("CMP R0, #0") != std::string::npos);
     CHECK(assembly.find("CMP R0, R1") != std::string::npos);
     CHECK(run_c(source) == 1);
@@ -1019,3 +1020,4 @@ TEST_CASE("read-only locals are cached in R3") {
     CHECK(assembly.find("LD R0, [R4-4]") == std::string::npos);
     CHECK(run_c(source) == 5);
 }
+

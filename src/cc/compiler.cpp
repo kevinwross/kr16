@@ -4492,6 +4492,12 @@ private:
                 gen_stmt(function.body.get(), out);
             }
         }
+        cached_loop_local_ = false;
+        cached_loop_name_.clear();
+        cached_loop2_local_ = false;
+        cached_loop2_name_.clear();
+        cached_loop_clean_ = false;
+        retain_loop_cache_after_ = false;
         out << "  MOV R0, #0\n";
         out << return_label_ << ":\n";
         out << "  MOV SP, R4\n";
@@ -4749,6 +4755,7 @@ private:
     }
     bool try_emit_cached_while(const Stmt* stmt,
                                std::ostringstream& out) {
+        const bool retain_after = retain_loop_cache_after_;
         const std::string name = find_updated_pointer(stmt->body.get());
         const auto local = locals_.find(name);
         if (name.empty() || local == locals_.end() ||
@@ -4813,11 +4820,29 @@ private:
         }
         if (assembly_clobbers_r3(trial_text) ||
             assembly_clobbers_r3(r2_text)) {
+            cached_loop_clean_ = false;
             return false;
+        }
+        if (retain_after) {
+            cached_loop_local_ = true;
+            cached_loop_name_ = name;
+            cached_loop_offset_ = local->second.offset;
+            cached_loop_character_ = false;
+            if (!name2.empty()) {
+                cached_loop2_local_ = true;
+                cached_loop2_name_ = name2;
+                cached_loop2_offset_ = local2->second.offset;
+                cached_loop2_character_ = false;
+            }
+            cached_loop_clean_ = true;
+        } else {
+            cached_loop_clean_ = false;
         }
         out << trial_text;
         return true;
-    }    void gen_stmt(const Stmt* stmt, std::ostringstream& out) {
+    }
+
+    void gen_stmt(const Stmt* stmt, std::ostringstream& out) {
         if (stmt == nullptr) {
             return;
         }
@@ -4879,12 +4904,14 @@ private:
                 return;
             }
             case Stmt::Kind::Return:
-                if (cached_loop_local_ && !cached_parameter_active_) {
+                if (cached_loop_local_ && !cached_parameter_active_ &&
+                    !cached_loop_clean_) {
                     out << (cached_loop_character_ ? "  STB [R4-"
                                                   : "  ST [R4-")
                         << cached_loop_offset_ << "], R3\n";
                 }
-                if (cached_loop2_local_) {
+                if (cached_loop2_local_ && !cached_parameter_active_ &&
+                    !cached_loop_clean_) {
                     out << (cached_loop2_character_ ? "  STB [R4-"
                                                    : "  ST [R4-")
                         << cached_loop2_offset_ << "], R2\n";
@@ -4939,12 +4966,22 @@ private:
             case Stmt::Kind::Compound:
                 {
                     bool reachable = true;
-                    for (const auto& child : stmt->statements) {
+                    for (std::size_t i = 0; i < stmt->statements.size(); ++i) {
+                        const auto& child = stmt->statements[i];
                         if (optimize_ && !reachable &&
                             child->kind != Stmt::Kind::Label) {
                             continue;
                         }
+                        retain_loop_cache_after_ =
+                            child->kind == Stmt::Kind::While &&
+                            i + 1 < stmt->statements.size() &&
+                            stmt->statements[i + 1]->kind ==
+                                Stmt::Kind::Return &&
+                            stmt->statements[i + 1]->expr &&
+                            !expr_has_call(
+                                stmt->statements[i + 1]->expr.get());
                         gen_stmt(child.get(), out);
+                        retain_loop_cache_after_ = false;
                         if (optimize_ &&
                             (child->kind == Stmt::Kind::Return ||
                              child->kind == Stmt::Kind::Break ||
@@ -6763,6 +6800,8 @@ private:
     int cached_loop2_offset_ = 0;
     bool cached_loop2_character_ = false;
     bool cached_parameter_active_ = false;
+    bool cached_loop_clean_ = false;
+    bool retain_loop_cache_after_ = false;
     std::vector<IrValue> ir_values_;
     std::unordered_map<std::string, int> ir_vars_;
     std::vector<IrBlock> ir_blocks_;
@@ -6824,6 +6863,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 

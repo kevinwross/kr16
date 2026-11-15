@@ -3012,3 +3012,15 @@ Entry format:
   or address-taking. The transformed body is rejected if it clobbers R3.
 - Added a pattern/differential test for `int x = 5; return x;`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 04:24:13 -08:00 — Post-loop cache retention
+
+- When a pointer-loop cache is followed immediately by a call-free return, the
+  cache is kept live instead of being discarded at loop exit.
+- `same(char *a, char *b)` no longer reloads both pointers before its final
+  comparison; it reuses R3/R2 and skips the duplicate return writeback because
+  the loop exit already stored them.
+- Caches are cleared at function end so retained state cannot leak into the next
+  function.
+- Added an assertion that `same` has no `LD R0, [R4-2]` reload.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
