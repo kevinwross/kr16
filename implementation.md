@@ -3182,3 +3182,12 @@ Entry format:
 - This consolidates role, name, offset, and character state in one structure
   without changing code generation.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:16:37 -08:00 — Use-frequency local allocation
+
+- Added AST name-use counting and used it to rank local cache candidates:
+  highest use count wins R3, next wins R2; frame offset breaks ties.
+- This is a first allocation heuristic over the whole function body rather than
+  declaration order.
+- Existing pointer/local/call tests remain green.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

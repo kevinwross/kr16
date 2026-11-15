@@ -4626,6 +4626,7 @@ private:
         } else {
             std::string cached_local;
             int cached_local_offset = 0;
+            int cached_local_uses = -1;
             bool cached_local_character = false;
             for (const auto& [name, variable] : locals_) {
                 bool is_parameter = false;
@@ -4646,15 +4647,20 @@ private:
                                             true, true)) {
                     continue;
                 }
-                if (cached_local.empty() ||
-                    variable.offset < cached_local_offset) {
+                const int uses =
+                    stmt_name_uses(function.body.get(), name);
+                if (cached_local.empty() || uses > cached_local_uses ||
+                    (uses == cached_local_uses &&
+                     variable.offset < cached_local_offset)) {
                     cached_local = name;
                     cached_local_offset = variable.offset;
+                    cached_local_uses = uses;
                     cached_local_character = variable.type->is_char();
                 }
             }
             std::string cached_local2;
             int cached_local2_offset = 0;
+            int cached_local2_uses = -1;
             bool cached_local2_character = false;
             if (!cached_local.empty() &&
                 stmt_calls_fit_argument_registers(function.body.get(), 1)) {
@@ -4680,10 +4686,14 @@ private:
                                                true, true, true)) {
                         continue;
                     }
-                    if (cached_local2.empty() ||
-                        variable.offset < cached_local2_offset) {
+                    const int uses =
+                        stmt_name_uses(function.body.get(), name);
+                    if (cached_local2.empty() || uses > cached_local2_uses ||
+                        (uses == cached_local2_uses &&
+                         variable.offset < cached_local2_offset)) {
                         cached_local2 = name;
                         cached_local2_offset = variable.offset;
+                        cached_local2_uses = uses;
                         cached_local2_character = variable.type->is_char();
                     }
                 }
@@ -4948,6 +4958,39 @@ private:
         return count;
     }
 
+    int expr_name_uses(const Expr* expr, const std::string& name) const {
+        if (expr == nullptr) {
+            return 0;
+        }
+        int uses = expr->kind == Expr::Kind::Identifier &&
+                           expr->text == name
+                       ? 1
+                       : 0;
+        for (const auto& child : expr->children) {
+            uses += expr_name_uses(child.get(), name);
+        }
+        return uses;
+    }
+
+    int stmt_name_uses(const Stmt* stmt, const std::string& name) const {
+        if (stmt == nullptr) {
+            return 0;
+        }
+        int uses = expr_name_uses(stmt->expr.get(), name) +
+                   expr_name_uses(stmt->expr2.get(), name);
+        for (const auto& child : stmt->statements) {
+            uses += stmt_name_uses(child.get(), name);
+        }
+        for (const auto& case_stmt : stmt->cases) {
+            uses += stmt_name_uses(case_stmt.get(), name);
+        }
+        for (const auto& declaration : stmt->declarations) {
+            uses += expr_name_uses(declaration.init.get(), name);
+        }
+        return uses + stmt_name_uses(stmt->body.get(), name) +
+               stmt_name_uses(stmt->else_body.get(), name) +
+               stmt_name_uses(stmt->init.get(), name);
+    }
     bool loop_calls_safe(const Stmt* stmt, const std::string& name) const {
         if (stmt == nullptr) {
             return true;
@@ -7157,6 +7200,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 
