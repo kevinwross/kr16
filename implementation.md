@@ -2692,3 +2692,13 @@ Entry format:
 - Updated the final plan and VS Code README; debugger depth is complete.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining: compiler M3–M5 spill/copy/loop work.
+
+### 2026-11-14 17:45:03 -08:00 — Compiler high-pressure fallback test
+
+- Added a differential test for an eight-parameter scalar function, exercising
+  the M2 fallback when the IR graph exceeds R0–R4 pressure.
+- Documented the current spill policy in `docs/compiler-opt.md`: pure
+  expression trees spill in the fallback; IR coloring still declines graphs
+  above five registers.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining: true IR spill/select coloring and loop-invariant optimization.

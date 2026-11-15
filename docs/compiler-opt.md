@@ -204,7 +204,9 @@ Test plan:
   share a register; full move coalescing is still pending.
 - [x] Keep the existing emitter as a safe fallback for unsupported functions
   and uncolorable graphs.
-- [ ] Spill/select coloring for pressure above five registers.
+- [ ] Spill/select coloring for pressure above five registers. The current safe
+  path is the M2 fallback, which spills pure expression trees; IR graph
+  coloring still refuses graphs that cannot fit R0–R4.
 
 Test plan:
 
@@ -281,6 +283,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 
