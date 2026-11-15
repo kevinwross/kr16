@@ -1395,3 +1395,34 @@ TEST_CASE("cached parameters survive three-argument calls") {
     CHECK(run_c(source) == 11);
 }
 
+
+TEST_CASE("nested three-argument calls preserve fallback results") {
+    const std::string source =
+        "int add3(int a, int b, int c) { return a + b + c; }\n"
+        "int f(void) { int x = 1; int y = 2; int z = 0; "
+        "z = add3(add3(x, y, 1), y, 2); return x + y + z; }\n"
+        "int main(void) { return f(); }\n";
+    CHECK(run_c(source) == 11);
+}
+
+TEST_CASE("one-argument loop calls keep loop cache results correct") {
+    const std::string source =
+        "int inc(int n) { return n + 1; }\n"
+        "int f(char *p) { int n = 0; while (*p) { "
+        "n = n + inc(n); p = p + 1; } return n; }\n"
+        "int main(void) { char b[3]; b[0]=1; b[1]=1; b[2]=0; "
+        "return f(b); }\n";
+    CHECK(run_c(source) == 3);
+}
+
+TEST_CASE("cached parameters survive branch joins") {
+    const std::string source =
+        "int f(char *p, int x, int c) { "
+        "if (c) { return x + 1; } return x + 2; }\n"
+        "int main(void) { char b[1]; "
+        "return f(b, 4, 1) + f(b, 4, 0); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("MOV R3, R2") != std::string::npos);
+    CHECK(assembly.find("CMP R0, #0") != std::string::npos);
+    CHECK(run_c(source) == 11);
+}

@@ -3396,3 +3396,13 @@ Entry format:
 - C-for-U improved to 5,477 instructions / 94,384 bytes; gate tightened to
   5,500 / 95,000.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest; C-for-U 4/4.
+
+### 2026-11-15 15:06:30 -08:00 — Nested, loop-call, and parameter branch tests
+
+- Added a nested three-argument call test (`add3(add3(x,y,1),y,2)`) with
+  fallback-safe result 11.
+- Added a one-argument call inside a pointer loop with result 3.
+- Added a cached-parameter branch-join test returning 5 and 6.
+- All three exercise the current cache/spill paths without changing generated
+  behavior.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
