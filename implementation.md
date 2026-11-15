@@ -2930,3 +2930,12 @@ Entry format:
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining priority-list work: parameter/local traffic, remaining call pushes,
   and benchmark coverage for the new loop passes.
+
+### 2026-11-15 03:20:48 -08:00 — Optimization-specific benchmark
+
+- Added `tests/benchmarks/opt_loops.c`, covering `i * 3` induction
+  strength reduction and the while-pointer R3 cache.
+- Recorded Windows Debug results: 757 -> 300 instructions, 1,216 -> 428
+  cycles, 9,386 -> 9,238 text bytes from `-O0` to `-O1`.
+- Added the commands and table to `tests/benchmarks/README.md`.
+- No compiler behavior changed in this step.

@@ -26,3 +26,25 @@ semantics.
 
 The unit suite also gates this through the `optimized loop benchmark` test, so
 a regression in instruction count fails CTest.
+
+## Optimization-specific loops
+
+`tests/benchmarks/opt_loops.c` exercises the passes added after 1.0:
+`i * 3` induction strength reduction and the while-pointer `R3` cache.
+
+```powershell
+build\windows-ninja\kr16.exe build tests\benchmarks\opt_loops.c -O0 -o build\opt_loops-o0.kex
+build\windows-ninja\kr16.exe build tests\benchmarks\opt_loops.c -O1 -o build\opt_loops-o1.kex
+build\windows-ninja\kr16.exe vm build\opt_loops-o0.kex --stats
+build\windows-ninja\kr16.exe vm build\opt_loops-o1.kex --stats
+```
+
+Recorded on 2026-11-15 with the Windows Debug build:
+
+| Metric | `-O0` | `-O1` |
+|---|---:|---:|
+| VM instructions | 757 | 300 |
+| VM cycles | 1,216 | 428 |
+| text bytes | 9,386 | 9,238 |
+
+The optimized build executes about 40% of the baseline instruction count.
