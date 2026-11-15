@@ -967,3 +967,13 @@ TEST_CASE("boolean returns branch directly to return values") {
     CHECK(assembly.find("rettrue") != std::string::npos);
     CHECK(run_c(source) == 1);
 }
+
+TEST_CASE("single-update while pointer loop caches R3") {
+    const std::string source =
+        "int f(char *p) { while (*p != 0) { p = p + 1; } return *p; }\n"
+        "int main(void) { char b[2]; b[0] = 1; b[1] = 0; return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("LD R3, [R4-") != std::string::npos);
+    CHECK(assembly.find("ADD R3, #1") != std::string::npos);
+    CHECK(run_c(source) == 0);
+}

@@ -2903,3 +2903,16 @@ Entry format:
   `purecmp`/`fastcmp` label remains and that the result is 1.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining priority item: extend loop-local caching to while-loop pointers.
+
+### 2026-11-14 22:26:04 -08:00 — Single-update while pointer cache
+
+- Added a narrow pointer-loop cache: for `while` bodies that contain exactly one
+  update of a local pointer/int/char, the variable is loaded into R3, the
+  condition/update use R3, and the value is written back at loop exit.
+- The generated loop is first built in a temporary stream and scanned for any
+  unexpected R3 destination; if one is present, the cache is discarded and the
+  normal loop is generated.
+- This is intentionally narrower than the failed general cache and avoids the
+  `printf_hex` regression.
+- Added a differential/pattern test for `while (*p != 0) { p = p + 1; }`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

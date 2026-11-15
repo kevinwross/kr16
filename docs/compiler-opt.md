@@ -242,6 +242,8 @@ Test plan:
   keeping the address in R0 instead of pushing or moving it.
 - [x] Counted `for` loops cache a safe scalar induction variable in R3,
   updating it in the latch and writing it back at loop exit.
+- [x] Single-update `while` pointer loops cache the pointer in R3, with a
+  generated-body scan that rejects any unexpected R3 clobber.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
 - [x] Indexed address generation loads a simple base directly into `R1`,
@@ -306,6 +308,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

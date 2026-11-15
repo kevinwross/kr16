@@ -2037,6 +2037,40 @@ std::string apply_adjacent_peepholes(const std::string& text) {
     }
     return result.str();
 }
+bool assembly_clobbers_r3(const std::string& text) {
+    std::istringstream input(text);
+    std::string line;
+    while (std::getline(input, line)) {
+        const std::string trimmed = trim_copy(line);
+        if (trimmed.empty() || trimmed.front() == ';' ||
+            trimmed.front() == '.' || trimmed.back() == ':') {
+            continue;
+        }
+        if (trimmed.find("R3") == std::string::npos) {
+            continue;
+        }
+        if (trimmed.rfind("MOV R3, R0", 0) == 0 ||
+            trimmed.rfind("LD R3, [R4-", 0) == 0 ||
+            trimmed.rfind("LDB R3, [R4-", 0) == 0 ||
+            trimmed.rfind("ADD R3,", 0) == 0 ||
+            trimmed.rfind("SUB R3,", 0) == 0) {
+            continue;
+        }
+        const auto space = trimmed.find(' ');
+        const auto comma = trimmed.find(',');
+        const std::string first =
+            space == std::string::npos
+                ? trimmed
+                : trimmed.substr(space + 1,
+                                 comma == std::string::npos
+                                     ? std::string::npos
+                                     : comma - space - 1);
+        if (first == "R3") {
+            return true;
+        }
+    }
+    return false;
+}
 class Codegen {
 public:
     Codegen(Program program, std::string source_name, bool debug,
@@ -4448,6 +4482,87 @@ private:
         }
         return false;
     }
+    bool try_emit_cached_while(const Stmt* stmt,
+                               std::ostringstream& out) {
+        const Expr* update = nullptr;
+        if (stmt->body && stmt->body->kind == Stmt::Kind::Expr) {
+            update = stmt->body->expr.get();
+        } else if (stmt->body &&
+                   stmt->body->kind == Stmt::Kind::Compound &&
+                   stmt->body->statements.size() == 1 &&
+                   stmt->body->statements[0]->kind == Stmt::Kind::Expr) {
+            update = stmt->body->statements[0]->expr.get();
+        }
+        std::string name;
+        int delta = 0;
+        if (update != nullptr) {
+            if (update->kind == Expr::Kind::Unary &&
+                (update->op == "++" || update->op == "--") &&
+                update->children.size() == 1 &&
+                update->children[0]->kind == Expr::Kind::Identifier) {
+                name = update->children[0]->text;
+                delta = update->op == "++" ? 1 : -1;
+            } else if (update->kind == Expr::Kind::Assign &&
+                       update->children.size() == 2 &&
+                       update->children[0]->kind ==
+                           Expr::Kind::Identifier &&
+                       update->children[1]->kind == Expr::Kind::Binary &&
+                       update->children[1]->children.size() == 2 &&
+                       update->children[1]->children[0]->kind ==
+                           Expr::Kind::Identifier &&
+                       update->children[1]->children[0]->text ==
+                           update->children[0]->text &&
+                       update->children[1]->children[1]->kind ==
+                           Expr::Kind::Number &&
+                       (update->children[1]->op == "+" ||
+                        update->children[1]->op == "-")) {
+                name = update->children[0]->text;
+                delta = static_cast<int>(
+                            update->children[1]->children[1]->value) *
+                        (update->children[1]->op == "+" ? 1 : -1);
+            }
+        }
+        const auto local = locals_.find(name);
+        if (name.empty() || local == locals_.end() ||
+            local->second.indirect || local->second.global ||
+            !local->second.symbol.empty() || !local->second.type ||
+            (local->second.type->kind != TypeKind::Pointer &&
+             local->second.type->kind != TypeKind::Int &&
+             local->second.type->kind != TypeKind::Char) ||
+            expr_has_call(stmt->expr.get()) ||
+            expr_takes_address_of(stmt->expr.get(), name)) {
+            return false;
+        }
+        const auto start = new_label("while");
+        const auto end = new_label("endwhile");
+        cached_loop_local_ = true;
+        cached_loop_name_ = name;
+        cached_loop_offset_ = local->second.offset;
+        cached_loop_character_ = local->second.type->is_char();
+        std::ostringstream trial;
+        trial << (cached_loop_character_ ? "  LDB R3, [R4-"
+                                         : "  LD R3, [R4-")
+              << cached_loop_offset_ << "]\n";
+        trial << start << ":\n";
+        if (!emit_simple_condition(stmt->expr.get(), end, false, trial)) {
+            gen_expr(stmt->expr.get(), trial);
+            trial << "  CMP R0, #0\n";
+            trial << "  BEQ " << end << "\n";
+        }
+        trial << "  " << (delta > 0 ? "ADD" : "SUB") << " R3, #"
+              << (delta > 0 ? delta : -delta) << "\n";
+        trial << "  BRA " << start << "\n";
+        trial << end << ":\n";
+        trial << (cached_loop_character_ ? "  STB [R4-" : "  ST [R4-")
+              << cached_loop_offset_ << "], R3\n";
+        cached_loop_local_ = false;
+        cached_loop_name_.clear();
+        if (assembly_clobbers_r3(trial.str())) {
+            return false;
+        }
+        out << trial.str();
+        return true;
+    }
     void gen_stmt(const Stmt* stmt, std::ostringstream& out) {
         if (stmt == nullptr) {
             return;
@@ -4708,6 +4823,9 @@ private:
                 return;
             }
             case Stmt::Kind::While: {
+                if (optimize_ && try_emit_cached_while(stmt, out)) {
+                    return;
+                }
                 const auto condition =
                     optimize_ ? constant_expr_value(stmt->expr.get())
                               : std::nullopt;
@@ -6344,6 +6462,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 
