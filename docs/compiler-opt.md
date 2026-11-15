@@ -272,6 +272,13 @@ Test plan:
   the branch-aware linear span.
 - [x] Explicit call spill points remain at the call-bearing statement; CFG
   liveness informs candidate ranking rather than allocating every value.
+
+  A pre-argument spill marker was evaluated and rejected as a way to remove
+  the arity limits: spilling R3/R2 before argument setup is not enough when
+  later arguments still read cached locals from those registers, because
+  earlier argument evaluation can clobber them. Safe arbitrary-arity caching
+  requires argument lowering that reads spilled values from frame slots, not
+  the current post-hoc text rewrite.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
 - [x] Indexed address generation loads a simple base directly into `R1`,
@@ -412,5 +419,6 @@ The unit suite compiles `tests/kevin/C-for-U.c` as a self-hosted workload and
 requires fewer than 5,500 instructions and 94,500 assembly bytes. Current
 baseline: 5,459 instructions and 94,036 bytes. This catches large code-size
 regressions that the loop benchmarks would miss.
+
 
 

@@ -3355,3 +3355,17 @@ Entry format:
 - This is allocator infrastructure; actual interval allocation and spill-slot
   assignment remain pending.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 14:36:34 -08:00 — Pre-argument spill experiment rejected
+
+- Tried emitting a cache-spill marker before call argument setup and spilling
+  R3/R2 there, then reloading after the call, to remove the local-cache arity
+  limits.
+- The approach fails for nontrivial arguments: later argument expressions still
+  read cached locals from R2/R3, and earlier argument evaluation can already
+  have clobbered those registers. Example: `g(a+b, a-b)` produced the wrong
+  second argument.
+- Reverted the experiment; the existing arity guards and post-argument spills
+  remain. Documented the limitation in `docs/compiler-opt.md`.
+- Basic-block liveness from the previous commit remains in place.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
