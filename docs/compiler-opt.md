@@ -264,9 +264,13 @@ Test plan:
   same allowed-write rules instead of R2-to-R3 text substitution.
 - [x] Cache state is grouped in `CachedRegister`, including the parameter-vs-loop
   role, instead of separate active/name/offset/character fields.
-- [x] Local cache candidates are ranked by branch-aware live span, then AST
-  use count, then frame offset, so the two longest/most-used locals win
-  R3/R2.
+- [x] Local cache candidates are ranked by a statement-level CFG live span
+  computed from live-in/live-out over `if`, `while`, `do`, and `for` edges,
+  then AST use count, then frame offset, so the two longest/most-used locals
+  win R3/R2. Functions containing unsupported `switch`/`break`/`continue`/
+  `goto` control flow fall back to the branch-aware linear span.
+- [x] Explicit call spill points remain at the call-bearing statement; CFG
+  liveness informs candidate ranking rather than allocating every value.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
 - [x] Indexed address generation loads a simple base directly into `R1`,

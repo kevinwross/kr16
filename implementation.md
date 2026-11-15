@@ -3315,3 +3315,17 @@ Entry format:
   current baseline is 5,459 / 94,036.
 - Documented the gate in `docs/compiler-opt.md`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest; release 56/56.
+
+### 2026-11-15 13:52:56 -08:00 — Statement-level CFG liveness for local caches
+
+- Added a CFG builder for `Compound`, `Expr`, `Decl`, `Return`, `If`, `While`,
+  `DoWhile`, and `For`, with explicit branch and loop edges.
+- Added live-in/live-out dataflow with per-node uses and definitions for each
+  local candidate.
+- Local cache ranking now uses the CFG live span when the function is
+  supported; unsupported `switch`/`break`/`continue`/`goto` bodies fall back to
+  the branch-aware linear span.
+- This advances the allocator toward CFG liveness but does not yet allocate
+  every value; call spill points remain the existing statement-level
+  spill/reload paths.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

@@ -4702,12 +4702,15 @@ private:
                 }
                 const int uses =
                     stmt_name_uses(function.body.get(), name);
-                int position = 0;
-                int first = -1;
-                int last = -1;
-                stmt_name_positions(function.body.get(), name, position,
-                                    first, last);
-                const int span = first >= 0 ? last - first : 0;
+                int span = cfg_live_span(function.body.get(), name);
+                if (span < 0) {
+                    int position = 0;
+                    int first = -1;
+                    int last = -1;
+                    stmt_name_positions(function.body.get(), name, position,
+                                        first, last);
+                    span = first >= 0 ? last - first : 0;
+                }
                 if (cached_local.empty() || span > cached_local_span ||
                     (span == cached_local_span &&
                      (uses > cached_local_uses ||
@@ -4751,12 +4754,15 @@ private:
                     }
                     const int uses =
                         stmt_name_uses(function.body.get(), name);
-                    int position = 0;
-                    int first = -1;
-                    int last = -1;
-                    stmt_name_positions(function.body.get(), name, position,
-                                        first, last);
-                    const int span = first >= 0 ? last - first : 0;
+                    int span = cfg_live_span(function.body.get(), name);
+                    if (span < 0) {
+                        int position = 0;
+                        int first = -1;
+                        int last = -1;
+                        stmt_name_positions(function.body.get(), name,
+                                            position, first, last);
+                        span = first >= 0 ? last - first : 0;
+                    }
                     if (cached_local2.empty() ||
                         span > cached_local2_span ||
                         (span == cached_local2_span &&
@@ -5062,6 +5068,177 @@ private:
         }
     }
 
+    struct CfgNode {
+        const Stmt* stmt = nullptr;
+        std::vector<int> successors;
+    };
+
+    bool build_cfg(const Stmt* stmt, int next,
+                   std::vector<CfgNode>& nodes, int& entry) const {
+        if (stmt == nullptr) {
+            entry = next;
+            return true;
+        }
+        switch (stmt->kind) {
+            case Stmt::Kind::Compound: {
+                int current = next;
+                for (auto it = stmt->statements.rbegin();
+                     it != stmt->statements.rend(); ++it) {
+                    int child = current;
+                    if (!build_cfg(it->get(), current, nodes, child)) {
+                        return false;
+                    }
+                    current = child;
+                }
+                entry = current;
+                return true;
+            }
+            case Stmt::Kind::Expr:
+            case Stmt::Kind::Decl:
+            case Stmt::Kind::Empty: {
+                entry = static_cast<int>(nodes.size());
+                nodes.push_back(CfgNode{stmt, {next}});
+                return true;
+            }
+            case Stmt::Kind::Return: {
+                entry = static_cast<int>(nodes.size());
+                nodes.push_back(CfgNode{stmt, {}});
+                return true;
+            }
+            case Stmt::Kind::If: {
+                const int index = static_cast<int>(nodes.size());
+                nodes.push_back(CfgNode{stmt, {}});
+                int then_entry = next;
+                int else_entry = next;
+                if (!build_cfg(stmt->body.get(), next, nodes, then_entry) ||
+                    !build_cfg(stmt->else_body.get(), next, nodes,
+                               else_entry)) {
+                    return false;
+                }
+                nodes[index].successors = {then_entry, else_entry};
+                entry = index;
+                return true;
+            }
+            case Stmt::Kind::While: {
+                const int index = static_cast<int>(nodes.size());
+                nodes.push_back(CfgNode{stmt, {}});
+                int body_entry = index;
+                if (!build_cfg(stmt->body.get(), index, nodes, body_entry)) {
+                    return false;
+                }
+                nodes[index].successors = {body_entry, next};
+                entry = index;
+                return true;
+            }
+            case Stmt::Kind::DoWhile: {
+                const int index = static_cast<int>(nodes.size());
+                nodes.push_back(CfgNode{stmt, {}});
+                int body_entry = index;
+                if (!build_cfg(stmt->body.get(), index, nodes, body_entry)) {
+                    return false;
+                }
+                nodes[index].successors = {body_entry, next};
+                entry = body_entry;
+                return true;
+            }
+            case Stmt::Kind::For: {
+                const int index = static_cast<int>(nodes.size());
+                nodes.push_back(CfgNode{stmt, {}});
+                int body_entry = index;
+                if (!build_cfg(stmt->body.get(), index, nodes, body_entry)) {
+                    return false;
+                }
+                nodes[index].successors = {body_entry, next};
+                int init_entry = index;
+                if (!build_cfg(stmt->init.get(), index, nodes, init_entry)) {
+                    return false;
+                }
+                entry = init_entry;
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
+    int direct_name_uses(const Stmt* stmt, const std::string& name) const {
+        if (stmt == nullptr) {
+            return 0;
+        }
+        int uses = expr_name_uses(stmt->expr.get(), name) +
+                   expr_name_uses(stmt->expr2.get(), name) +
+                   expr_name_uses(stmt->expr3.get(), name);
+        for (const auto& declaration : stmt->declarations) {
+            uses += expr_name_uses(declaration.init.get(), name);
+        }
+        return uses;
+    }
+
+    bool direct_name_defs(const Stmt* stmt, const std::string& name) const {
+        if (stmt == nullptr) {
+            return false;
+        }
+        if (expr_writes_name(stmt->expr.get(), name) ||
+            expr_writes_name(stmt->expr2.get(), name) ||
+            expr_writes_name(stmt->expr3.get(), name)) {
+            return true;
+        }
+        for (const auto& declaration : stmt->declarations) {
+            if (declaration.name == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int cfg_live_span(const Stmt* body, const std::string& name) const {
+        if (body == nullptr) {
+            return -1;
+        }
+        std::vector<CfgNode> nodes;
+        int entry = -1;
+        if (!build_cfg(body, -1, nodes, entry) || nodes.empty()) {
+            return -1;
+        }
+        const std::size_t count = nodes.size();
+        std::vector<char> uses(count, 0);
+        std::vector<char> defs(count, 0);
+        std::vector<char> live_in(count, 0);
+        std::vector<char> live_out(count, 0);
+        for (std::size_t i = 0; i < count; ++i) {
+            uses[i] = direct_name_uses(nodes[i].stmt, name) > 0;
+            defs[i] = direct_name_defs(nodes[i].stmt, name);
+        }
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (std::size_t i = count; i-- > 0;) {
+                char outgoing = 0;
+                for (const int successor : nodes[i].successors) {
+                    if (successor >= 0 &&
+                        static_cast<std::size_t>(successor) < count &&
+                        live_in[static_cast<std::size_t>(successor)]) {
+                        outgoing = 1;
+                        break;
+                    }
+                }
+                const char incoming =
+                    uses[i] || (outgoing && !defs[i]) ? 1 : 0;
+                if (outgoing != live_out[i] || incoming != live_in[i]) {
+                    live_out[i] = outgoing;
+                    live_in[i] = incoming;
+                    changed = true;
+                }
+            }
+        }
+        int span = 0;
+        for (std::size_t i = 0; i < count; ++i) {
+            if (live_in[i] || live_out[i]) {
+                ++span;
+            }
+        }
+        return span;
+    }
     void stmt_name_positions(const Stmt* stmt, const std::string& name,
                              int& position, int& first, int& last) const {
         if (stmt == nullptr) {
@@ -7350,6 +7527,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 
