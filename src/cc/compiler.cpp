@@ -4594,7 +4594,7 @@ private:
             }
         }
         if (!cached_parameter.empty()) {
-            cached_parameter_active_ = true;
+            cached_loop_.parameter = true;
             cached_loop_.active = true;
             cached_loop_.name = cached_parameter;
             cached_loop_.offset = locals_[cached_parameter].offset;
@@ -4605,7 +4605,7 @@ private:
             gen_stmt(function.body.get(), trial);
             cached_loop_.active = false;
             cached_loop_.name.clear();
-            cached_parameter_active_ = false;
+            cached_loop_.parameter = false;
             std::string trial_text = trial.str();
             if (cached_call_spill_) {
                 trial_text = spill_cached_value_around_calls(
@@ -5133,7 +5133,7 @@ private:
             case Stmt::Kind::Empty:
                 return;
             case Stmt::Kind::Expr: {
-                if (!cached_parameter_active_ && cached_loop_.active &&
+                if (!cached_loop_.parameter && cached_loop_.active &&
                     stmt->expr && expr_has_call(stmt->expr.get()) &&
                     !expr_mentions_name(stmt->expr.get(),
                                         cached_loop_.name)) {
@@ -5197,13 +5197,13 @@ private:
                 return;
             }
             case Stmt::Kind::Return:
-                if (cached_loop_.active && !cached_parameter_active_ &&
+                if (cached_loop_.active && !cached_loop_.parameter &&
                     !cached_loop_clean_) {
                     out << (cached_loop_.character ? "  STB [R4-"
                                                   : "  ST [R4-")
                         << cached_loop_.offset << "], R3\n";
                 }
-                if (cached_loop2_.active && !cached_parameter_active_ &&
+                if (cached_loop2_.active && !cached_loop_.parameter &&
                     !cached_loop_clean_) {
                     out << (cached_loop2_.character ? "  STB [R4-"
                                                    : "  ST [R4-")
@@ -7086,13 +7086,13 @@ private:
     bool expression_statement_ = false;
     struct CachedRegister {
         bool active = false;
+        bool parameter = false;
         std::string name;
         int offset = 0;
         bool character = false;
     };
     CachedRegister cached_loop_;
     CachedRegister cached_loop2_;
-    bool cached_parameter_active_ = false;
     bool cached_loop_clean_ = false;
     bool retain_loop_cache_after_ = false;
     bool cached_call_spill_ = false;
@@ -7157,6 +7157,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 

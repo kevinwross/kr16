@@ -3174,3 +3174,11 @@ Entry format:
   them to the fallback emitter.
 - Added direct and call-site three-argument tests; both return the correct result.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:11:45 -08:00 — Parameter role moved into CachedRegister
+
+- Removed the separate `cached_parameter_active_` field; the parameter role is
+  now `cached_loop_.parameter` inside `CachedRegister`.
+- This consolidates role, name, offset, and character state in one structure
+  without changing code generation.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
