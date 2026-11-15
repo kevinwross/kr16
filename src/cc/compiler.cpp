@@ -3282,6 +3282,198 @@ private:
         }
         return changed;
     }
+    bool ir_strength_reduce_loops() {
+        bool changed = false;
+        const auto find_constant = [&](int value, int& result) {
+            for (const auto& block : ir_blocks_) {
+                for (const auto& inst : block.insts) {
+                    if (inst.op == IrOp::Const && inst.dst == value) {
+                        result = static_cast<int>(inst.imm);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+        struct Multiply {
+            int block;
+            int index;
+            int constant;
+        };
+        for (std::size_t latch = 0; latch < ir_blocks_.size(); ++latch) {
+            auto& latch_insts = ir_blocks_[latch].insts;
+            if (latch_insts.empty() ||
+                latch_insts.back().op != IrOp::Jump) {
+                continue;
+            }
+            const int header = latch_insts.back().target;
+            if (header < 0 || header >= static_cast<int>(latch) ||
+                ir_blocks_[static_cast<std::size_t>(header)].insts.empty()) {
+                continue;
+            }
+            int induction = -1;
+            int step = 0;
+            for (std::size_t i = latch_insts.size(); i-- > 0;) {
+                const auto& direct = latch_insts[i];
+                if (direct.op == IrOp::Binary && direct.dst >= 0 &&
+                    direct.dst == direct.lhs && direct.text == "+") {
+                    int amount = 0;
+                    if (direct.immediate) {
+                        amount = static_cast<int>(direct.imm);
+                    } else if (!find_constant(direct.rhs, amount)) {
+                        amount = 0;
+                    }
+                    if (amount > 0) {
+                        induction = direct.dst;
+                        step = amount;
+                        break;
+                    }
+                }
+                const auto& assign = latch_insts[i];
+                if (assign.op != IrOp::Assign || assign.dst < 0 ||
+                    assign.lhs < 0) {
+                    continue;
+                }
+                for (std::size_t j = i; j-- > 0;) {
+                    const auto& increment = latch_insts[j];
+                    if (increment.op != IrOp::Binary ||
+                        increment.dst != assign.lhs ||
+                        increment.lhs != assign.dst ||
+                        increment.text != "+") {
+                        continue;
+                    }
+                    int amount = 0;
+                    if (increment.immediate) {
+                        amount = static_cast<int>(increment.imm);
+                    } else if (!find_constant(increment.rhs, amount)) {
+                        continue;
+                    }
+                    if (amount > 0) {
+                        induction = assign.dst;
+                        step = amount;
+                    }
+                    break;
+                }
+                if (induction >= 0) {
+                    break;
+                }
+            }
+            if (induction < 0 || step <= 0) {
+                continue;
+            }
+            bool modified_in_body = false;
+            for (int block = header + 1; block < static_cast<int>(latch);
+                 ++block) {
+                for (const auto& inst :
+                     ir_blocks_[static_cast<std::size_t>(block)].insts) {
+                    const auto [uses, defs] = ir_inst_uses_defs(inst);
+                    (void)uses;
+                    if (defs.count(induction) != 0) {
+                        modified_in_body = true;
+                    }
+                }
+            }
+            if (modified_in_body) {
+                continue;
+            }
+            std::vector<Multiply> multiplies;
+            for (int block = header + 1; block < static_cast<int>(latch);
+                 ++block) {
+                for (std::size_t i = 0;
+                     i < ir_blocks_[static_cast<std::size_t>(block)].insts.size();
+                     ++i) {
+                    const auto& inst =
+                        ir_blocks_[static_cast<std::size_t>(block)].insts[i];
+                    if (inst.op != IrOp::Binary || inst.text != "*" ||
+                        inst.dst < 0) {
+                        continue;
+                    }
+                    int constant = 0;
+                    if (inst.lhs == induction) {
+                        if (inst.immediate) {
+                            constant = static_cast<int>(inst.imm);
+                        } else if (!find_constant(inst.rhs, constant)) {
+                            continue;
+                        }
+                    } else if (inst.rhs == induction && !inst.immediate) {
+                        if (!find_constant(inst.lhs, constant)) {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+                    if (constant <= 1 ||
+                        (constant & (constant - 1)) == 0) {
+                        continue;
+                    }
+                    multiplies.push_back(Multiply{block,
+                                                  static_cast<int>(i),
+                                                  constant});
+                }
+            }
+            if (multiplies.empty()) {
+                continue;
+            }
+            const int preheader = header - 1;
+            if (preheader < 0) {
+                continue;
+            }
+            auto& pre_insts = ir_blocks_[static_cast<std::size_t>(preheader)].insts;
+            if (pre_insts.empty()) {
+                continue;
+            }
+            const bool preheader_jumps =
+                pre_insts.back().op == IrOp::Jump &&
+                pre_insts.back().target == header;
+            if (pre_insts.back().op == IrOp::Jump && !preheader_jumps) {
+                continue;
+            }
+            std::unordered_map<int, int> accumulators;
+            for (const auto& multiply : multiplies) {
+                auto found = accumulators.find(multiply.constant);
+                int accumulator = -1;
+                if (found == accumulators.end()) {
+                    accumulator = ir_temp();
+                    IrInst init;
+                    init.op = IrOp::Const;
+                    init.dst = accumulator;
+                    init.imm = 0;
+                    init.line = latch_insts.back().line;
+                    pre_insts.insert(preheader_jumps
+                                           ? pre_insts.end() - 1
+                                           : pre_insts.end(),
+                                       std::move(init));
+                    accumulators.emplace(multiply.constant, accumulator);
+                } else {
+                    accumulator = found->second;
+                }
+                auto& target = ir_blocks_[static_cast<std::size_t>(
+                    multiply.block)].insts[static_cast<std::size_t>(
+                    multiply.index)];
+                target.op = IrOp::Move;
+                target.lhs = accumulator;
+                target.rhs = -1;
+                target.immediate = false;
+                target.imm = 0;
+                target.text.clear();
+            }
+            for (const auto& [constant, accumulator] : accumulators) {
+                IrInst increment;
+                increment.op = IrOp::Binary;
+                increment.dst = accumulator;
+                increment.lhs = accumulator;
+                increment.rhs = -1;
+                increment.immediate = true;
+                increment.imm = static_cast<std::int64_t>(constant) * step;
+                increment.text = "+";
+                increment.line = latch_insts.back().line;
+                latch_insts.insert(latch_insts.end() - 1,
+                                   std::move(increment));
+                changed = true;
+            }
+        }
+        return changed;
+    }
     bool ir_color(int colors = 5, bool allow_spill = false) {
         const int count = static_cast<int>(ir_values_.size());
         for (auto& value : ir_values_) {
@@ -3592,6 +3784,12 @@ private:
             ir_compute_liveness();
         }
         if (ir_copy_propagate()) {
+            ir_successors();
+            ir_compute_liveness();
+        }
+        if (ir_strength_reduce_loops()) {
+            ir_dead_code_elimination();
+            ir_remove_fallthrough_jumps();
             ir_successors();
             ir_compute_liveness();
         }
@@ -5567,6 +5765,13 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
+
+
 
 
 

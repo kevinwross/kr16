@@ -854,3 +854,17 @@ TEST_CASE("IR reuses constants within a basic block") {
     CHECK(body.find("MOV R1, #2") == std::string::npos);
     CHECK(run_c(source) == 5);
 }
+
+TEST_CASE("counted loops strength-reduce constant induction multiplication") {
+    const std::string source =
+        "int f(int n) { int i; int s = 0; "
+        "for (i = 0; i < n; i++) { s = s + i * 3; } return s; }\n"
+        "int main(void) { return f(4); }\n";
+    const auto assembly = compile_text(source, true);
+    const auto start = assembly.find(".global f");
+    const auto end = assembly.find(".global main");
+    REQUIRE(start != std::string::npos);
+    REQUIRE(end != std::string::npos);
+    CHECK(assembly.substr(start, end - start).find("MUL") == std::string::npos);
+    CHECK(run_c(source) == 18);
+}

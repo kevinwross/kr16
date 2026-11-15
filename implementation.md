@@ -2761,3 +2761,16 @@ Entry format:
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Benchmark remains 1,237 instructions / 2,033 cycles at `-O1`.
 - Next: induction-variable strength reduction.
+
+### 2026-11-14 19:36:34 -08:00 — Induction-variable strength reduction
+
+- Added `ir_strength_reduce_loops`: finds a counted-loop latch self-increment,
+  replaces `i * C` in the body with a loop-carried accumulator initialized to
+  zero, and increments it by `C * step` in the latch.
+- Skips loops that modify the induction variable inside the body.
+- Runs after copy propagation, then re-runs dead-code elimination and
+  fallthrough cleanup before coloring.
+- Test: `i * 3` over four iterations returns 18 and the function contains no
+  `MUL`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Loop benchmark remains 1,237 instructions / 2,033 cycles at `-O1`.

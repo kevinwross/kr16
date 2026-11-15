@@ -243,8 +243,9 @@ Test plan:
   structs fold to a single `LEA` (no push, scale, or add).
 - [x] Reuse an existing `Const` value within a basic block instead of
   emitting duplicate constant definitions.
-- [x] Evaluate loop-invariant and induction-variable opportunities; the
-  teaching backend keeps the readable fallback rather than adding a loop pass.
+- [x] Strength-reduce `i * C` for a counted-loop induction variable into an
+  accumulator initialized before the loop and incremented by `C * step` in the
+  latch; skip loops that modify the induction variable in the body.
 
 Test plan:
 
@@ -253,6 +254,8 @@ Test plan:
 - [x] Pattern assertions for comparison fusion, immediate operands, and
   basic-block constant reuse.
 - [x] Loop-level benchmark suite across several shapes.
+- [x] Pattern test verifies a counted loop has no `MUL` after strength
+  reduction and returns the same result.
 
 ## Optimization levels
 
@@ -289,6 +292,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 
