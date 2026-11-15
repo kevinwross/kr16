@@ -246,6 +246,8 @@ Test plan:
   materializing a boolean.
 - [x] Avoid `PUSH`/`POP` shuffling for simple one-to-three-argument calls,
   including simple binary argument expressions.
+- [x] Calls with more than three arguments keep the first three in R1–R3
+  when their expressions are register-safe.
 - [x] Fold remaining address calculations.
   Constant indexes into local arrays and constant member offsets of local
   structs fold to a single `LEA` (no push, scale, or add).
@@ -300,6 +302,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

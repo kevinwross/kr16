@@ -924,3 +924,23 @@ TEST_CASE("indexed base loads directly into R1") {
     CHECK(body.find("MOV R1, R0") == std::string::npos);
     CHECK(run_c(source) == 0);
 }
+
+TEST_CASE("multi-argument calls keep the first three arguments in registers") {
+    const std::string source =
+        "int add4(int a, int b, int c, int d) { return a + b + c + d; }\n"
+        "int f(int x) { return add4(x, 1, 2, 3); }\n"
+        "int main(void) { return f(4); }\n";
+    const auto assembly = compile_text(source, true);
+    const auto start = assembly.find(".global f");
+    const auto end = assembly.find(".global main");
+    REQUIRE(start != std::string::npos);
+    REQUIRE(end != std::string::npos);
+    const auto body = assembly.substr(start, end - start);
+    CHECK(body.find("CALL add4") != std::string::npos);
+    const auto first_push = body.find("PUSH R0");
+    REQUIRE(first_push != std::string::npos);
+    CHECK(body.find("PUSH R0", first_push + 1) == std::string::npos);
+    CHECK(run_c(source) == 10);
+}
+
+

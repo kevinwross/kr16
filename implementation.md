@@ -2823,3 +2823,18 @@ Entry format:
   `LD R1, [R4-2]`, `LD R0, [R4-8]`, `ADD R0, R1`.
 - Added a pattern/differential test for a pointer base with a variable index.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-14 21:02:43 -08:00 — Multi-argument call registers
+
+- Calls with more than three arguments now keep the first three in R1–R3
+  when they are register-safe simple expressions, instead of pushing all
+  arguments and popping the first three back.
+- Also handles the common form where argument 0 is a complex expression but
+  arguments 1–2 are simple: stack arguments are pushed, argument 0 is
+  evaluated to R1, and arguments 1–2 go to R2/R3.
+- Restricted the simple-argument check to operations the leaf emitter
+  supports, preventing address-of and other unsupported unary forms from
+  entering the optimized path.
+- `C-for-U.S` `PUSH R0` count dropped from 112 to 52.
+- Added a differential test for a four-argument call.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

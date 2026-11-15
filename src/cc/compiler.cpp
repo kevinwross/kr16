@@ -5830,6 +5830,72 @@ private:
                 }
             }
         }
+        const auto simple_register_arg = [&](const Expr* argument) {
+            const auto simple = [&](const auto& self,
+                                    const Expr* value) -> bool {
+                if (value == nullptr) {
+                    return false;
+                }
+                switch (value->kind) {
+                    case Expr::Kind::Number:
+                    case Expr::Kind::String:
+                    case Expr::Kind::Identifier:
+                    case Expr::Kind::Sizeof:
+                        return true;
+                    case Expr::Kind::Cast:
+                        return value->children.size() == 1 &&
+                               self(self, value->children[0].get());
+                    case Expr::Kind::Unary:
+                        return value->children.size() == 1 &&
+                               (value->op == "+" || value->op == "-" ||
+                                value->op == "~" || value->op == "*") &&
+                               self(self, value->children[0].get());
+                    default:
+                        return false;
+                }
+            };
+            return simple(simple, argument);
+        };
+        if (expr->children.size() > 3) {
+            bool registers_simple = true;
+            for (std::size_t i = 0; i < 3; ++i) {
+                if (struct_args[i] ||
+                    !simple_register_arg(expr->children[i].get())) {
+                    registers_simple = false;
+                    break;
+                }
+            }
+            if (registers_simple) {
+                for (std::size_t i = expr->children.size(); i-- > 3;) {
+                    gen_expr(expr->children[i].get(), out);
+                    out << "  PUSH R0\n";
+                }
+                for (std::size_t i = 0; i < 3; ++i) {
+                    emit_simple_leaf(expr->children[i].get(),
+                                     static_cast<int>(i) + 1, out);
+                }
+                out << "  CALL " << expr->text << "\n";
+                out << "  ADD SP, #" << (expr->children.size() - 3) * 2
+                    << "\n";
+                return;
+            }
+            if (!struct_args[0] &&
+                simple_register_arg(expr->children[1].get()) &&
+                simple_register_arg(expr->children[2].get())) {
+                for (std::size_t i = expr->children.size(); i-- > 3;) {
+                    gen_expr(expr->children[i].get(), out);
+                    out << "  PUSH R0\n";
+                }
+                gen_expr(expr->children[0].get(), out);
+                out << "  MOV R1, R0\n";
+                emit_simple_leaf(expr->children[1].get(), 2, out);
+                emit_simple_leaf(expr->children[2].get(), 3, out);
+                out << "  CALL " << expr->text << "\n";
+                out << "  ADD SP, #" << (expr->children.size() - 3) * 2
+                    << "\n";
+                return;
+            }
+        }
         if (expr->children.size() == 1 && !struct_args[0]) {
             gen_expr(expr->children[0].get(), out);
             out << "  MOV R1, R0\n";
@@ -5942,6 +6008,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 
