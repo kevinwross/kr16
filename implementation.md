@@ -3002,3 +3002,13 @@ Entry format:
   removed) frame slot.
 - Added a pattern assertion for the reduced frame.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 04:09:54 -08:00 — Read-only local cache
+
+- Added a text-level local cache pass: after a read-only local's initializer
+  store, emit `LD R3, [R4-slot]` and replace later loads from that slot with
+  `MOV Rt, R3`.
+- Only enabled when the local is read-only and the function has no calls, loops,
+  or address-taking. The transformed body is rejected if it clobbers R3.
+- Added a pattern/differential test for `int x = 5; return x;`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

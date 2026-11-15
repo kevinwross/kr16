@@ -2037,6 +2037,61 @@ std::string apply_adjacent_peepholes(const std::string& text) {
     }
     return result.str();
 }
+std::optional<std::string> cache_readonly_local_loads(
+    const std::string& text, int offset, bool character) {
+    std::istringstream input(text);
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(input, line)) {
+        lines.push_back(line);
+    }
+    const std::string load =
+        std::string(character ? "LDB R" : "LD R");
+    const std::string store =
+        std::string(character ? "STB [R4-" : "ST [R4-") +
+        std::to_string(offset) + "]";
+    bool activated = false;
+    bool replaced = false;
+    std::vector<std::string> output;
+    for (const auto& entry : lines) {
+        const std::string trimmed = trim_copy(entry);
+        if (!activated && trimmed.rfind(store, 0) == 0) {
+            output.push_back(entry);
+            output.push_back(std::string("  ") +
+                             (character ? "LDB R3, [R4-" : "LD R3, [R4-") +
+                             std::to_string(offset) + "]");
+            activated = true;
+            continue;
+        }
+        if (activated && trimmed.rfind(load, 0) == 0) {
+            const auto comma = trimmed.find(',');
+            if (comma != std::string::npos &&
+                trimmed.find("[R4-" + std::to_string(offset) + "]") !=
+                    std::string::npos) {
+                const auto reg_position = trimmed.find('R');
+                if (reg_position != std::string::npos &&
+                    reg_position + 1 < trimmed.size() &&
+                    trimmed[reg_position + 1] >= '0' &&
+                    trimmed[reg_position + 1] <= '2') {
+                    const char target = trimmed[reg_position + 1];
+                    output.push_back(std::string("  MOV R") + target +
+                                     ", R3");
+                    replaced = true;
+                    continue;
+                }
+            }
+        }
+        output.push_back(entry);
+    }
+    if (!activated || !replaced) {
+        return std::nullopt;
+    }
+    std::ostringstream result;
+    for (const auto& entry : output) {
+        result << entry << '\n';
+    }
+    return result.str();
+}
 bool assembly_clobbers_r3(const std::string& text) {
     std::istringstream input(text);
     std::string line;
@@ -4397,7 +4452,45 @@ private:
                 gen_stmt(function.body.get(), out);
             }
         } else {
-            gen_stmt(function.body.get(), out);
+            std::string cached_local;
+            int cached_local_offset = 0;
+            bool cached_local_character = false;
+            for (const auto& [name, variable] : locals_) {
+                bool is_parameter = false;
+                for (const auto& parameter : function.parameters) {
+                    if (parameter.name == name) {
+                        is_parameter = true;
+                        break;
+                    }
+                }
+                if (is_parameter || variable.indirect || variable.global ||
+                    !variable.symbol.empty() || !variable.type ||
+                    (variable.type->kind != TypeKind::Int &&
+                     variable.type->kind != TypeKind::Char &&
+                     variable.type->kind != TypeKind::Pointer) ||
+                    !stmt_mentions_name(function.body.get(), name) ||
+                    !parameter_cache_safe(function.body.get(), name)) {
+                    continue;
+                }
+                cached_local = name;
+                cached_local_offset = variable.offset;
+                cached_local_character = variable.type->is_char();
+                break;
+            }
+            if (!cached_local.empty()) {
+                std::ostringstream trial;
+                gen_stmt(function.body.get(), trial);
+                const auto transformed = cache_readonly_local_loads(
+                    trial.str(), cached_local_offset,
+                    cached_local_character);
+                if (transformed && !assembly_clobbers_r3(*transformed)) {
+                    out << *transformed;
+                } else {
+                    out << trial.str();
+                }
+            } else {
+                gen_stmt(function.body.get(), out);
+            }
         }
         out << "  MOV R0, #0\n";
         out << return_label_ << ":\n";
@@ -6731,6 +6824,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 

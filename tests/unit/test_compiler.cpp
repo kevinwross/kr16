@@ -1009,3 +1009,13 @@ TEST_CASE("call-free complex stores stage the address in R2") {
 }
 
 
+
+TEST_CASE("read-only locals are cached in R3") {
+    const std::string source =
+        "int f(char *p) { int x = 5; return x; }\n"
+        "int main(void) { char b[1]; return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("LD R0, [R4-4]") == std::string::npos);
+    CHECK(run_c(source) == 5);
+}
