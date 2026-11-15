@@ -891,6 +891,8 @@ struct Function {
     std::vector<Decl> parameters;
     std::unique_ptr<Stmt> body;
     bool variadic = false;
+    bool is_static = false;
+    int name_occurrences = 0;
     int line = 0;
 };
 
@@ -912,7 +914,13 @@ public:
            bool optimize = true)
         : tokens_(std::move(tokens)),
           source_name_(std::move(source_name)),
-          optimize_(optimize) {}
+          optimize_(optimize) {
+        for (const auto& token : tokens_) {
+            if (token.kind == TokenKind::Identifier) {
+                ++identifier_occurrences_[token.text];
+            }
+        }
+    }
 
     Program parse() {
         Program program;
@@ -1175,6 +1183,9 @@ private:
             Function function;
             function.name = name;
             function.return_type = type;
+            function.is_static = pending_static_;
+            function.name_occurrences = identifier_occurrences_[name];
+            pending_static_ = false;
             function.line = line;
             if (!check(")")) {
                 if (peek().text == "void" && tokens_[position_ + 1].text == ")") {
@@ -1944,6 +1955,7 @@ private:
     std::string source_name_;
     bool optimize_ = true;
     bool pending_static_ = false;
+    std::unordered_map<std::string, int> identifier_occurrences_;
     std::unordered_map<std::string, std::int64_t> enum_constants_;
     std::unordered_map<std::string, std::shared_ptr<Type>> typedefs_;
     std::unordered_map<std::string, std::shared_ptr<Type>> structs_;
@@ -2227,6 +2239,9 @@ public:
         }
         out << ".text\n";
         for (auto& function : program_.functions) {
+            if (function.is_static && function.name_occurrences <= 1) {
+                continue;
+            }
             compile_function(function, out);
         }
         if (function_map_.count("main") != 0 &&
@@ -3824,7 +3839,9 @@ private:
     }
 
     void ir_emit(const Function& function, std::ostringstream& out) {
-        out << ".global " << function.name << "\n";
+        if (!function.is_static) {
+            out << ".global " << function.name << "\n";
+        }
         out << function.name << ":\n";
         out << "  PUSH R4\n";
         for (std::size_t block = 0; block < ir_blocks_.size(); ++block) {
@@ -4091,7 +4108,9 @@ private:
     }
 
     void ir_emit_spilled(const Function& function, std::ostringstream& out) {
-        out << ".global " << function.name << "\n";
+        if (!function.is_static) {
+            out << ".global " << function.name << "\n";
+        }
         out << function.name << ":\n";
         out << "  PUSH R4\n";
         out << "  MOV R4, SP\n";
@@ -4580,7 +4599,9 @@ private:
             }
             frame_size_ = new_frame;
         }
-        out << ".global " << function.name << "\n";
+        if (!function.is_static) {
+            out << ".global " << function.name << "\n";
+        }
         out << function.name << ":\n";
         out << "  PUSH R4\n";
         out << "  MOV R4, SP\n";
@@ -7329,6 +7350,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 
