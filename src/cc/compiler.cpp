@@ -4702,7 +4702,10 @@ private:
                 }
                 const int uses =
                     stmt_name_uses(function.body.get(), name);
-                int span = cfg_live_span(function.body.get(), name);
+                int span = block_live_span(function.body.get(), name);
+                if (span < 0) {
+                    span = cfg_live_span(function.body.get(), name);
+                }
                 if (span < 0) {
                     int position = 0;
                     int first = -1;
@@ -4754,7 +4757,10 @@ private:
                     }
                     const int uses =
                         stmt_name_uses(function.body.get(), name);
-                    int span = cfg_live_span(function.body.get(), name);
+                    int span = block_live_span(function.body.get(), name);
+                if (span < 0) {
+                    span = cfg_live_span(function.body.get(), name);
+                }
                     if (span < 0) {
                         int position = 0;
                         int first = -1;
@@ -5191,6 +5197,118 @@ private:
         return false;
     }
 
+    struct BasicBlock {
+        std::vector<const Stmt*> stmts;
+        int last_node = -1;
+        std::vector<int> successors;
+    };
+
+    int block_live_span(const Stmt* body, const std::string& name) const {
+        if (body == nullptr) {
+            return -1;
+        }
+        std::vector<CfgNode> nodes;
+        int entry = -1;
+        if (!build_cfg(body, -1, nodes, entry) || nodes.empty()) {
+            return -1;
+        }
+        const std::size_t count = nodes.size();
+        std::vector<int> predecessors(count, 0);
+        for (const auto& node : nodes) {
+            for (const int successor : node.successors) {
+                if (successor >= 0 &&
+                    static_cast<std::size_t>(successor) < count) {
+                    ++predecessors[static_cast<std::size_t>(successor)];
+                }
+            }
+        }
+        auto has_call = [this](const Stmt* stmt) {
+            return stmt != nullptr &&
+                   (expr_has_call(stmt->expr.get()) ||
+                    expr_has_call(stmt->expr2.get()) ||
+                    expr_has_call(stmt->expr3.get()));
+        };
+        std::vector<int> block_of(count, -1);
+        std::vector<BasicBlock> blocks;
+        for (std::size_t i = 0; i < count; ++i) {
+            if (block_of[i] != -1) {
+                continue;
+            }
+            BasicBlock block;
+            std::size_t current = i;
+            for (;;) {
+                block_of[current] = static_cast<int>(blocks.size());
+                block.stmts.push_back(nodes[current].stmt);
+                block.last_node = static_cast<int>(current);
+                const bool ends =
+                    nodes[current].successors.size() != 1 ||
+                    has_call(nodes[current].stmt);
+                if (ends) {
+                    break;
+                }
+                const int next = nodes[current].successors.front();
+                if (next < 0 ||
+                    block_of[static_cast<std::size_t>(next)] != -1 ||
+                    predecessors[static_cast<std::size_t>(next)] != 1) {
+                    break;
+                }
+                current = static_cast<std::size_t>(next);
+            }
+            blocks.push_back(std::move(block));
+        }
+        for (auto& block : blocks) {
+            for (const int successor : nodes[block.last_node].successors) {
+                if (successor < 0 ||
+                    static_cast<std::size_t>(successor) >= count) {
+                    continue;
+                }
+                const int target = block_of[static_cast<std::size_t>(successor)];
+                if (target >= 0 &&
+                    std::find(block.successors.begin(), block.successors.end(),
+                              target) == block.successors.end()) {
+                    block.successors.push_back(target);
+                }
+            }
+        }
+        const std::size_t block_count = blocks.size();
+        std::vector<char> uses(block_count, 0);
+        std::vector<char> defs(block_count, 0);
+        std::vector<char> live_in(block_count, 0);
+        std::vector<char> live_out(block_count, 0);
+        for (std::size_t i = 0; i < block_count; ++i) {
+            for (const Stmt* stmt : blocks[i].stmts) {
+                uses[i] = uses[i] || direct_name_uses(stmt, name) > 0;
+                defs[i] = defs[i] || direct_name_defs(stmt, name);
+            }
+        }
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (std::size_t i = block_count; i-- > 0;) {
+                char outgoing = 0;
+                for (const int successor : blocks[i].successors) {
+                    if (live_in[static_cast<std::size_t>(successor)]) {
+                        outgoing = 1;
+                        break;
+                    }
+                }
+                const char incoming =
+                    uses[i] || (outgoing && !defs[i]) ? 1 : 0;
+                if (outgoing != live_out[i] || incoming != live_in[i]) {
+                    live_out[i] = outgoing;
+                    live_in[i] = incoming;
+                    changed = true;
+                }
+            }
+        }
+        int span = 0;
+        for (std::size_t i = 0; i < block_count; ++i) {
+            if (live_in[i] || live_out[i]) {
+                ++span;
+            }
+        }
+        return span;
+    }
     int cfg_live_span(const Stmt* body, const std::string& name) const {
         if (body == nullptr) {
             return -1;
@@ -7527,6 +7645,10 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
 
 
 

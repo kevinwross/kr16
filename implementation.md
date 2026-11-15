@@ -3344,3 +3344,14 @@ Entry format:
   afterwards, and are consumed correctly at the join.
 - Runtime result: 4.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 14:14:33 -08:00 — Basic-block liveness intervals
+
+- Added `BasicBlock` construction over the statement CFG: blocks split at calls,
+  multiple-successor branches, loop back edges, and join points.
+- Added block-level use/def sets and iterative live-in/live-out dataflow.
+- Local cache ranking now uses the basic-block live span first, then the
+  statement-level CFG span, then the branch-aware linear span as safe fallbacks.
+- This is allocator infrastructure; actual interval allocation and spill-slot
+  assignment remain pending.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
