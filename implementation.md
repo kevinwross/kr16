@@ -2877,3 +2877,17 @@ Entry format:
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining priority items: broader redundant load/store peepholes and direct
   boolean returns.
+
+### 2026-11-14 21:57:19 -08:00 — Adjacent local access peepholes
+
+- Added a conservative adjacent-line peephole for local accesses:
+  - remove `MOV Rx, Rx`;
+  - remove a duplicate `LD Rx, [R4-slot]`;
+  - fold `LD Rx, [R4-slot]` immediately followed by
+    `ST [R4-slot], Rx`;
+  - fold `ST [R4-slot], Rx` immediately followed by
+    `LD Rx, [R4-slot]`.
+- Only adjacent lines with the same register and slot are touched, avoiding the
+  cross-basic-block cache bug from the earlier attempt.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining: direct boolean returns.

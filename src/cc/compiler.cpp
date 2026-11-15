@@ -1943,6 +1943,100 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Type>> unions_;
 };
 
+struct LocalAccess {
+    int reg = -1;
+    int slot = -1;
+    bool load = false;
+    bool store = false;
+};
+
+std::optional<LocalAccess> parse_local_access(const std::string& line) {
+    const std::string trimmed = trim_copy(line);
+    LocalAccess access;
+    if (trimmed.rfind("LD R", 0) == 0 ||
+        trimmed.rfind("LDB R", 0) == 0) {
+        access.load = true;
+    } else if (trimmed.rfind("ST [R4-", 0) == 0 ||
+               trimmed.rfind("STB [R4-", 0) == 0) {
+        access.store = true;
+    } else {
+        return std::nullopt;
+    }
+    const auto reg_position = access.store
+                                  ? trimmed.rfind(", R")
+                                  : trimmed.find('R');
+    const std::size_t reg_offset = access.store ? 3 : 1;
+    if (reg_position == std::string::npos ||
+        reg_position + reg_offset >= trimmed.size() ||
+        trimmed[reg_position + reg_offset] < '0' ||
+        trimmed[reg_position + reg_offset] > '4') {
+        return std::nullopt;
+    }
+    access.reg = trimmed[reg_position + reg_offset] - '0';
+    const auto slot_position = trimmed.find("[R4-");
+    if (slot_position == std::string::npos) {
+        return std::nullopt;
+    }
+    int value = 0;
+    std::size_t i = slot_position + 4;
+    bool any = false;
+    while (i < trimmed.size() && trimmed[i] >= '0' && trimmed[i] <= '9') {
+        value = value * 10 + (trimmed[i] - '0');
+        any = true;
+        ++i;
+    }
+    if (!any || i >= trimmed.size() || trimmed[i] != ']') {
+        return std::nullopt;
+    }
+    access.slot = value;
+    return access;
+}
+
+std::string apply_adjacent_peepholes(const std::string& text) {
+    std::istringstream input(text);
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(input, line)) {
+        lines.push_back(line);
+    }
+    std::vector<std::string> output;
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        const std::string trimmed = trim_copy(lines[i]);
+        if (trimmed == "MOV R0, R0" || trimmed == "MOV R1, R1" ||
+            trimmed == "MOV R2, R2" || trimmed == "MOV R3, R3" ||
+            trimmed == "MOV R4, R4") {
+            continue;
+        }
+        if (i + 1 < lines.size()) {
+            const auto first = parse_local_access(lines[i]);
+            const auto second = parse_local_access(lines[i + 1]);
+            if (first.has_value() && second.has_value() &&
+                first->slot == second->slot &&
+                first->reg == second->reg) {
+                if (first->load && second->store) {
+                    i += 1;
+                    continue;
+                }
+                if (first->store && second->load) {
+                    output.push_back(lines[i]);
+                    i += 1;
+                    continue;
+                }
+                if (first->load && second->load) {
+                    output.push_back(lines[i]);
+                    i += 1;
+                    continue;
+                }
+            }
+        }
+        output.push_back(lines[i]);
+    }
+    std::ostringstream result;
+    for (const auto& entry : output) {
+        result << entry << '\n';
+    }
+    return result.str();
+}
 class Codegen {
 public:
     Codegen(Program program, std::string source_name, bool debug,
@@ -2013,7 +2107,7 @@ public:
             }
             out << ".text\n";
         }
-        return out.str();
+        return apply_adjacent_peepholes(out.str());
     }
 
 private:
@@ -6232,6 +6326,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 
