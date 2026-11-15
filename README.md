@@ -32,6 +32,15 @@ Milestones M0–M12 are implemented. The working pipeline is:
 C or assembly → .o → .kex → VM
 ```
 
+## Host filesystem sandbox
+
+`kr16 vm` exposes host file services inside `--fs-root` (default `./sandbox`).
+`--fs-quota` limits the total bytes of all files under that root, not just the
+files the guest writes. The default quota is 5 MiB, so pointing `--fs-root` at a
+directory that already contains build outputs can make every write fail with
+`SYS_ENOSPC`. Use a dedicated empty directory, or raise `--fs-quota` above the
+size of the tree.
+
 The C compiler currently implements a teaching subset: `int`/`char`/`_Bool`, pointers,
 arrays, functions and prototypes, object/function macros, `#`/`##`, conditionals,
 quoted and built-in system headers, `-I` paths, `stdarg.h` variadics,

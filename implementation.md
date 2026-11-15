@@ -3282,3 +3282,12 @@ Entry format:
 - Added quoted and angled missing-header tests.
 - Removed the resolved item from `docs/deferred.md`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 13:22:05 -08:00 — Host filesystem quota is documented as recursive
+
+- `kr16 vm --help` now says `--fs-quota` is recursive over `--fs-root`, counts
+  every file under it, and that a build tree can exhaust the default 5 MiB.
+- README now has a Host filesystem sandbox section with the same warning and the
+  dedicated-directory / raised-quota remedies.
+- Added CLI help assertions for the new wording.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

@@ -210,7 +210,9 @@ Options:
   --trace-syscalls     print host syscall calls
   --stats              print cycle and instruction totals
   --fs-root <path>     host filesystem sandbox root (default: ./sandbox)
-  --fs-quota <n>       host filesystem quota (default: 5M)
+  --fs-quota <n>       quota, recursive over fs-root (default: 5M)
+                       Counts every file under --fs-root; a build tree can
+                       exhaust it. Use a dedicated directory or raise this.
   --fs-readonly        deny host filesystem writes
   --no-host-fs         disable host filesystem services
   -i                   unavailable in v1

@@ -74,6 +74,8 @@ TEST_CASE("every command has detailed --help") {
     const auto aliased = run_cli({"kr16", "help", "vm"}, status);
     CHECK(status == 0);
     CHECK(aliased.find("usage: kr16 vm") != std::string::npos);
+    CHECK(aliased.find("recursive over fs-root") != std::string::npos);
+    CHECK(aliased.find("dedicated directory") != std::string::npos);
 }
 
 TEST_CASE("as -l writes a listing beside the object") {
