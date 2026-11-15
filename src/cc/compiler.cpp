@@ -5001,9 +5001,11 @@ private:
             local->second.indirect || local->second.global ||
             !local->second.symbol.empty() || !local->second.type ||
             local->second.type->kind != TypeKind::Pointer ||
-            expr_has_call(stmt->expr.get()) ||
+            !calls_fit_argument_registers(stmt->expr.get(), 0) ||
+            !stmt_calls_fit_argument_registers(stmt->body.get(), 0) ||
             expr_takes_address_of(stmt->expr.get(), name) ||
-            stmt_cache_unsafe(stmt->body.get(), name, true, true)) {
+            stmt_cache_unsafe(stmt->body.get(), name, true, true,
+                              true)) {
             return false;
         }
         std::string name2 = find_updated_pointer(stmt->body.get(), name);
@@ -5014,6 +5016,9 @@ private:
             local2->second.type->kind != TypeKind::Pointer ||
             expr_takes_address_of(stmt->expr.get(), name2) ||
             stmt_cache_unsafe(stmt->body.get(), name2, true, true)) {
+            name2.clear();
+        }
+        if (stmt_has_call(stmt->body.get())) {
             name2.clear();
         }
 
@@ -5052,6 +5057,10 @@ private:
         cached_loop2_local_ = false;
         cached_loop2_name_.clear();
         std::string trial_text = trial.str();
+        if (stmt_has_call(stmt->body.get())) {
+            trial_text = spill_cached_value_around_calls(
+                trial_text, cached_loop_offset_, false);
+        }
         if (assembly_clobbers_r3(trial_text) ||
             (!name2.empty() &&
              assembly_clobbers_register(trial_text, "R2"))) {
@@ -7099,6 +7108,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

@@ -3118,3 +3118,12 @@ Entry format:
 - No intended code-generation change; the pointer, local, and call-spill tests
   still pass.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 07:30:38 -08:00 — Zero-argument calls inside cached loops
+
+- Cached loop pointers now survive zero-argument calls: R3 is spilled before the
+  call and reloaded after it, with the loop still keeping one pointer cached.
+- Loops with any nonzero-argument call fall back to the no-call cache path.
+- Added a differential/pattern test where `tick()` is called inside the loop and
+  the pointer cache is still used.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
