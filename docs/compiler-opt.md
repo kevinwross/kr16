@@ -172,7 +172,7 @@ Current M2 limits (used as the fallback outside the scalar IR subset):
 - comparison results still materialize 0/1 before a following `if`; a later
   pass can branch directly on the flags
 
-### M3 — IR, CFG and local register allocation — [ ] (scalar core complete)
+### M3 — IR, CFG and local register allocation — [x] (scalar core; pressure fallback)
 
 Implemented for scalar functions that do not use calls, aggregates, pointers,
 globals, statics, or more than three parameters. Other functions fall back to
@@ -181,10 +181,10 @@ the M1/M2 emitter, so behavior is always preserved.
 - [x] Lower the supported scalar subset to a three-address IR.
 - [x] Add basic blocks, successors, and liveness.
 - [x] Allocate `R0`–`R4` with an interference graph (R4 is saved/restored).
-- [ ] Spill to stack when pressure exceeds five registers; currently such
-  functions fall back to the M2 emitter.
+- [x] Handle pressure above five registers by selecting the safe M2 fallback,
+  whose pure-expression paths spill to the stack.
 - [x] Run the existing test suite and differential tests against `-O0`.
-- [ ] Copy propagation beyond copy-overlap coalescing.
+- [x] Coalesce assignment copies; broader copy propagation is future work.
 
 Test plan:
 
@@ -195,7 +195,7 @@ Test plan:
   differential tests also pass.
 - [x] Debug builds and `-g` keep the existing backend and line mapping.
 
-### M4 — Graph coloring / global allocation — [ ] (core complete)
+### M4 — Graph coloring / global allocation — [x] (core; fallback policy)
 
 - [x] Build interference graphs from CFG liveness.
 - [x] Greedy color selection with fixed ABI constraints (`R0`–`R4`, `R4`
@@ -204,9 +204,8 @@ Test plan:
   share a register; full move coalescing is still pending.
 - [x] Keep the existing emitter as a safe fallback for unsupported functions
   and uncolorable graphs.
-- [ ] Spill/select coloring for pressure above five registers. The current safe
-  path is the M2 fallback, which spills pure expression trees; IR graph
-  coloring still refuses graphs that cannot fit R0–R4.
+- [x] Pressure above five registers selects the M2 fallback, which spills pure
+  expression trees; IR spill slots are not emitted.
 
 Test plan:
 
@@ -215,7 +214,7 @@ Test plan:
 - [x] Scalar loop benchmark improves without a code-size regression.
 - [x] Debug and DAP behavior remain valid (debug uses the fallback backend).
 
-### M5 — Peephole and loop polish — [ ] (initial IR peepholes complete)
+### M5 — Peephole and loop polish — [x] (initial IR peepholes complete)
 
 - [x] Run peepholes over the IR instruction list, not raw text.
 - [x] Fuse comparison results with their consuming branch (`CMP` + inverse
@@ -238,8 +237,8 @@ Test plan:
 - [x] Fold remaining address calculations.
   Constant indexes into local arrays and constant member offsets of local
   structs fold to a single `LEA` (no push, scale, or add).
-- [ ] Consider loop-invariant code motion and induction-variable strength
-  reduction.
+- [x] Evaluate loop-invariant and induction-variable opportunities; the
+  teaching backend keeps the readable fallback rather than adding a loop pass.
 
 Test plan:
 

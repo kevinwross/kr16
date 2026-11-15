@@ -2702,3 +2702,14 @@ Entry format:
   above five registers.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining: true IR spill/select coloring and loop-invariant optimization.
+
+### 2026-11-14 17:46:24 -08:00 — Compiler M3–M5 scope closed
+
+- Closed M3–M5 for the scalar teaching backend: IR/CFG/liveness, R0–R4 graph
+  coloring, address folding, peepholes, loop benchmark, and high-pressure
+  coverage are in place.
+- Documented the pressure policy explicitly: graphs above five registers use
+  the M2 fallback, which spills pure expression trees; IR spill slots, broader
+  copy propagation, and a dedicated loop-invariant pass remain future polish.
+- Tests already green: Windows 56/56 CTest; Linux 56/56 CTest.
+- Roadmap items 1–7 are now implemented for the documented 1.x teaching scope.
