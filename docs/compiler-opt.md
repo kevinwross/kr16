@@ -254,8 +254,9 @@ Test plan:
   address-taking. Call-free functions skip its frame store, remove its slot,
   and compact the remaining frame offsets; call-bearing functions keep the
   slot and spill/reload R3 around each call.
-- [x] One or two locals with initializers cache their loads in R3 (and R2 for
-  the second), redirect stores to those registers across straight-line code,
+- [x] One or two locals with initializers load the initializer directly into R3
+  (and R2 for the second) without the frame store, redirect stores to those
+  registers across straight-line code,
   `if`, and `switch`, and spill/reload around calls using at most two
   arguments. Two-local caching requires one-argument calls so R2 stays free.
   The body is rejected if it clobbers a cache register or takes an address.
@@ -399,6 +400,7 @@ the right-to-left stack layout and caller-cleanup contract. Reusing a frame slot
 is not valid because the callee addresses stack arguments at `[FP+4]` and later,
 above the caller's frame. The existing `PUSH` sequence is therefore already the
 minimal ABI-preserving encoding; no code change is worthwhile.
+
 
 
 

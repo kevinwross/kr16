@@ -1022,7 +1022,7 @@ TEST_CASE("read-only locals are cached in R3") {
         "int f(char *p) { int x = 5; return x; }\n"
         "int main(void) { char b[1]; return f(b); }\n";
     const auto assembly = compile_text(source, true);
-    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
     CHECK(assembly.find("LD R0, [R4-4]") == std::string::npos);
     CHECK(run_c(source) == 5);
 }
@@ -1034,7 +1034,7 @@ TEST_CASE("updated locals stay cached across if") {
         "return x; }\n"
         "int main(void) { char b[1]; return f(b); }\n";
     const auto assembly = compile_text(source, true);
-    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
     CHECK(assembly.find("MOV R3, R0") != std::string::npos);
     CHECK(run_c(source) == 2);
 }
@@ -1046,7 +1046,7 @@ TEST_CASE("updated locals stay cached across switch") {
         "return x; }\n"
         "int main(void) { char b[1]; b[0] = 1; return f(b); }\n";
     const auto assembly = compile_text(source, true);
-    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
     CHECK(assembly.find("MOV R3, R0") != std::string::npos);
     CHECK(run_c(source) == 3);
 }
@@ -1070,7 +1070,7 @@ TEST_CASE("cached locals spill and reload around calls") {
         "int main(void) { char b[1]; return f(b); }\n";
     const auto assembly = compile_text(source, true);
     CHECK(assembly.find("ST [R4-4], R3") != std::string::npos);
-    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
     CHECK(run_c(source) == 4);
 }
 
@@ -1083,8 +1083,8 @@ TEST_CASE("two live locals use R3 and R2") {
         "y = y + x; return x + y; }\n"
         "int main(void) { char b[1]; return f(b); }\n";
     const auto assembly = compile_text(source, true);
-    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
-    CHECK(assembly.find("LD R2, [R4-6]") != std::string::npos);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
+    CHECK(assembly.find("MOV R2, R0") != std::string::npos);
     CHECK(run_c(source) == 6);
 }
 
@@ -1229,8 +1229,8 @@ TEST_CASE("live-span ranking drives two-local allocation") {
         "b = b + a; int c = 3; b = b + c; return a + b + c; }\n"
         "int main(void) { char b[1]; return f(b); }\n";
     const auto assembly = compile_text(source, true);
-    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
-    CHECK(assembly.find("LD R2, [R4-6]") != std::string::npos);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
+    CHECK(assembly.find("MOV R2, R0") != std::string::npos);
     CHECK(run_c(source) == 12);
 }
 
@@ -1307,4 +1307,6 @@ TEST_CASE("cached parameter frame compaction shifts later locals") {
     CHECK(assembly.find("ST [R4-4], R3") != std::string::npos);
     CHECK(run_c(source) == 15);
 }
+
+
 

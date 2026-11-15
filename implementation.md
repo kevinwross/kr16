@@ -3263,3 +3263,12 @@ Entry format:
 - This avoids inflating the span of a local that only appears in one branch and
   gives the local-cache ranking a control-flow-aware view.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:58:02 -08:00 — Local initializers go directly to cache registers
+
+- The local-cache text pass now replaces the initializer frame store plus reload
+  with a single `MOV R3, R0` (or `MOV R2, R0` for the second local).
+- Frame slots remain reserved for call spills, but the initial store/load pair is
+  removed for call-free and call-bearing locals.
+- Updated pattern tests to expect the direct move.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

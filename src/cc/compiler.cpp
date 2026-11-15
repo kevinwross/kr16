@@ -2058,6 +2058,17 @@ std::optional<std::string> cache_readonly_local_loads(
     for (const auto& entry : lines) {
         const std::string trimmed = trim_copy(entry);
         if (!activated && trimmed.rfind(store, 0) == 0) {
+            const auto reg_position = trimmed.rfind('R');
+            if (reg_position != std::string::npos &&
+                reg_position + 1 < trimmed.size() &&
+                trimmed[reg_position + 1] >= '0' &&
+                trimmed[reg_position + 1] <= '3') {
+                output.push_back(std::string("  MOV ") + cache_register +
+                                 ", R" + trimmed[reg_position + 1]);
+                activated = true;
+                replaced = true;
+                continue;
+            }
             output.push_back(entry);
             output.push_back(std::string("  ") +
                              (character ? "LDB " : "LD ") +
