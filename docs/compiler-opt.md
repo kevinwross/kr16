@@ -211,7 +211,8 @@ Test plan:
 Test plan:
 
 - [x] Coloring exercised by the scalar IR tests and benchmark.
-- [x] High-pressure and unsupported functions fall back safely.
+- [x] High-pressure branch, char, and loop cases exercise the spill path;
+  unsupported functions fall back safely.
 - [x] Scalar loop benchmark improves without a code-size regression.
 - [x] Debug and DAP behavior remain valid (debug uses the fallback backend).
 
@@ -283,6 +284,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 

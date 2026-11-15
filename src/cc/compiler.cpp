@@ -3538,6 +3538,9 @@ private:
                 }
             }
             ir_frame_size_ = 2 * slots;
+            // Keep the frame within one 8-bit SUB immediate; larger graphs
+            // fall back to the M2 emitter rather than emitting a truncated
+            // stack adjustment.
             if (ir_frame_size_ > 240) {
                 return false;
             }
@@ -5494,6 +5497,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

@@ -796,3 +796,31 @@ TEST_CASE("IR spills values when scalar pressure exceeds registers") {
 }
 
 
+
+TEST_CASE("spilled values feed branch comparisons") {
+    const std::string source =
+        "int f(int x) { int a = x + 1; int b = a + 2; int c = b + 3; "
+        "int d = c + 4; int e = d + 5; int g = e + 6; int h = g + 7; "
+        "if (a + b + c + d + e + g + h > 50) return 7; return 9; }\n"
+        "int main(void) { return f(1); }\n";
+    CHECK(run_c(source) == 7);
+}
+
+TEST_CASE("spilled char values preserve truncation") {
+    const std::string source =
+        "int f(char x) { char a = x + 1; char b = a + 2; char c = b + 3; "
+        "char d = c + 4; char e = d + 5; char g = e + 6; char h = g + 7; "
+        "return a + b + c + d + e + g + h; }\n"
+        "int main(void) { return f(1); }\n";
+    CHECK(run_c(source) == 91);
+}
+
+TEST_CASE("loops keep pressure values correct across spill stores") {
+    const std::string source =
+        "int f(int n) { int a = 1; int b = 2; int c = 3; int d = 4; "
+        "int e = 5; int g = 6; int i; int s = 0; "
+        "for (i = 0; i < n; i++) { s = s + a + b + c + d + e + g; } "
+        "return s; }\n"
+        "int main(void) { return f(3); }\n";
+    CHECK(run_c(source) == 63);
+}

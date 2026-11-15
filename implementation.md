@@ -2728,3 +2728,13 @@ Entry format:
   unchanged at 1,237 instructions / 2,033 cycles for `-O1`.
 - Remaining: basic-block copy propagation and induction-variable strength
   reduction.
+
+### 2026-11-14 18:58:49 -08:00 — Spill-path review follow-up
+
+- Added spill stress tests for branch comparisons, char truncation, and a
+  loop that keeps more than five values live across spill stores.
+- Reviewed the 240-byte spill-frame cap and documented why larger frames fall
+  back to M2: the prologue uses one 8-bit `SUB SP` immediate.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Commits `6ee82b4` and `0a79b35` are on `origin/main`; this follow-up is
+  ready to commit.
