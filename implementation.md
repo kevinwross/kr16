@@ -2789,3 +2789,18 @@ Entry format:
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - `resources/fileio.c` compiles and assembles again; it now exercises the
   `mode == 0 || mode[0] == '\0'` form.
+
+### 2026-11-14 20:22:45 -08:00 — Indexed and arithmetic conditions
+
+- Extended condition leaves to variable indexes: `s[i]` now loads the base and
+  index into separate registers instead of push/pop.
+- Index address generation uses `MOV R1, R0` plus an index register for simple
+  indexes, removing a push/pop from each `d[i] = s[i]`-style access.
+- Comparison conditions now accept arithmetic right operands such as
+  `i < max - 1`; they evaluate the right operand into R1 and branch directly.
+- Removed the stale `is_simple_binary` guard in the condition emitter that was
+  causing a silent fallback after validation.
+- `C-for-U.S` regenerated: `same` and `i < max - 1 && s[i] != 0` now branch
+  directly; `PUSH R0` count dropped from 286 to 145.
+- Added a differential pattern test for the arithmetic/indexed condition.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

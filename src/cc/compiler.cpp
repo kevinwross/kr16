@@ -4609,9 +4609,8 @@ private:
         }
         if (expr->kind == Expr::Kind::Index &&
             expr->children.size() == 2) {
-            return expr->children[1]->kind == Expr::Kind::Number &&
-                   expr->children[1]->value >= 0 &&
-                   is_simple_leaf(expr->children[0].get());
+            return is_simple_leaf(expr->children[0].get()) &&
+                   is_simple_leaf(expr->children[1].get());
         }
         return false;
     }
@@ -4656,21 +4655,24 @@ private:
         }
         if (expr->kind == Expr::Kind::Index &&
             expr->children.size() == 2) {
-            const auto index = constant_expr_value(expr->children[1].get());
-            if (!index.has_value() || *index < 0 ||
-                !is_simple_leaf(expr->children[0].get())) {
+            if (target < 0 || target > 1 ||
+                !is_simple_leaf(expr->children[0].get()) ||
+                !is_simple_leaf(expr->children[1].get())) {
                 return false;
             }
-            if (!emit_simple_leaf(expr->children[0].get(), target, out)) {
+            const int index_register = target == 0 ? 1 : 2;
+            if (!emit_simple_leaf(expr->children[0].get(), target, out) ||
+                !emit_simple_leaf(expr->children[1].get(), index_register,
+                                  out)) {
                 return false;
             }
-            const int offset =
-                static_cast<int>(*index) * expression_type(expr)->size();
-            if (offset != 0) {
-                out << "  ADD R" << target << ", #" << offset << "\n";
+            const auto type = expression_type(expr);
+            if (type->size() > 1) {
+                out << "  SHL R" << index_register << ", #1\n";
             }
-            out << (expression_type(expr)->is_char() ? "  LDB R" : "  LD R")
-                << target << ", [R" << target << "]\n";
+            out << "  ADD R" << target << ", R" << index_register << "\n";
+            out << (type->is_char() ? "  LDB R" : "  LD R") << target
+                << ", [R" << target << "]\n";
             return true;
         }
         if (expr->kind == Expr::Kind::Cast && expr->children.size() == 1) {
@@ -5010,6 +5012,16 @@ private:
         return emit_simple_expr_into(expr, 0, out);
     }
 
+    bool is_simple_condition_operand(const Expr* expr) const {
+        if (is_simple_leaf(expr)) {
+            return true;
+        }
+        return expr != nullptr && expr->kind == Expr::Kind::Binary &&
+               expr->children.size() == 2 &&
+               is_simple_leaf(expr->children[0].get()) &&
+               expr->children[1]->kind == Expr::Kind::Number;
+    }
+
     bool is_simple_condition(const Expr* expr) const {
         if (expr == nullptr) {
             return false;
@@ -5022,7 +5034,9 @@ private:
         if (is_simple_leaf(expr)) {
             return true;
         }
-        if (expr->kind != Expr::Kind::Binary || !is_simple_binary(expr)) {
+        if (expr->kind != Expr::Kind::Binary ||
+            !is_simple_leaf(expr->children[0].get()) ||
+            !is_simple_condition_operand(expr->children[1].get())) {
             return false;
         }
         return expr->op == "==" || expr->op == "!=" || expr->op == "<" ||
@@ -5084,7 +5098,7 @@ private:
             out << (branch_when_true ? "  BNE " : "  BEQ ") << target << "\n";
             return true;
         }
-        if (expr->kind != Expr::Kind::Binary || !is_simple_binary(expr)) {
+        if (expr->kind != Expr::Kind::Binary) {
             return false;
         }
         const std::string& op = expr->op;
@@ -5100,7 +5114,32 @@ private:
         if (right_constant) {
             out << "  CMP R0, #" << *right_constant << "\n";
         } else {
-            if (!emit_simple_leaf(expr->children[1].get(), 1, out)) {
+            const Expr* right = expr->children[1].get();
+            if (right->kind == Expr::Kind::Binary &&
+                right->children.size() == 2 &&
+                is_simple_leaf(right->children[0].get()) &&
+                right->children[1]->kind == Expr::Kind::Number) {
+                if (!emit_simple_leaf(right->children[0].get(), 1, out)) {
+                    return false;
+                }
+                const char* mnemonic = nullptr;
+                if (right->op == "+") {
+                    mnemonic = "ADD";
+                } else if (right->op == "-") {
+                    mnemonic = "SUB";
+                } else if (right->op == "&") {
+                    mnemonic = "AND";
+                } else if (right->op == "|") {
+                    mnemonic = "OR";
+                } else if (right->op == "^") {
+                    mnemonic = "XOR";
+                }
+                if (mnemonic == nullptr) {
+                    return false;
+                }
+                out << "  " << mnemonic << " R1, #"
+                    << right->children[1]->value << "\n";
+            } else if (!emit_simple_expr_into(right, 1, out)) {
                 return false;
             }
             out << "  CMP R0, R1\n";
@@ -5497,6 +5536,16 @@ private:
             } else {
                 gen_addr(expr->children[0].get(), out);
             }
+            if (is_simple_leaf(expr->children[1].get())) {
+                out << "  MOV R1, R0\n";
+                gen_expr(expr->children[1].get(), out);
+                const auto type = expression_type(expr);
+                if (type->size() > 1) {
+                    out << "  SHL R0, #1\n";
+                }
+                out << "  ADD R0, R1\n";
+                return;
+            }
             out << "  PUSH R0\n";
             gen_expr(expr->children[1].get(), out);
             const auto type = expression_type(expr);
@@ -5874,6 +5923,11 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
 
 
 

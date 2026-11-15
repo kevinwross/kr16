@@ -884,3 +884,14 @@ TEST_CASE("pointer conditions branch directly without boolean materialization") 
     CHECK(assembly.find("CMP R0, R1") != std::string::npos);
     CHECK(run_c(source) == 1);
 }
+
+TEST_CASE("arithmetic and indexed loop conditions branch directly") {
+    const std::string source =
+        "int f(char *s, int max) { int i = 0; "
+        "while (i < max - 1 && s[i] != 0) { i = i + 1; } return i; }\n"
+        "int main(void) { char s[4]; s[0] = 1; s[1] = 1; s[2] = 0; "
+        "return f(s, 4); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("purecmp") == std::string::npos);
+    CHECK(run_c(source) == 2);
+}
