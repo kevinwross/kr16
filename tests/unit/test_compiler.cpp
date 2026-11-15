@@ -1216,3 +1216,14 @@ TEST_CASE("three-argument scalar functions use the fallback backend") {
         "int main(void) { char b[1]; return f(b); }\n";
     CHECK(run_c(source) == 7);
 }
+
+TEST_CASE("live-span ranking drives two-local allocation") {
+    const std::string source =
+        "int f(char *p) { int a = 1; int b = 2; a = a + 1; "
+        "b = b + a; int c = 3; b = b + c; return a + b + c; }\n"
+        "int main(void) { char b[1]; return f(b); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("LD R2, [R4-6]") != std::string::npos);
+    CHECK(run_c(source) == 12);
+}

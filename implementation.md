@@ -3200,3 +3200,11 @@ Entry format:
 - This is a broader allocation heuristic than declaration order, though it is
   still an AST linear approximation rather than CFG liveness.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:24:25 -08:00 — Live-span allocation test
+
+- Added a test where three locals compete for two cache registers; the
+  live-span ranking places the earlier/longer-lived `a` in R3 and `b` in R2.
+- The generated assembly loads `[R4-4]` into R3 and `[R4-6]` into R2, and the
+  function returns 12.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
