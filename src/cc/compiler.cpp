@@ -5016,6 +5016,7 @@ private:
             stmt_cache_unsafe(stmt->body.get(), name2, true, true)) {
             name2.clear();
         }
+
         const auto start = new_label("while");
         const auto end = new_label("endwhile");
         cached_loop_local_ = true;
@@ -5052,7 +5053,8 @@ private:
         cached_loop2_name_.clear();
         std::string trial_text = trial.str();
         if (assembly_clobbers_r3(trial_text) ||
-            assembly_clobbers_register(trial_text, "R2")) {
+            (!name2.empty() &&
+             assembly_clobbers_register(trial_text, "R2"))) {
             cached_loop_clean_ = false;
             return false;
         }
@@ -7097,6 +7099,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 
