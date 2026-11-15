@@ -3336,3 +3336,11 @@ Entry format:
 - Refreshed `..\KRCompiler\inbox\kr16.exe` with SHA-256
   `FF33C1A4CFD74DACA34C3167C6CECFF1A4DE4B1D1FFBAE03D3DAF4DF4FDE2F16`.
 - Updated the handoff note with the CFG-liveness change.
+
+### 2026-11-15 13:57:32 -08:00 — Branch-join cache and spill test
+
+- Added a two-local function with an if/else call in each arm.
+- The test checks that both cached registers spill before the calls, reload
+  afterwards, and are consumed correctly at the join.
+- Runtime result: 4.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

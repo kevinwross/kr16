@@ -1346,3 +1346,20 @@ TEST_CASE("unused static functions are omitted and used ones stay local") {
     CHECK(assembly.find(".global live") == std::string::npos);
     CHECK(run_c(source) == 4);
 }
+
+TEST_CASE("cached locals survive branch joins and call spills") {
+    const std::string source =
+        "int inc(int n) { return n + 1; }\n"
+        "int f(void) { int a = 1; int b = 2; "
+        "if (a) { a = inc(a); } else { b = inc(b); } "
+        "return a + b; }\n"
+        "int main(void) { return f(); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("SUB SP, #4") != std::string::npos);
+    CHECK(assembly.find("ST [R4-2], R3") != std::string::npos);
+    CHECK(assembly.find("ST [R4-4], R2") != std::string::npos);
+    CHECK(assembly.find("LD R3, [R4-2]") != std::string::npos);
+    CHECK(assembly.find("LD R2, [R4-4]") != std::string::npos);
+    CHECK(assembly.find(".Lendif") != std::string::npos);
+    CHECK(run_c(source) == 4);
+}
