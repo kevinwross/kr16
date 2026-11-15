@@ -1194,3 +1194,14 @@ TEST_CASE("cached loop pointers spill around one-argument calls") {
     CHECK(assembly.find("LD R3, [R4-2]") != std::string::npos);
     CHECK(run_c(source) == 2);
 }
+
+
+TEST_CASE("nested calls fall back safely for parameter caches") {
+    const std::string source =
+        "int inc(int n) { return n + 1; }\n"
+        "int f(char *p, int x) { int y; y = inc(inc(x)); "
+        "return x + y; }\n"
+        "int main(void) { char b[1]; return f(b, 4); }\n";
+    CHECK(run_c(source) == 10);
+}
+

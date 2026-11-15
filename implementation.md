@@ -3156,3 +3156,12 @@ Entry format:
 - No intended code-generation change; this is the first structural step toward a
   single liveness/allocation layer.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:02:07 -08:00 — Nested-call fallback test
+
+- Added a focused test for nested parameter calls (`inc(inc(x))`) to verify the
+  cache safely falls back instead of keeping a stale register.
+- A three-argument local-cache test was drafted but removed: the unit harness
+  returned 4 while the CLI at -O1 returned 7, so it was not committed without a
+  root cause. That discrepancy still needs investigation.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
