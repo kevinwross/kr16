@@ -909,3 +909,18 @@ TEST_CASE("simple indexed stores avoid push-pop address shuffling") {
           std::string::npos);
     CHECK(run_c(source) == 0);
 }
+
+TEST_CASE("indexed base loads directly into R1") {
+    const std::string source =
+        "int f(char *d, int i) { d[i] = 0; return d[i]; }\n"
+        "int main(void) { char b[4]; b[1] = 7; return f(b, 1); }\n";
+    const auto assembly = compile_text(source, true);
+    const auto start = assembly.find(".global f");
+    const auto end = assembly.find(".global main");
+    REQUIRE(start != std::string::npos);
+    REQUIRE(end != std::string::npos);
+    const auto body = assembly.substr(start, end - start);
+    CHECK(body.find("LD R1, [R4-2]") != std::string::npos);
+    CHECK(body.find("MOV R1, R0") == std::string::npos);
+    CHECK(run_c(source) == 0);
+}

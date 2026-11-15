@@ -5541,13 +5541,17 @@ private:
                     return;
                 }
             }
-            if (base_type->kind == TypeKind::Pointer) {
-                gen_expr(expr->children[0].get(), out);
-            } else {
-                gen_addr(expr->children[0].get(), out);
-            }
             if (is_simple_leaf(expr->children[1].get())) {
-                out << "  MOV R1, R0\n";
+                if (expr->children[0]->kind == Expr::Kind::Identifier) {
+                    gen_load_identifier(expr->children[0]->text, out, 1);
+                } else {
+                    if (base_type->kind == TypeKind::Pointer) {
+                        gen_expr(expr->children[0].get(), out);
+                    } else {
+                        gen_addr(expr->children[0].get(), out);
+                    }
+                    out << "  MOV R1, R0\n";
+                }
                 gen_expr(expr->children[1].get(), out);
                 const auto type = expression_type(expr);
                 if (type->size() > 1) {
@@ -5555,6 +5559,11 @@ private:
                 }
                 out << "  ADD R0, R1\n";
                 return;
+            }
+            if (base_type->kind == TypeKind::Pointer) {
+                gen_expr(expr->children[0].get(), out);
+            } else {
+                gen_addr(expr->children[0].get(), out);
             }
             out << "  PUSH R0\n";
             gen_expr(expr->children[1].get(), out);

@@ -2814,3 +2814,12 @@ Entry format:
 - Added a pattern and differential test for `d[2] = 0` / `return d[2]`.
 - Regenerated `C-for-U.S`; the `PUSH R0` count dropped from 145 to 112.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-14 20:36:20 -08:00 — Direct indexed base loads
+
+- Indexed address generation now loads a simple identifier base directly into
+  R1 instead of loading into R0 and copying with `MOV R1, R0`.
+- In `C-for-U`, `d[i] = 0` now starts:
+  `LD R1, [R4-2]`, `LD R0, [R4-8]`, `ADD R0, R1`.
+- Added a pattern/differential test for a pointer base with a variable index.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
