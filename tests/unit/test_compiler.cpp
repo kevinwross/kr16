@@ -987,8 +987,10 @@ TEST_CASE("read-only parameters are cached in R3") {
     const auto assembly = compile_text(source, true);
     CHECK(assembly.find("MOV R3, R2") != std::string::npos);
     CHECK(assembly.find("LD R0, [R4-4]") == std::string::npos);
+    CHECK(assembly.find("ST [R4-4], R2") == std::string::npos);
     CHECK(run_c(source) == 5);
 }
+
 
 
 

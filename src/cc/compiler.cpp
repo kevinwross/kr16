@@ -4297,6 +4297,30 @@ private:
             return;
         }
 
+        std::string cached_parameter;
+        int cached_parameter_register = 0;
+        if (!debug_ && !function.variadic) {
+            for (std::size_t i = 0;
+                 i < function.parameters.size() && i < 3; ++i) {
+                const auto& parameter = function.parameters[i];
+                const auto local = locals_.find(parameter.name);
+                if (local == locals_.end() || local->second.indirect ||
+                    local->second.global || !local->second.symbol.empty() ||
+                    !local->second.type ||
+                    (local->second.type->kind != TypeKind::Int &&
+                     local->second.type->kind != TypeKind::Char &&
+                     local->second.type->kind != TypeKind::Pointer) ||
+                    !stmt_mentions_name(function.body.get(),
+                                        parameter.name) ||
+                    !parameter_cache_safe(function.body.get(),
+                                           parameter.name)) {
+                    continue;
+                }
+                cached_parameter = parameter.name;
+                cached_parameter_register = static_cast<int>(i) + 1;
+                break;
+            }
+        }
         out << ".global " << function.name << "\n";
         out << function.name << ":\n";
         out << "  PUSH R4\n";
@@ -4306,6 +4330,9 @@ private:
         }
         for (std::size_t i = 0; i < function.parameters.size(); ++i) {
             const auto& parameter = function.parameters[i];
+            if (parameter.name == cached_parameter) {
+                continue;
+            }
             const auto it = locals_.find(parameter.name);
             if (it == locals_.end()) {
                 continue;
@@ -4336,30 +4363,6 @@ private:
                 out << "  LD R0, [R4+" << (4 + (i - 3) * 2) << "]\n";
                 out << (parameter.type->is_char() ? "  STB " : "  ST ")
                     << "[R4-" << it->second.offset << "], R0\n";
-            }
-        }
-        std::string cached_parameter;
-        int cached_parameter_register = 0;
-        if (!function.variadic) {
-            for (std::size_t i = 0;
-                 i < function.parameters.size() && i < 3; ++i) {
-                const auto& parameter = function.parameters[i];
-                const auto local = locals_.find(parameter.name);
-                if (local == locals_.end() || local->second.indirect ||
-                    local->second.global || !local->second.symbol.empty() ||
-                    !local->second.type ||
-                    (local->second.type->kind != TypeKind::Int &&
-                     local->second.type->kind != TypeKind::Char &&
-                     local->second.type->kind != TypeKind::Pointer) ||
-                    !stmt_mentions_name(function.body.get(),
-                                        parameter.name) ||
-                    !parameter_cache_safe(function.body.get(),
-                                           parameter.name)) {
-                    continue;
-                }
-                cached_parameter = parameter.name;
-                cached_parameter_register = static_cast<int>(i) + 1;
-                break;
             }
         }
         if (!cached_parameter.empty()) {
@@ -6613,6 +6616,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 

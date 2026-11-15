@@ -2950,3 +2950,13 @@ Entry format:
   the cache is discarded and the body is generated normally.
 - Added a differential/pattern test for a read-only `int` parameter.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 03:33:42 -08:00 — Cached parameters skip frame stores
+
+- Parameter-cache selection now runs before the prologue; a cached read-only
+  parameter is not stored into its frame slot.
+- Example: `int f(char *p, int x) { return x + 1; }` now emits `MOV R3, R2`
+  and no `ST [R4-4], R2`.
+- Parameter caching is disabled for debug builds.
+- Added a pattern/differential test asserting the store is absent.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

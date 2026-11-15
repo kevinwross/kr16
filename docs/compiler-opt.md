@@ -245,7 +245,7 @@ Test plan:
 - [x] `while` loops with a pointer update cache the pointer in R3; the
   generated body is scanned and rejected if it unexpectedly writes R3.
 - [x] A read-only parameter is cached in R3 for functions without calls,
-  loops, or address-taking; the body is generated into a temporary buffer and
+  loops, or address-taking; its frame store is skipped and the body is
   rejected if it clobbers R3.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
@@ -311,6 +311,7 @@ Test plan:
   temporary pairs (`R0`/`R1`) for simple expressions.
 - Branch relaxation (ADR 0003) means extra instructions from an optimization
   are safe even when a function crosses the old 256-byte branch range.
+
 
 
 
