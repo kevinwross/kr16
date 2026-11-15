@@ -1334,3 +1334,15 @@ TEST_CASE("unresolved includes are hard errors") {
     CHECK(angled.diagnostics.front().message.find(
               "cannot resolve #include") != std::string::npos);
 }
+
+TEST_CASE("unused static functions are omitted and used ones stay local") {
+    const std::string source =
+        "static int dead(void) { return 9; }\n"
+        "static int live(void) { return 4; }\n"
+        "int main(void) { return live(); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("dead:") == std::string::npos);
+    CHECK(assembly.find("CALL live") != std::string::npos);
+    CHECK(assembly.find(".global live") == std::string::npos);
+    CHECK(run_c(source) == 4);
+}

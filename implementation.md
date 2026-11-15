@@ -3291,3 +3291,16 @@ Entry format:
   dedicated-directory / raised-quota remedies.
 - Added CLI help assertions for the new wording.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 13:39:46 -08:00 — Object-level GC and unused static functions
+
+- Added `kr16 ld --gc-all`, which keeps only objects reachable from
+  `_start`/`__start`/`start` through relocation references.
+- `LinkResult::gc_dropped_symbols` records dropped global definitions; `--map`
+  prints them as `dropped-symbol <name>`.
+- The compiler now omits a `static` function whose identifier appears only at
+  its definition and emits used static functions as local symbols.
+- Verified manually:
+  - `--gc-all --map` keeps `_start`, drops `unused`, and prints
+    `dropped-symbol unused`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

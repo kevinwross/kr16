@@ -58,12 +58,79 @@ void write_u16(Section& section, std::uint32_t offset, std::uint16_t value) {
 
 }  // namespace
 
-LinkResult link_objects(const std::vector<Container>& objects,
+std::vector<Container> select_live_objects(
+    const std::vector<Container>& input,
+    std::vector<std::string>& dropped_symbols) {
+    if (input.size() <= 1) {
+        return input;
+    }
+    std::unordered_map<std::string, std::size_t> definitions;
+    std::size_t entry = input.size();
+    for (std::size_t i = 0; i < input.size(); ++i) {
+        for (const auto& symbol : input[i].symbols) {
+            if (symbol.section == 0 ||
+                symbol.binding == SymbolBinding::Local ||
+                symbol.binding == SymbolBinding::Extern) {
+                continue;
+            }
+            definitions.emplace(symbol.name, i);
+            if (symbol.name == "_start" || symbol.name == "__start" ||
+                symbol.name == "start") {
+                entry = i;
+            }
+        }
+    }
+    if (entry == input.size()) {
+        return input;
+    }
+    std::vector<bool> live(input.size(), false);
+    std::vector<std::size_t> pending{entry};
+    live[entry] = true;
+    while (!pending.empty()) {
+        const std::size_t object_index = pending.back();
+        pending.pop_back();
+        const auto& object = input[object_index];
+        for (const auto& relocation : object.relocations) {
+            if (relocation.symbol >= object.symbols.size()) {
+                throw std::runtime_error("bad symbol reference");
+            }
+            const auto& symbol = object.symbols[relocation.symbol];
+            if (symbol.section != 0) {
+                continue;
+            }
+            const auto found = definitions.find(symbol.name);
+            if (found != definitions.end() && !live[found->second]) {
+                live[found->second] = true;
+                pending.push_back(found->second);
+            }
+        }
+    }
+    std::vector<Container> selected;
+    for (std::size_t i = 0; i < input.size(); ++i) {
+        if (live[i]) {
+            selected.push_back(input[i]);
+            continue;
+        }
+        for (const auto& symbol : input[i].symbols) {
+            if (symbol.section != 0 &&
+                symbol.binding != SymbolBinding::Local &&
+                symbol.binding != SymbolBinding::Extern) {
+                dropped_symbols.push_back(symbol.name);
+            }
+        }
+    }
+    return selected;
+}
+LinkResult link_objects(const std::vector<Container>& input_objects,
                         const LinkOptions& options) {
     LinkResult result;
     try {
-        if (objects.empty()) {
+        if (input_objects.empty()) {
             throw std::runtime_error("no input objects");
+        }
+        std::vector<Container> objects = input_objects;
+        if (options.gc_all) {
+            objects = select_live_objects(objects, result.gc_dropped_symbols);
         }
 
         std::vector<Section> outputs;
@@ -497,5 +564,8 @@ LinkResult link_files(const std::vector<std::string>& paths,
 }
 
 }  // namespace kr16
+
+
+
 
 

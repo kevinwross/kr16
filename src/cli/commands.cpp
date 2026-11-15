@@ -149,6 +149,7 @@ Options:
   --map <path>         write a map of sections and symbols
   --strip-debug        remove debug sections
   --strip              remove debug sections and all but required symbols
+  --gc-all             drop input objects unreachable from _start/start
   -h, --help           show this help
 
 )";
@@ -667,6 +668,8 @@ int run_ld_command(int argc, char** argv) {
         } else if (argument == "--strip") {
             options.strip_debug = true;
             options.strip_symbols = true;
+        } else if (argument == "--gc-all") {
+            options.gc_all = true;
         } else if (argument == "--help" || argument == "-h") {
             std::cout << command_help("ld");
             return 0;
@@ -706,6 +709,9 @@ int run_ld_command(int argc, char** argv) {
             for (const auto& symbol : linked.image.symbols) {
                 map << "symbol " << symbol.name << " value=0x" << std::hex
                     << symbol.value << std::dec << "\n";
+            }
+            for (const auto& symbol : linked.gc_dropped_symbols) {
+                map << "dropped-symbol " << symbol << "\n";
             }
         }
     } catch (const std::exception& error) {

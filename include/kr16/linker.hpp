@@ -13,12 +13,14 @@ struct LinkOptions {
     std::uint16_t stack_reserve = 0x1000;
     bool strip_debug = false;
     bool strip_symbols = false;
+    bool gc_all = false;
 };
 
 struct LinkResult {
     bool ok = false;
     Container image;
     std::vector<std::string> diagnostics;
+    std::vector<std::string> gc_dropped_symbols;
 };
 
 LinkResult link_objects(const std::vector<Container>& objects,
@@ -27,3 +29,4 @@ LinkResult link_files(const std::vector<std::string>& paths,
                       const LinkOptions& options = {});
 
 }  // namespace kr16
+

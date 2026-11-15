@@ -32,6 +32,19 @@ Milestones M0–M12 are implemented. The working pipeline is:
 C or assembly → .o → .kex → VM
 ```
 
+## Dead-code collection
+
+`kr16 ld --gc-all` drops whole input objects that are unreachable from the
+`_start`/`__start`/`start` entry symbol. It is object-level only: an unused
+function in an otherwise-referenced object stays, because the object format and
+compiler currently emit one `.text` per translation unit. The linker map lists
+dropped global symbols as `dropped-symbol <name>`.
+
+The compiler also omits a `static` function whose name occurs only at its
+definition, and marks used static functions local instead of global. This
+removes unused file-local helpers without linker GC; it does not remove an
+unused external function from a partially used object.
+
 ## Host filesystem sandbox
 
 `kr16 vm` exposes host file services inside `--fs-root` (default `./sandbox`).
@@ -229,6 +242,8 @@ its generated program assembled, linked, and executed by CTest.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+
 
 
 

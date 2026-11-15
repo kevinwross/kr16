@@ -71,6 +71,10 @@ TEST_CASE("every command has detailed --help") {
     CHECK(as.find("--base") != std::string::npos);
     CHECK(as.find("-l <path>") != std::string::npos);
 
+    const auto ld = run_cli({"kr16", "ld", "--help"}, status);
+    CHECK(status == 0);
+    CHECK(ld.find("--gc-all") != std::string::npos);
+
     const auto aliased = run_cli({"kr16", "help", "vm"}, status);
     CHECK(status == 0);
     CHECK(aliased.find("usage: kr16 vm") != std::string::npos);

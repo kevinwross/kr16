@@ -54,6 +54,36 @@ TEST_CASE("linker merges sections and resolves symbols") {
     CHECK(image.relocations.empty());
 }
 
+TEST_CASE("linker gc-all drops unreachable objects") {
+    const auto unused = assemble(
+        ".text\n"
+        ".global unused\n"
+        "unused:\n"
+        "  NOP\n"
+        "  RET\n");
+    const auto start = assemble(
+        ".text\n"
+        ".global _start\n"
+        "_start:\n"
+        "  HLT\n");
+    kr16::LinkOptions options;
+    options.gc_all = true;
+    const auto linked = kr16::link_objects({unused, start}, options);
+    REQUIRE(linked.ok);
+    const auto* text = linked.image.find_section(".text");
+    REQUIRE(text != nullptr);
+    CHECK(text->data.size() == 2);
+    for (const auto& symbol : linked.image.symbols) {
+        CHECK(symbol.name != "unused");
+    }
+    bool dropped = false;
+    for (const auto& symbol : linked.gc_dropped_symbols) {
+        if (symbol == "unused") {
+            dropped = true;
+        }
+    }
+    CHECK(dropped);
+}
 TEST_CASE("linker rejects duplicate globals") {
     const auto a = assemble(
         ".text\n.global same\nsame:\n  NOP\n");
@@ -118,3 +148,5 @@ TEST_CASE("linker strip options remove debug and symbols") {
         CHECK(symbol.name.rfind("__", 0) == 0);
     }
 }
+
+
