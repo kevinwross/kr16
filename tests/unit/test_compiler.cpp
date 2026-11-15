@@ -1263,18 +1263,31 @@ TEST_CASE("C-for-U compilation stays within instruction budget") {
 
 
 TEST_CASE("call-heavy cache shapes use fewer cycles at O1") {
-    const std::string source =
-        "int tick(void) { return 1; }\n"
-        "int f(char *p) { int n = 0; while (*p) { p = p + 1; "
-        "n = n + tick(); } return n; }\n"
-        "int main(void) { char b[3]; b[0]=1; b[1]=1; b[2]=0; "
-        "return f(b); }\n";
-    const auto plain = run_c_stats(source, {}, false);
-    const auto optimized = run_c_stats(source, {}, true);
-    CHECK(plain.exit_code == 2);
-    CHECK(optimized.exit_code == 2);
-    CHECK(optimized.cycles < plain.cycles);
-    CHECK(optimized.instructions < plain.instructions);
+    struct Case {
+        std::string source;
+        int expected;
+    };
+    const std::vector<Case> cases = {
+        {"int tick(void) { return 1; }\n"
+         "int f(char *p) { int n = 0; while (*p) { p = p + 1; "
+         "n = n + tick(); } return n; }\n"
+         "int main(void) { char b[3]; b[0]=1; b[1]=1; b[2]=0; "
+         "return f(b); }\n",
+         2},
+        {"int inc(int n) { return n + 1; }\n"
+         "int f(char *p) { int x = 1; int y = inc(x); "
+         "x = x + 1; return x + y; }\n"
+         "int main(void) { char b[1]; return f(b); }\n",
+         4},
+    };
+    for (const auto& test : cases) {
+        const auto plain = run_c_stats(test.source, {}, false);
+        const auto optimized = run_c_stats(test.source, {}, true);
+        CHECK(plain.exit_code == test.expected);
+        CHECK(optimized.exit_code == test.expected);
+        CHECK(optimized.cycles < plain.cycles);
+        CHECK(optimized.instructions < plain.instructions);
+    }
 }
 
 TEST_CASE("cached parameter frame compaction shifts later locals") {

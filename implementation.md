@@ -3240,3 +3240,11 @@ Entry format:
   removal and offset shifts: `SUB SP, #6`, no store to the removed `x` slot,
   and `z` shifted into `[R4-4]`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:41:08 -08:00 — Two-locals-across-calls cycle gate
+
+- Expanded the cycle gate to cover two shapes:
+  - cached loop pointer with a zero-argument call
+  - two locals across a one-argument call and update
+- Both require fewer instructions and cycles at -O1, with correct results.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
