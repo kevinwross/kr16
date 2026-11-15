@@ -1081,3 +1081,48 @@ TEST_CASE("two live locals use R3 and R2") {
     CHECK(assembly.find("LD R2, [R4-6]") != std::string::npos);
     CHECK(run_c(source) == 6);
 }
+
+TEST_CASE("benchmark gate for pointer, call-spill, and two-local caches") {
+    const auto count_instructions = [](const std::string& text) {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < text.size();) {
+            const auto end = text.find('\n', i);
+            const auto line = text.substr(i, end - i);
+            if (!line.empty() && line.front() == ' ') {
+                ++count;
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            i = end + 1;
+        }
+        return count;
+    };
+    struct Case {
+        std::string source;
+        int expected;
+    };
+    const std::vector<Case> cases = {
+        {"int same(char *a, char *b) { while (*a != 0 && *b != 0) { "
+         "if (*a != *b) return 0; a = a + 1; b = b + 1; } "
+         "return *a == *b; }\n"
+         "int main(void) { char a[4]; char b[4]; a[0]=65; a[1]=66; "
+         "a[2]=0; b[0]=65; b[1]=66; b[2]=0; return same(a,b); }\n",
+         1},
+        {"int inc(int n) { return n + 1; }\n"
+         "int f(char *p, int x) { int y = inc(x); return x + y; }\n"
+         "int main(void) { char b[1]; return f(b, 4); }\n",
+         9},
+        {"int f(char *p) { int x = 1; int y = 2; x = x + 1; "
+         "y = y + x; return x + y; }\n"
+         "int main(void) { char b[1]; return f(b); }\n",
+         6},
+    };
+    for (const auto& test : cases) {
+        const auto optimized = compile_text(test.source, true);
+        const auto plain = compile_text(test.source, false);
+        CHECK(count_instructions(optimized) <
+              count_instructions(plain));
+        CHECK(run_c(test.source) == test.expected);
+    }
+}

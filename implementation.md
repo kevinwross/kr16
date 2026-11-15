@@ -3095,3 +3095,15 @@ Entry format:
 - Conclusion recorded in `docs/compiler-opt.md`: the ABI is unchanged and the
   existing pushes are already minimal.
 - No compiler behavior changed; full suites remain green.
+
+### 2026-11-15 07:16:32 -08:00 — Cache benchmark regression gate
+
+- Added a unit gate that compiles three optimized shapes at -O0 and -O1 and
+  requires -O1 to use fewer instructions:
+  - `same()` pointer loop
+  - cached parameter across `inc(x)`
+  - two live locals in R3/R2
+- Each case also checks the runtime result.
+- Measured instruction counts for the shapes: 141 -> 79 (`same`), 50 -> 40
+  (call spill), 55 -> 37 (two locals).
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
