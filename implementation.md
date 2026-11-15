@@ -3084,3 +3084,14 @@ Entry format:
   body is rejected if either register is unexpectedly clobbered.
 - Added a differential/pattern test where `x` and `y` both stay live.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 07:13:22 -08:00 — Fourth-argument stack evaluation
+
+- Evaluated storing a fourth argument directly into a reserved stack slot
+  instead of `PUSH R0`.
+- The direct form needs `SUB SP, #2` plus `ST [SP], R0` (two instructions) versus
+  one `PUSH R0`, and still must match the `[FP+4]` stack layout and caller
+  cleanup.
+- Conclusion recorded in `docs/compiler-opt.md`: the ABI is unchanged and the
+  existing pushes are already minimal.
+- No compiler behavior changed; full suites remain green.

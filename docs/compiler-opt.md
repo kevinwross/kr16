@@ -374,3 +374,18 @@ only the ABI-required argument slots remain.
 
 
 
+
+### Direct stack-slot store evaluation
+
+A direct slot store was evaluated as an alternative to `PUSH R0`:
+
+```asm
+SUB SP, #2
+ST [SP], R0
+```
+
+This is two instructions instead of one `PUSH R0`, and it still has to preserve
+the right-to-left stack layout and caller-cleanup contract. Reusing a frame slot
+is not valid because the callee addresses stack arguments at `[FP+4]` and later,
+above the caller's frame. The existing `PUSH` sequence is therefore already the
+minimal ABI-preserving encoding; no code change is worthwhile.
