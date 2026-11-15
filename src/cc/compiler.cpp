@@ -4541,13 +4541,26 @@ private:
         }
         cached_call_spill_ =
             !cached_parameter.empty() && stmt_has_call(function.body.get());
-        if (!cached_parameter.empty()) {
-            const auto local = locals_.find(cached_parameter);
-            if (!cached_call_spill_ && local != locals_.end() &&
-                local->second.type &&
-                local->second.offset == frame_size_) {
-                frame_size_ -= local->second.type->size();
+        if (!cached_parameter.empty() && !cached_call_spill_) {
+            std::vector<std::pair<int, std::string>> ordered;
+            for (const auto& [name, variable] : locals_) {
+                if (!variable.global && variable.offset > 0 &&
+                    variable.type) {
+                    ordered.push_back({variable.offset, name});
+                }
             }
+            std::sort(ordered.begin(), ordered.end());
+            int new_frame = 0;
+            for (const auto& [old_offset, name] : ordered) {
+                auto& variable = locals_[name];
+                if (name == cached_parameter) {
+                    continue;
+                }
+                new_frame += variable.type->size();
+                new_frame = align(new_frame, 2);
+                variable.offset = new_frame;
+            }
+            frame_size_ = new_frame;
         }
         out << ".global " << function.name << "\n";
         out << function.name << ":\n";
@@ -7259,6 +7272,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 

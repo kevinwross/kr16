@@ -3225,3 +3225,11 @@ Entry format:
 - Added a call-heavy cache gate requiring both fewer VM instructions and fewer
   VM cycles at -O1, with runtime results checked.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:35:10 -08:00 — Frame compaction around cached parameters
+
+- When a call-free cached parameter is removed from the frame, remaining locals
+  are re-packed by original offset instead of only trimming a top slot.
+- This lets cached parameters in the middle of the frame remove their slots and
+  shift later locals down.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

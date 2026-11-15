@@ -251,9 +251,9 @@ Test plan:
   R3 at statement entry around that expression; other call-bearing loops fall
   back to the no-call path.
 - [x] A read-only parameter is cached in R3 for functions without loops or
-  address-taking. Call-free functions skip its frame store and remove its
-  top slot; call-bearing functions keep the slot and spill/reload R3 around
-  each call. The body is rejected if it clobbers R3.
+  address-taking. Call-free functions skip its frame store, remove its slot,
+  and compact the remaining frame offsets; call-bearing functions keep the
+  slot and spill/reload R3 around each call.
 - [x] One or two locals with initializers cache their loads in R3 (and R2 for
   the second), redirect stores to those registers across straight-line code,
   `if`, and `switch`, and spill/reload around calls using at most two
@@ -398,6 +398,7 @@ the right-to-left stack layout and caller-cleanup contract. Reusing a frame slot
 is not valid because the callee addresses stack arguments at `[FP+4]` and later,
 above the caller's frame. The existing `PUSH` sequence is therefore already the
 minimal ABI-preserving encoding; no code change is worthwhile.
+
 
 
 
