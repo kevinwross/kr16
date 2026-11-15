@@ -1279,6 +1279,12 @@ TEST_CASE("call-heavy cache shapes use fewer cycles at O1") {
          "x = x + 1; return x + y; }\n"
          "int main(void) { char b[1]; return f(b); }\n",
          4},
+        {"int same(char *a, char *b) { while (*a != 0 && *b != 0) { "
+         "if (*a != *b) return 0; a = a + 1; b = b + 1; } "
+         "return *a == *b; }\n"
+         "int main(void) { char a[4]; char b[4]; a[0]=65; a[1]=66; "
+         "a[2]=0; b[0]=65; b[1]=66; b[2]=0; return same(a,b); }\n",
+         1},
     };
     for (const auto& test : cases) {
         const auto plain = run_c_stats(test.source, {}, false);
@@ -1301,3 +1307,4 @@ TEST_CASE("cached parameter frame compaction shifts later locals") {
     CHECK(assembly.find("ST [R4-4], R3") != std::string::npos);
     CHECK(run_c(source) == 15);
 }
+

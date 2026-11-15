@@ -3248,3 +3248,9 @@ Entry format:
   - two locals across a one-argument call and update
 - Both require fewer instructions and cycles at -O1, with correct results.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:44:41 -08:00 — same() cycle gate
+
+- Added the `same()` pointer-loop shape to both the instruction-count and cycle
+  gates; -O1 must use fewer instructions and cycles and return 1.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
