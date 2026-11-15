@@ -3329,3 +3329,10 @@ Entry format:
   every value; call spill points remain the existing statement-level
   spill/reload paths.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 13:53:48 -08:00 — Handoff refreshed with CFG liveness
+
+- Rebuilt the release preset at `f20fd47`; release CTest 56/56.
+- Refreshed `..\KRCompiler\inbox\kr16.exe` with SHA-256
+  `FF33C1A4CFD74DACA34C3167C6CECFF1A4DE4B1D1FFBAE03D3DAF4DF4FDE2F16`.
+- Updated the handoff note with the CFG-liveness change.
