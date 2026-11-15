@@ -1227,3 +1227,30 @@ TEST_CASE("live-span ranking drives two-local allocation") {
     CHECK(assembly.find("LD R2, [R4-6]") != std::string::npos);
     CHECK(run_c(source) == 12);
 }
+
+TEST_CASE("C-for-U compilation stays within instruction budget") {
+    std::ifstream input(std::string(KR16_SOURCE_DIR) +
+                        "/tests/kevin/C-for-U.c");
+    REQUIRE(input.good());
+    std::ostringstream buffer;
+    buffer << input.rdbuf();
+    const auto assembly = compile_text(buffer.str(), true);
+    const auto count = [](const std::string& text) {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < text.size();) {
+            const auto end = text.find('\n', i);
+            const auto line = text.substr(i, end - i);
+            if (!line.empty() && line.front() == ' ') {
+                ++count;
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            i = end + 1;
+        }
+        return count;
+    };
+    CHECK(count(assembly) < 5600);
+    CHECK(assembly.size() < 95000);
+}
+

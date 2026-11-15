@@ -3208,3 +3208,12 @@ Entry format:
 - The generated assembly loads `[R4-4]` into R3 and `[R4-6]` into R2, and the
   function returns 12.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:27:31 -08:00 — C-for-U compilation budget gate
+
+- Added a regression gate that compiles `tests/kevin/C-for-U.c` and requires:
+  - fewer than 5,600 emitted instructions
+  - fewer than 95,000 assembly bytes
+- Current size: 5,463 instructions; this catches large code-size regressions in
+  the self-hosted compiler workload.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
