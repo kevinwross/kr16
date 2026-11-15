@@ -2668,3 +2668,15 @@ Entry format:
 - Updated the final plan, README, and deferred list.
 - Tests: Windows 52/52 CTest; Linux 52/52 CTest.
 - Next: curriculum examples and the remaining compiler spills.
+
+### 2026-11-14 17:35:46 -08:00 — Curriculum assembly examples
+
+- Added `examples/sum_loop.s`: hand-written 1..10 loop, exits with 55.
+- Added `examples/putchar.s`: writes `KR16` through the `0xF000` console
+  port.
+- Added CTest build/run coverage for both examples, including an
+  expected-exit checker for the 55 result.
+- Updated `examples/README.md` and linked the worked exercises from
+  `docs/curriculum.md`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining roadmap: compiler M3–M5 spill/copy/loop work and DAP step back.

@@ -886,8 +886,8 @@ Ordered by value to the teaching story:
    benchmark suite in `docs/compiler-opt.md`.
 2. **Debugger polish.** Step back remains; the rest of the VS Code
    experience is in place.
-3. **Curriculum pass.** `docs/curriculum.md` sketches the path; the examples
-   directory still needs the assembly exercises it describes.
+3. **Curriculum pass.** `docs/curriculum.md` links the worked assembly
+   examples in `examples/`.
 
 The linker-sized heap is complete: `libc.s` uses `[__heap_start,
 __stack_limit)`, and the heap integration test allocates 20,000 bytes.
@@ -955,6 +955,7 @@ Branch conditions: `EQ NE CS/HS CC/LO MI PL VS VC HI LS GE LT GT LE AL/RA`.
 | **DebugSession** | the portable debug model shared by the GUI, DAP, and tests |
 | **sandbox** | the guest-visible filesystem root, quota, and read-only policy |
 | **C-for-U** | the C→assembly compiler written in KR16 C and used as an end-to-end test |
+
 
 
 

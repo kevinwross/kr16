@@ -413,3 +413,33 @@ add_test(NAME kr16.release.workflow
     "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/release_check.cmake")
 set_tests_properties(kr16.release.workflow PROPERTIES LABELS "policy")
+
+# Curriculum examples: hand-written assembly.
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/../examples/sum_loop.s"
+               "${CMAKE_CURRENT_BINARY_DIR}/sum_loop.s" COPYONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/../examples/putchar.s"
+               "${CMAKE_CURRENT_BINARY_DIR}/putchar.s" COPYONLY)
+
+add_test(NAME kr16.example.sum_loop.build
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/sum_loop.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/sum_loop.kex")
+set_tests_properties(kr16.example.sum_loop.build PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.example.sum_loop.run
+  COMMAND ${CMAKE_COMMAND}
+    "-DKR16=$<TARGET_FILE:kr16>"
+    "-DIMAGE=${CMAKE_CURRENT_BINARY_DIR}/sum_loop.kex"
+    "-DEXPECTED=55"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/run_expected_exit.cmake")
+set_tests_properties(kr16.example.sum_loop.run PROPERTIES LABELS "integration"
+  DEPENDS kr16.example.sum_loop.build)
+
+add_test(NAME kr16.example.putchar.build
+  COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/putchar.s"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/putchar.kex")
+set_tests_properties(kr16.example.putchar.build PROPERTIES LABELS "integration")
+
+add_test(NAME kr16.example.putchar.run
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/putchar.kex")
+set_tests_properties(kr16.example.putchar.run PROPERTIES LABELS "integration"
+  DEPENDS kr16.example.putchar.build PASS_REGULAR_EXPRESSION "KR16")

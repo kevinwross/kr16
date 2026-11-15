@@ -108,10 +108,14 @@ The assembler records one row per instruction with file, line, and column.
 ## 7. Exercises
 
 1. Write an assembly loop that sums 1..10 and returns the result in R0.
+   Worked solution: [`examples/sum_loop.s`](../examples/sum_loop.s).
 2. Rewrite the loop in C and compare the generated assembly.
+   Start from [`examples/sum.c`](../examples/sum.c).
 3. Enable Timer 0 interrupts and toggle a memory flag in the handler.
-4. Add `putchar` output to the C example.
+4. Add `putchar` output to the C example. The assembly equivalent is
+   [`examples/putchar.s`](../examples/putchar.s).
 5. Use `kr16 dis` and `kr16 debug` to inspect the resulting image.
+
 
 
 
