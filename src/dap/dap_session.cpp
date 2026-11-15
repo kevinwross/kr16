@@ -492,6 +492,12 @@ struct DapSession::Impl {
     int next_breakpoint_id = 1;
     std::map<std::uint16_t, Breakpoint> breakpoints;
 
+    struct Snapshot {
+        Machine machine;
+        Cpu cpu;
+    };
+    std::vector<Snapshot> history;
+
     std::vector<std::string> handle_message(std::string_view message);
 
     JsonValue make_response(const JsonValue& request, std::string_view command,
@@ -621,6 +627,7 @@ struct DapSession::Impl {
     }
 
     void reset_machine() {
+        history.clear();
         machine = Machine{};
         machine.zero_ram();
         cpu = Cpu{};
@@ -633,6 +640,23 @@ struct DapSession::Impl {
         line_rows.clear();
         source_path.clear();
         entry = 0;
+    }
+
+    void push_snapshot() {
+        if (history.size() >= 64) {
+            history.erase(history.begin());
+        }
+        history.push_back(Snapshot{machine, cpu});
+    }
+
+    bool restore_snapshot() {
+        if (history.empty()) {
+            return false;
+        }
+        machine = std::move(history.back().machine);
+        cpu = std::move(history.back().cpu);
+        history.pop_back();
+        return true;
     }
 
     void load_program() {
@@ -914,6 +938,7 @@ struct DapSession::Impl {
     std::vector<std::string> handle_pause(const JsonValue& request);
     std::vector<std::string> handle_step(const JsonValue& request,
                                          std::string_view command);
+    std::vector<std::string> handle_step_back(const JsonValue& request);
     std::vector<std::string> handle_terminate(const JsonValue& request);
     std::vector<std::string> handle_disconnect(const JsonValue& request);
 };
@@ -932,7 +957,7 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
     body.set("supportsConditionalBreakpoints", JsonValue::boolean(true));
     body.set("supportsHitConditionalBreakpoints", JsonValue::boolean(true));
     body.set("supportsFunctionBreakpoints", JsonValue::boolean(true));
-    body.set("supportsStepBack", JsonValue::boolean(false));
+    body.set("supportsStepBack", JsonValue::boolean(true));
     body.set("supportsRestartRequest", JsonValue::boolean(true));
     body.set("supportsSetVariable", JsonValue::boolean(true));
     body.set("supportsLoadedSourcesRequest", JsonValue::boolean(true));
@@ -1723,6 +1748,7 @@ std::vector<std::string> DapSession::Impl::handle_continue(
         return out;
     }
     append_response(out, request, "continue", true, JsonValue::object());
+    history.clear();
     run_continue(out);
     return out;
 }
@@ -1758,6 +1784,7 @@ std::vector<std::string> DapSession::Impl::handle_step(
                         "program has terminated");
         return out;
     }
+    push_snapshot();
     append_response(out, request, command, true, JsonValue::object());
     if (command == "next") {
         run_next(out);
@@ -1766,6 +1793,28 @@ std::vector<std::string> DapSession::Impl::handle_step(
     } else {
         run_single_instruction(out);
     }
+    return out;
+}
+
+std::vector<std::string> DapSession::Impl::handle_step_back(
+    const JsonValue& request) {
+    std::vector<std::string> out;
+    if (!launched) {
+        append_response(out, request, "stepBack", false, JsonValue::null(),
+                        "program is not loaded");
+        return out;
+    }
+    if (!restore_snapshot()) {
+        append_response(out, request, "stepBack", false, JsonValue::null(),
+                        "no earlier step to restore");
+        return out;
+    }
+    paused = true;
+    terminated = false;
+    last_stop_address = cpu.pc();
+    last_stop_reason = "step";
+    append_response(out, request, "stepBack", true, JsonValue::object());
+    append_stopped(out, "step", {});
     return out;
 }
 
@@ -1889,6 +1938,9 @@ std::vector<std::string> DapSession::Impl::handle_message(
         command == "stepOut") {
         return handle_step(request, command);
     }
+    if (command == "stepBack") {
+        return handle_step_back(request);
+    }
     if (command == "terminate") {
         return handle_terminate(request);
     }
@@ -1929,6 +1981,7 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
 
 
 

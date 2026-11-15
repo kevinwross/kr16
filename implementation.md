@@ -2680,3 +2680,15 @@ Entry format:
   `docs/curriculum.md`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
 - Remaining roadmap: compiler M3–M5 spill/copy/loop work and DAP step back.
+
+### 2026-11-14 17:41:18 -08:00 — DAP step back
+
+- Added `supportsStepBack` and a 64-entry snapshot history of machine + CPU
+  state before step/next/stepOut.
+- `stepBack` restores the last snapshot and emits a `step` stop; `continue`
+  clears the history.
+- Added a DAP test that steps one instruction, verifies PC moved, steps back,
+  and verifies PC returned to the original address.
+- Updated the final plan and VS Code README; debugger depth is complete.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining: compiler M3–M5 spill/copy/loop work.

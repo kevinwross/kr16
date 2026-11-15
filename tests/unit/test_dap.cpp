@@ -250,9 +250,29 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
               .find("body")
               ->find("result")
               ->as_string() == "0x1234");
+    auto read_pc = [&]() {
+        const auto response = session.handle_message(
+            "{\"seq\":15,\"type\":\"request\",\"command\":\"evaluate\","
+            "\"arguments\":{\"expression\":\"$pc\",\"context\":\"repl\"}}");
+        return kr16::dap::JsonValue::parse(response[0])
+            .find("body")->find("result")->as_string();
+    };
+    const auto pc_before = read_pc();
+    (void)session.handle_message(
+        "{\"seq\":16,\"type\":\"request\",\"command\":\"stepIn\","
+        "\"arguments\":{\"threadId\":1}}");
+    const auto pc_after = read_pc();
+    CHECK(pc_after != pc_before);
+    const auto back = session.handle_message(
+        "{\"seq\":17,\"type\":\"request\",\"command\":\"stepBack\","
+        "\"arguments\":{\"threadId\":1}}");
+    CHECK(kr16::dap::JsonValue::parse(back[0]).find("success")->as_boolean());
+    CHECK(read_pc() == pc_before);
     std::filesystem::remove(path);
     std::filesystem::remove(source_file);
 }
+
+
 
 
 

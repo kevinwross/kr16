@@ -747,7 +747,7 @@ and accepts `--raw`, `--base`, `--bios`, `--no-bios`.
 | single-thread execution requests | yes |
 | conditional breakpoints (`$rN`/`$pc` comparisons) | yes |
 | hit-count breakpoints | yes |
-| step back | no |
+| step back | yes |
 | restart | yes |
 | `setVariable` (registers/globals/locals) | yes |
 | delayed stack-trace loading | yes |
@@ -866,7 +866,6 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 - Diagnostics for an unresolvable `#include` (currently silent).
 - Linker: `--gc-all`, relocatable `-r` links, weak/common symbols, linker
   scripts, embedded release BIOS selection, BIOS RAM loading.
-- Debugger: step back.
 - Distribution: marketplace publication, code signing, installers.
 
 ### Known rough edges
@@ -884,9 +883,7 @@ Ordered by value to the teaching story:
 1. **Compiler optimization M3–M5.** Finish stack spilling/copy propagation,
    address folding, loop-invariant and induction-variable passes, and the
    benchmark suite in `docs/compiler-opt.md`.
-2. **Debugger polish.** Step back remains; the rest of the VS Code
-   experience is in place.
-3. **Curriculum pass.** `docs/curriculum.md` links the worked assembly
+2. **Curriculum pass.** `docs/curriculum.md` links the worked assembly
    examples in `examples/`.
 
 The linker-sized heap is complete: `libc.s` uses `[__heap_start,
@@ -955,6 +952,7 @@ Branch conditions: `EQ NE CS/HS CC/LO MI PL VS VC HI LS GE LT GT LE AL/RA`.
 | **DebugSession** | the portable debug model shared by the GUI, DAP, and tests |
 | **sandbox** | the guest-visible filesystem root, quota, and read-only policy |
 | **C-for-U** | the C→assembly compiler written in KR16 C and used as an end-to-end test |
+
 
 
 
