@@ -2184,29 +2184,6 @@ std::optional<std::string> cache_readonly_local_loads(
     }
     return result.str();
 }
-std::string spill_cached_value_around_calls(const std::string& text,
-                                             int offset, bool character) {
-    std::istringstream input(text);
-    std::vector<std::string> lines;
-    std::string line;
-    while (std::getline(input, line)) {
-        lines.push_back(line);
-    }
-    std::ostringstream result;
-    for (const auto& entry : lines) {
-        const std::string trimmed = trim_copy(entry);
-        if (trimmed.rfind("CALL ", 0) == 0) {
-            result << (character ? "  STB [R4-" : "  ST [R4-") << offset
-                   << "], R3\n";
-            result << entry << '\n';
-            result << (character ? "  LDB R3, [R4-" : "  LD R3, [R4-")
-                   << offset << "]\n";
-        } else {
-            result << entry << '\n';
-        }
-    }
-    return result.str();
-}
 bool assembly_clobbers_register(const std::string& text,
                                 const std::string& reg) {
     std::istringstream input(text);
@@ -4644,8 +4621,6 @@ private:
                      local->second.type->kind != TypeKind::Pointer) ||
                     !stmt_mentions_name(function.body.get(),
                                         parameter.name) ||
-                    !stmt_calls_fit_argument_registers(
-                        function.body.get(), 2) ||
                     !parameter_cache_safe(function.body.get(),
                                            parameter.name, false, false,
                                            true)) {
@@ -4739,18 +4714,13 @@ private:
             cached_loop_.name.clear();
             cached_loop_.parameter = false;
             std::string trial_text = trial.str();
-            if (cached_call_spill_) {
-                trial_text = spill_cached_value_around_calls(
-                    trial_text, cached_loop_.offset,
-                    cached_loop_.character);
-            }
             cached_call_spill_ = false;
             const auto newline = trial_text.find('\n');
             const std::string trial_body =
                 newline == std::string::npos
                     ? std::string()
                     : trial_text.substr(newline + 1);
-            if (!assembly_clobbers_r3(trial_body)) {
+            if (!assembly_clobbers_cache_register(trial_body, "R3")) {
                 out << trial_text;
             } else {
                 gen_stmt(function.body.get(), out);
@@ -7124,13 +7094,13 @@ private:
 
     void gen_load_identifier(const std::string& name, std::ostringstream& out,
                              int target = 0) {
-        if (cached_loop_.active && name == cached_loop_.name) {
+        if (cached_loop_spill_depth_ == 0 && cached_loop_.active && name == cached_loop_.name) {
             if (target != 3) {
                 out << "  MOV R" << target << ", R3\n";
             }
             return;
         }
-        if (cached_loop2_.active && name == cached_loop2_.name) {
+        if (cached_loop_spill_depth_ == 0 && cached_loop2_.active && name == cached_loop2_.name) {
             if (target != 2) {
                 out << "  MOV R" << target << ", R2\n";
             }
@@ -7433,6 +7403,43 @@ private:
         }
     }
 
+    void begin_cached_call(std::ostringstream& out) {
+        if (!cached_loop_.active && !cached_loop2_.active) {
+            return;
+        }
+        if (cached_loop_spill_depth_ == 0) {
+            if (cached_loop_.active) {
+                out << (cached_loop_.character ? "  STB [R4-"
+                                               : "  ST [R4-")
+                    << cached_loop_.offset << "], R3\n";
+            }
+            if (cached_loop2_.active) {
+                out << (cached_loop2_.character ? "  STB [R4-"
+                                                : "  ST [R4-")
+                    << cached_loop2_.offset << "], R2\n";
+            }
+        }
+        ++cached_loop_spill_depth_;
+    }
+
+    void finish_cached_call(std::ostringstream& out) {
+        if (cached_loop_spill_depth_ == 0) {
+            return;
+        }
+        --cached_loop_spill_depth_;
+        if (cached_loop_spill_depth_ == 0) {
+            if (cached_loop_.active) {
+                out << (cached_loop_.character ? "  LDB R3, [R4-"
+                                               : "  LD R3, [R4-")
+                    << cached_loop_.offset << "]\n";
+            }
+            if (cached_loop2_.active) {
+                out << (cached_loop2_.character ? "  LDB R2, [R4-"
+                                                : "  LD R2, [R4-")
+                    << cached_loop2_.offset << "]\n";
+            }
+        }
+    }
     void gen_call(const Expr* expr, std::ostringstream& out) {
         if (expr->text == "__builtin_va_start" &&
             expr->children.size() == 1) {
@@ -7473,6 +7480,7 @@ private:
             return;
         }
         out << "; kr16-cache-spill\n";
+        begin_cached_call(out);
         const auto local_function = function_map_.find(expr->text);
         const bool all_stack_variadic =
             (expr->text == "fprintf" || expr->text == "printf") ||
@@ -7486,6 +7494,7 @@ private:
                 out << "  PUSH R0\n";
             }
             out << "  CALL " << expr->text << "\n";
+            finish_cached_call(out);
             if (!expr->children.empty()) {
                 out << "  ADD SP, #" << expr->children.size() * 2 << "\n";
             }
@@ -7529,6 +7538,7 @@ private:
                 }
                 if (all_pure) {
                     out << "  CALL " << expr->text << "\n";
+            finish_cached_call(out);
                     return;
                 }
             }
@@ -7578,6 +7588,7 @@ private:
                                      static_cast<int>(i) + 1, out);
                 }
                 out << "  CALL " << expr->text << "\n";
+            finish_cached_call(out);
                 out << "  ADD SP, #" << (expr->children.size() - 3) * 2
                     << "\n";
                 return;
@@ -7594,6 +7605,7 @@ private:
                 emit_simple_leaf(expr->children[1].get(), 2, out);
                 emit_simple_leaf(expr->children[2].get(), 3, out);
                 out << "  CALL " << expr->text << "\n";
+            finish_cached_call(out);
                 out << "  ADD SP, #" << (expr->children.size() - 3) * 2
                     << "\n";
                 return;
@@ -7603,6 +7615,7 @@ private:
             gen_expr(expr->children[0].get(), out);
             out << "  MOV R1, R0\n";
             out << "  CALL " << expr->text << "\n";
+            finish_cached_call(out);
             return;
         }
         for (std::size_t i = expr->children.size(); i-- > 0;) {
@@ -7638,6 +7651,7 @@ private:
             out << "  POP R" << (i + 1) << "\n";
         }
         out << "  CALL " << expr->text << "\n";
+            finish_cached_call(out);
         const int stack_bytes =
             (count > 3 ? static_cast<int>(count - 3) * 2 : 0) +
             temporary_bytes;
@@ -7663,6 +7677,7 @@ private:
     bool cached_loop_clean_ = false;
     bool retain_loop_cache_after_ = false;
     bool cached_call_spill_ = false;
+    int cached_loop_spill_depth_ = 0;
     std::vector<IrValue> ir_values_;
     std::unordered_map<std::string, int> ir_vars_;
     std::vector<IrBlock> ir_blocks_;
@@ -7724,6 +7739,14 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
+
+
+
 
 
 

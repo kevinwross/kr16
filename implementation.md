@@ -3384,3 +3384,15 @@ Entry format:
 - C-for-U generated canary passes. New compile baseline: 5,575 instructions,
   95,887 bytes; gate raised to 5,600/97,000.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 14:59:05 -08:00 — Parameter caches spill before arguments
+
+- Parameter and loop-pointer caches now spill at `gen_call` entry before
+  argument evaluation, not after it. While spilled, cached identifier loads
+  use the frame slot; the outermost call reloads R3/R2.
+- Removed the parameter-cache two-argument limit.
+- Added a three-argument cached-parameter test (`add3(x, x, 3)`), expected 11.
+- Removed the now-unused post-argument text spill helper.
+- C-for-U improved to 5,477 instructions / 94,384 bytes; gate tightened to
+  5,500 / 95,000.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest; C-for-U 4/4.

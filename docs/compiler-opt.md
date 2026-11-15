@@ -260,9 +260,9 @@ Test plan:
   `if`, and `switch`, and spill/reload around calls. While the cache is
   spilled for argument evaluation, loads and stores of the cached locals use
   their frame slots, so arbitrary argument expressions cannot read a clobbered
-  R2/R3. Parameter caching remains limited to calls with at most two
-  arguments. The body is rejected if it clobbers a cache register outside a
-  spill region or takes an address.
+  R2/R3. Parameter caching uses the same memory-resident spill region for
+  arbitrary call arity. The body is rejected if it clobbers a cache register
+  outside a spill region or takes an address.
 - [x] Cache clobber checks share a generic register scanner; R2 and R3 use the
   same allowed-write rules instead of R2-to-R3 text substitution.
 - [x] Cache state is grouped in `CachedRegister`, including the parameter-vs-loop
@@ -417,9 +417,11 @@ minimal ABI-preserving encoding; no code change is worthwhile.
 ## Compile-size regression gate
 
 The unit suite compiles `tests/kevin/C-for-U.c` as a self-hosted workload and
-requires fewer than 5,600 instructions and 97,000 assembly bytes. Current
-baseline: 5,575 instructions and 95,887 bytes. This catches large code-size
+requires fewer than 5,500 instructions and 95,000 assembly bytes. Current
+baseline: 5,477 instructions and 94,384 bytes. This catches large code-size
 regressions that the loop benchmarks would miss.
+
+
 
 
 

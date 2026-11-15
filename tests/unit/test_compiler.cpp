@@ -1256,8 +1256,8 @@ TEST_CASE("C-for-U compilation stays within instruction budget") {
         }
         return count;
     };
-    CHECK(count(assembly) < 5600);
-    CHECK(assembly.size() < 97000);
+    CHECK(count(assembly) < 5500);
+    CHECK(assembly.size() < 95000);
 }
 
 
@@ -1381,3 +1381,17 @@ TEST_CASE("cached locals survive three-argument calls") {
     CHECK(assembly.find("LD R2, [R4-4]") != std::string::npos);
     CHECK(run_c(source) == 9);
 }
+
+TEST_CASE("cached parameters survive three-argument calls") {
+    const std::string source =
+        "int add3(int a, int b, int c) { return a + b + c; }\n"
+        "int f(char *p, int x) { return add3(x, x, 3); }\n"
+        "int main(void) { char b[1]; return f(b, 4); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("MOV R3, R2") != std::string::npos);
+    CHECK(assembly.find("ST [R4-4], R3") != std::string::npos);
+    CHECK(assembly.find("LD R3, [R4-4]") != std::string::npos);
+    CHECK(assembly.find("CALL add3") != std::string::npos);
+    CHECK(run_c(source) == 11);
+}
+
