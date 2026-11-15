@@ -5030,11 +5030,50 @@ private:
         }
         expr_name_positions(stmt->expr.get(), name, position, first, last);
         expr_name_positions(stmt->expr2.get(), name, position, first, last);
+        if (stmt->kind == Stmt::Kind::If) {
+            const int branch_start = position;
+            const int branch_first = first;
+            const int branch_last = last;
+            position = branch_start;
+            first = branch_first;
+            last = branch_last;
+            stmt_name_positions(stmt->body.get(), name, position, first, last);
+            const int then_next = position;
+            const int then_first = first;
+            const int then_last = last;
+            position = branch_start;
+            first = branch_first;
+            last = branch_last;
+            stmt_name_positions(stmt->else_body.get(), name, position, first,
+                                last);
+            if (then_first >= 0) {
+                first = first < 0 ? then_first : std::min(first, then_first);
+                last = std::max(then_last, last);
+            }
+            position = std::max(then_next, position);
+            return;
+        }
+        if (stmt->kind == Stmt::Kind::Switch) {
+            const int branch_start = position;
+            const int branch_first = first;
+            const int branch_last = last;
+            int next = position;
+            for (const auto& case_stmt : stmt->cases) {
+                int p = branch_start;
+                int f = branch_first;
+                int l = branch_last;
+                stmt_name_positions(case_stmt.get(), name, p, f, l);
+                next = std::max(next, p);
+                if (f >= 0) {
+                    first = first < 0 ? f : std::min(first, f);
+                    last = std::max(last, l);
+                }
+            }
+            position = next;
+            return;
+        }
         for (const auto& child : stmt->statements) {
             stmt_name_positions(child.get(), name, position, first, last);
-        }
-        for (const auto& case_stmt : stmt->cases) {
-            stmt_name_positions(case_stmt.get(), name, position, first, last);
         }
         for (const auto& declaration : stmt->declarations) {
             expr_name_positions(declaration.init.get(), name, position,
@@ -7272,6 +7311,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

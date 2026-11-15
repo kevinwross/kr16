@@ -263,8 +263,9 @@ Test plan:
   same allowed-write rules instead of R2-to-R3 text substitution.
 - [x] Cache state is grouped in `CachedRegister`, including the parameter-vs-loop
   role, instead of separate active/name/offset/character fields.
-- [x] Local cache candidates are ranked by live span, then AST use count,
-  then frame offset, so the two longest/most-used locals win R3/R2.
+- [x] Local cache candidates are ranked by branch-aware live span, then AST
+  use count, then frame offset, so the two longest/most-used locals win
+  R3/R2.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
 - [x] Indexed address generation loads a simple base directly into `R1`,
@@ -398,6 +399,7 @@ the right-to-left stack layout and caller-cleanup contract. Reusing a frame slot
 is not valid because the callee addresses stack arguments at `[FP+4]` and later,
 above the caller's frame. The existing `PUSH` sequence is therefore already the
 minimal ABI-preserving encoding; no code change is worthwhile.
+
 
 
 

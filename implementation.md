@@ -3254,3 +3254,12 @@ Entry format:
 - Added the `same()` pointer-loop shape to both the instruction-count and cycle
   gates; -O1 must use fewer instructions and cycles and return 1.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:48:42 -08:00 — Branch-aware live spans
+
+- Live-span position analysis now evaluates `if`/`else` and `switch` branches
+  from the same starting position and merges their first/last positions instead
+  of treating the branches as sequential code.
+- This avoids inflating the span of a local that only appears in one branch and
+  gives the local-cache ranking a control-flow-aware view.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
