@@ -2916,3 +2916,17 @@ Entry format:
   `printf_hex` regression.
 - Added a differential/pattern test for `while (*p != 0) { p = p + 1; }`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 03:19:58 -08:00 — Multi-statement while pointer cache
+
+- Generalized the while cache from a single update to any body with one pointer
+  update plus other statements: cache the pointer in R3, run the whole body
+  with assignment/++ interception, and write R3 back at loop exit.
+- The candidate is found by scanning for a pointer assignment/increment; the
+  body generator writes into a temporary stream and is rejected if it clobbers
+  R3 in a way the cache cannot tolerate.
+- Verified with `while (*p) { n = n + 1; p = p + 1; }`; `p` stays in R3 while
+  `n` remains frame-backed.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+- Remaining priority-list work: parameter/local traffic, remaining call pushes,
+  and benchmark coverage for the new loop passes.

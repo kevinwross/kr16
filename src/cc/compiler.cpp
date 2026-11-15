@@ -4439,7 +4439,8 @@ private:
         return false;
     }
 
-    bool stmt_cache_unsafe(const Stmt* stmt, const std::string& name) const {
+    bool stmt_cache_unsafe(const Stmt* stmt, const std::string& name,
+                           bool allow_writes = false) const {
         if (stmt == nullptr) {
             return false;
         }
@@ -4459,78 +4460,96 @@ private:
             expr_has_call(stmt->expr2.get()) ||
             expr_takes_address_of(stmt->expr.get(), name) ||
             expr_takes_address_of(stmt->expr2.get(), name) ||
-            expr_writes_name(stmt->expr.get(), name) ||
-            expr_writes_name(stmt->expr2.get(), name)) {
+            (!allow_writes &&
+             (expr_writes_name(stmt->expr.get(), name) ||
+              expr_writes_name(stmt->expr2.get(), name)))) {
             return true;
         }
         for (const auto& child : stmt->statements) {
-            if (stmt_cache_unsafe(child.get(), name)) {
+            if (stmt_cache_unsafe(child.get(), name, allow_writes)) {
                 return true;
             }
         }
-        if (stmt_cache_unsafe(stmt->body.get(), name) ||
-            stmt_cache_unsafe(stmt->else_body.get(), name) ||
-            stmt_cache_unsafe(stmt->init.get(), name)) {
+        if (stmt_cache_unsafe(stmt->body.get(), name, allow_writes) ||
+            stmt_cache_unsafe(stmt->else_body.get(), name, allow_writes) ||
+            stmt_cache_unsafe(stmt->init.get(), name, allow_writes)) {
             return true;
         }
         for (const auto& declaration : stmt->declarations) {
             if (expr_has_call(declaration.init.get()) ||
                 expr_takes_address_of(declaration.init.get(), name) ||
-                expr_writes_name(declaration.init.get(), name)) {
+                (!allow_writes &&
+                 expr_writes_name(declaration.init.get(), name))) {
                 return true;
             }
         }
         return false;
     }
-    bool try_emit_cached_while(const Stmt* stmt,
-                               std::ostringstream& out) {
-        const Expr* update = nullptr;
-        if (stmt->body && stmt->body->kind == Stmt::Kind::Expr) {
-            update = stmt->body->expr.get();
-        } else if (stmt->body &&
-                   stmt->body->kind == Stmt::Kind::Compound &&
-                   stmt->body->statements.size() == 1 &&
-                   stmt->body->statements[0]->kind == Stmt::Kind::Expr) {
-            update = stmt->body->statements[0]->expr.get();
+    std::string find_updated_pointer(const Stmt* stmt) const {
+        if (stmt == nullptr) {
+            return {};
         }
-        std::string name;
-        int delta = 0;
-        if (update != nullptr) {
-            if (update->kind == Expr::Kind::Unary &&
-                (update->op == "++" || update->op == "--") &&
-                update->children.size() == 1 &&
-                update->children[0]->kind == Expr::Kind::Identifier) {
-                name = update->children[0]->text;
-                delta = update->op == "++" ? 1 : -1;
-            } else if (update->kind == Expr::Kind::Assign &&
-                       update->children.size() == 2 &&
-                       update->children[0]->kind ==
-                           Expr::Kind::Identifier &&
-                       update->children[1]->kind == Expr::Kind::Binary &&
-                       update->children[1]->children.size() == 2 &&
-                       update->children[1]->children[0]->kind ==
-                           Expr::Kind::Identifier &&
-                       update->children[1]->children[0]->text ==
-                           update->children[0]->text &&
-                       update->children[1]->children[1]->kind ==
-                           Expr::Kind::Number &&
-                       (update->children[1]->op == "+" ||
-                        update->children[1]->op == "-")) {
-                name = update->children[0]->text;
-                delta = static_cast<int>(
-                            update->children[1]->children[1]->value) *
-                        (update->children[1]->op == "+" ? 1 : -1);
+        const auto from_expr = [&](const auto& self,
+                                   const Expr* expr) -> std::string {
+            if (expr == nullptr) {
+                return {};
+            }
+            std::string candidate;
+            if (expr->kind == Expr::Kind::Assign &&
+                !expr->children.empty() &&
+                expr->children[0]->kind == Expr::Kind::Identifier) {
+                candidate = expr->children[0]->text;
+            } else if (expr->kind == Expr::Kind::Unary &&
+                       (expr->op == "++" || expr->op == "--") &&
+                       expr->children.size() == 1 &&
+                       expr->children[0]->kind == Expr::Kind::Identifier) {
+                candidate = expr->children[0]->text;
+            }
+            if (!candidate.empty()) {
+                const auto local = locals_.find(candidate);
+                if (local != locals_.end() && local->second.type &&
+                    local->second.type->kind == TypeKind::Pointer &&
+                    !local->second.indirect && !local->second.global &&
+                    local->second.symbol.empty()) {
+                    return candidate;
+                }
+            }
+            for (const auto& child : expr->children) {
+                const auto found = self(self, child.get());
+                if (!found.empty()) {
+                    return found;
+                }
+            }
+            return {};
+        };
+        auto found = from_expr(from_expr, stmt->expr.get());
+        if (found.empty() && stmt->expr2) {
+            found = from_expr(from_expr, stmt->expr2.get());
+        }
+        for (const auto& child : stmt->statements) {
+            if (found.empty()) {
+                found = find_updated_pointer(child.get());
             }
         }
+        if (found.empty()) {
+            found = find_updated_pointer(stmt->body.get());
+        }
+        if (found.empty()) {
+            found = find_updated_pointer(stmt->else_body.get());
+        }
+        return found;
+    }
+    bool try_emit_cached_while(const Stmt* stmt,
+                               std::ostringstream& out) {
+        const std::string name = find_updated_pointer(stmt->body.get());
         const auto local = locals_.find(name);
         if (name.empty() || local == locals_.end() ||
             local->second.indirect || local->second.global ||
             !local->second.symbol.empty() || !local->second.type ||
-            (local->second.type->kind != TypeKind::Pointer &&
-             local->second.type->kind != TypeKind::Int &&
-             local->second.type->kind != TypeKind::Char) ||
+            local->second.type->kind != TypeKind::Pointer ||
             expr_has_call(stmt->expr.get()) ||
-            expr_takes_address_of(stmt->expr.get(), name)) {
+            expr_takes_address_of(stmt->expr.get(), name) ||
+            stmt_cache_unsafe(stmt->body.get(), name, true)) {
             return false;
         }
         const auto start = new_label("while");
@@ -4538,23 +4557,19 @@ private:
         cached_loop_local_ = true;
         cached_loop_name_ = name;
         cached_loop_offset_ = local->second.offset;
-        cached_loop_character_ = local->second.type->is_char();
+        cached_loop_character_ = false;
         std::ostringstream trial;
-        trial << (cached_loop_character_ ? "  LDB R3, [R4-"
-                                         : "  LD R3, [R4-")
-              << cached_loop_offset_ << "]\n";
+        trial << "  LD R3, [R4-" << cached_loop_offset_ << "]\n";
         trial << start << ":\n";
         if (!emit_simple_condition(stmt->expr.get(), end, false, trial)) {
             gen_expr(stmt->expr.get(), trial);
             trial << "  CMP R0, #0\n";
             trial << "  BEQ " << end << "\n";
         }
-        trial << "  " << (delta > 0 ? "ADD" : "SUB") << " R3, #"
-              << (delta > 0 ? delta : -delta) << "\n";
+        gen_stmt(stmt->body.get(), trial);
         trial << "  BRA " << start << "\n";
         trial << end << ":\n";
-        trial << (cached_loop_character_ ? "  STB [R4-" : "  ST [R4-")
-              << cached_loop_offset_ << "], R3\n";
+        trial << "  ST [R4-" << cached_loop_offset_ << "], R3\n";
         cached_loop_local_ = false;
         cached_loop_name_.clear();
         if (assembly_clobbers_r3(trial.str())) {
@@ -4574,6 +4589,28 @@ private:
             case Stmt::Kind::Empty:
                 return;
             case Stmt::Kind::Expr: {
+                if (cached_loop_local_ && stmt->expr) {
+                    if (stmt->expr->kind == Expr::Kind::Assign &&
+                        stmt->expr->children.size() == 2 &&
+                        stmt->expr->children[0]->kind ==
+                            Expr::Kind::Identifier &&
+                        stmt->expr->children[0]->text == cached_loop_name_) {
+                        gen_expr(stmt->expr->children[1].get(), out);
+                        out << "  MOV R3, R0\n";
+                        return;
+                    }
+                    if (stmt->expr->kind == Expr::Kind::Unary &&
+                        (stmt->expr->op == "++" ||
+                         stmt->expr->op == "--") &&
+                        stmt->expr->children.size() == 1 &&
+                        stmt->expr->children[0]->kind ==
+                            Expr::Kind::Identifier &&
+                        stmt->expr->children[0]->text == cached_loop_name_) {
+                        out << "  " << (stmt->expr->op == "++" ? "ADD" : "SUB")
+                            << " R3, #1\n";
+                        return;
+                    }
+                }
                 const bool previous = expression_statement_;
                 expression_statement_ = true;
                 gen_expr(stmt->expr.get(), out);
@@ -5780,6 +5817,13 @@ private:
                 gen_call(expr, out);
                 return;
             case Expr::Kind::Assign: {
+                if (cached_loop_local_ && expr->children.size() == 2 &&
+                    expr->children[0]->kind == Expr::Kind::Identifier &&
+                    expr->children[0]->text == cached_loop_name_) {
+                    gen_expr(expr->children[1].get(), out);
+                    out << "  MOV R3, R0\n";
+                    return;
+                }
                 const auto target_type = expression_type(expr->children[0].get());
                 if (target_type->kind == TypeKind::Struct ||
                     target_type->kind == TypeKind::Union) {
@@ -6077,6 +6121,16 @@ private:
     }
 
     void gen_unary(const Expr* expr, std::ostringstream& out) {
+        if (cached_loop_local_ &&
+            (expr->op == "++" || expr->op == "--") &&
+            expr->children.size() == 1 &&
+            expr->children[0]->kind == Expr::Kind::Identifier &&
+            expr->children[0]->text == cached_loop_name_) {
+            out << "  " << (expr->op == "++" ? "ADD" : "SUB")
+                << " R3, #1\n";
+            out << "  MOV R0, R3\n";
+            return;
+        }
         if (expr->op == "&") {
             gen_addr(expr->children[0].get(), out);
             return;
@@ -6462,6 +6516,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 
