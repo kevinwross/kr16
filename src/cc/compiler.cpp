@@ -4305,47 +4305,50 @@ private:
                stmt_has_call(stmt->init.get());
     }
 
-    bool calls_fit_argument_registers(const Expr* expr) const {
+    bool calls_fit_argument_registers(const Expr* expr,
+                                          std::size_t max_arguments = 3) const {
         if (expr == nullptr) {
             return true;
         }
-        if (expr->kind == Expr::Kind::Call && expr->children.size() > 3) {
+        if (expr->kind == Expr::Kind::Call &&
+            expr->children.size() > max_arguments) {
             return false;
         }
         for (const auto& child : expr->children) {
-            if (!calls_fit_argument_registers(child.get())) {
+            if (!calls_fit_argument_registers(child.get(), max_arguments)) {
                 return false;
             }
         }
         return true;
     }
 
-    bool stmt_calls_fit_argument_registers(const Stmt* stmt) const {
+    bool stmt_calls_fit_argument_registers(const Stmt* stmt,
+                                                    std::size_t max_arguments = 3) const {
         if (stmt == nullptr) {
             return true;
         }
-        if (!calls_fit_argument_registers(stmt->expr.get()) ||
-            !calls_fit_argument_registers(stmt->expr2.get())) {
+        if (!calls_fit_argument_registers(stmt->expr.get(), max_arguments) ||
+            !calls_fit_argument_registers(stmt->expr2.get(), max_arguments)) {
             return false;
         }
         for (const auto& child : stmt->statements) {
-            if (!stmt_calls_fit_argument_registers(child.get())) {
+            if (!stmt_calls_fit_argument_registers(child.get(), max_arguments)) {
                 return false;
             }
         }
         for (const auto& case_stmt : stmt->cases) {
-            if (!stmt_calls_fit_argument_registers(case_stmt.get())) {
+            if (!stmt_calls_fit_argument_registers(case_stmt.get(), max_arguments)) {
                 return false;
             }
         }
         for (const auto& declaration : stmt->declarations) {
-            if (!calls_fit_argument_registers(declaration.init.get())) {
+            if (!calls_fit_argument_registers(declaration.init.get(), max_arguments)) {
                 return false;
             }
         }
-        return stmt_calls_fit_argument_registers(stmt->body.get()) &&
-               stmt_calls_fit_argument_registers(stmt->else_body.get()) &&
-               stmt_calls_fit_argument_registers(stmt->init.get());
+        return stmt_calls_fit_argument_registers(stmt->body.get(), max_arguments) &&
+               stmt_calls_fit_argument_registers(stmt->else_body.get(), max_arguments) &&
+               stmt_calls_fit_argument_registers(stmt->init.get(), max_arguments);
     }
     bool parameter_cache_safe(const Stmt* stmt, const std::string& name,
                               bool allow_writes = false,
@@ -4513,7 +4516,7 @@ private:
                     !stmt_mentions_name(function.body.get(),
                                         parameter.name) ||
                     !stmt_calls_fit_argument_registers(
-                        function.body.get()) ||
+                        function.body.get(), 2) ||
                     !parameter_cache_safe(function.body.get(),
                                            parameter.name, false, false,
                                            true)) {
@@ -4626,7 +4629,7 @@ private:
                      variable.type->kind != TypeKind::Char &&
                      variable.type->kind != TypeKind::Pointer) ||
                     !stmt_mentions_name(function.body.get(), name) ||
-                    !stmt_calls_fit_argument_registers(function.body.get()) ||
+                    !stmt_calls_fit_argument_registers(function.body.get(), 2) ||
                      !parameter_cache_safe(function.body.get(), name, true,
                                             true, true)) {
                     continue;
@@ -4810,7 +4813,8 @@ private:
 
     bool stmt_cache_unsafe(const Stmt* stmt, const std::string& name,
                            bool allow_writes = false,
-                           bool allow_returns = false) const {
+                           bool allow_returns = false,
+                           bool allow_calls = false) const {
         if (stmt == nullptr) {
             return false;
         }
@@ -4830,8 +4834,9 @@ private:
             default:
                 break;
         }
-        if (expr_has_call(stmt->expr.get()) ||
-            expr_has_call(stmt->expr2.get()) ||
+        if ((!allow_calls &&
+             (expr_has_call(stmt->expr.get()) ||
+              expr_has_call(stmt->expr2.get()))) ||
             expr_takes_address_of(stmt->expr.get(), name) ||
             expr_takes_address_of(stmt->expr2.get(), name) ||
             (!allow_writes &&
@@ -4840,17 +4845,17 @@ private:
             return true;
         }
         for (const auto& child : stmt->statements) {
-            if (stmt_cache_unsafe(child.get(), name, allow_writes, allow_returns)) {
+            if (stmt_cache_unsafe(child.get(), name, allow_writes, allow_returns, allow_calls)) {
                 return true;
             }
         }
-        if (stmt_cache_unsafe(stmt->body.get(), name, allow_writes, allow_returns) ||
-            stmt_cache_unsafe(stmt->else_body.get(), name, allow_writes, allow_returns) ||
-            stmt_cache_unsafe(stmt->init.get(), name, allow_writes, allow_returns)) {
+        if (stmt_cache_unsafe(stmt->body.get(), name, allow_writes, allow_returns, allow_calls) ||
+            stmt_cache_unsafe(stmt->else_body.get(), name, allow_writes, allow_returns, allow_calls) ||
+            stmt_cache_unsafe(stmt->init.get(), name, allow_writes, allow_returns, allow_calls)) {
             return true;
         }
         for (const auto& declaration : stmt->declarations) {
-            if (expr_has_call(declaration.init.get()) ||
+            if ((!allow_calls && expr_has_call(declaration.init.get())) ||
                 expr_takes_address_of(declaration.init.get(), name) ||
                 (!allow_writes &&
                  expr_writes_name(declaration.init.get(), name))) {
@@ -7025,6 +7030,15 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
+
+
+
+
 
 
 

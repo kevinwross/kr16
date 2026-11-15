@@ -3062,3 +3062,13 @@ Entry format:
   instead of unordered_map iteration order.
 - Added a test where `x` survives `inc(x)` across an update and returns 4.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 07:08:36 -08:00 — Two-argument call-spill limit
+
+- Cached parameters and locals may spill across calls only when every call uses
+  at most two arguments, keeping R3 out of argument setup.
+- Removed the unused loop-call spill helper after C-for-U exposed that
+  loop-carried spill/reload was not safe; loop caches continue to reject calls.
+- Updated the local-cache documentation and test expectation for the cached
+  call argument (`MOV R2, R3`).
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
