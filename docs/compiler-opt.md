@@ -257,9 +257,12 @@ Test plan:
 - [x] One or two locals with initializers load the initializer directly into R3
   (and R2 for the second) without the frame store, redirect stores to those
   registers across straight-line code,
-  `if`, and `switch`, and spill/reload around calls using at most two
-  arguments. Two-local caching requires one-argument calls so R2 stays free.
-  The body is rejected if it clobbers a cache register or takes an address.
+  `if`, and `switch`, and spill/reload around calls. While the cache is
+  spilled for argument evaluation, loads and stores of the cached locals use
+  their frame slots, so arbitrary argument expressions cannot read a clobbered
+  R2/R3. Parameter caching remains limited to calls with at most two
+  arguments. The body is rejected if it clobbers a cache register outside a
+  spill region or takes an address.
 - [x] Cache clobber checks share a generic register scanner; R2 and R3 use the
   same allowed-write rules instead of R2-to-R3 text substitution.
 - [x] Cache state is grouped in `CachedRegister`, including the parameter-vs-loop
@@ -273,12 +276,10 @@ Test plan:
 - [x] Explicit call spill points remain at the call-bearing statement; CFG
   liveness informs candidate ranking rather than allocating every value.
 
-  A pre-argument spill marker was evaluated and rejected as a way to remove
-  the arity limits: spilling R3/R2 before argument setup is not enough when
-  later arguments still read cached locals from those registers, because
-  earlier argument evaluation can clobber them. Safe arbitrary-arity caching
-  requires argument lowering that reads spilled values from frame slots, not
-  the current post-hoc text rewrite.
+  A pre-argument spill marker opens a memory-resident region: R3/R2 are stored
+  to their slots, argument evaluation reads/writes those slots, and the
+  registers reload after the call. Nested calls use a spill depth so only the
+  outermost call reloads.
 - [x] Adjacent local load/store pairs are folded: duplicate loads are removed,
   and store→load forwarding keeps the stored register.
 - [x] Indexed address generation loads a simple base directly into `R1`,
@@ -416,9 +417,11 @@ minimal ABI-preserving encoding; no code change is worthwhile.
 ## Compile-size regression gate
 
 The unit suite compiles `tests/kevin/C-for-U.c` as a self-hosted workload and
-requires fewer than 5,500 instructions and 94,500 assembly bytes. Current
-baseline: 5,459 instructions and 94,036 bytes. This catches large code-size
+requires fewer than 5,600 instructions and 97,000 assembly bytes. Current
+baseline: 5,575 instructions and 95,887 bytes. This catches large code-size
 regressions that the loop benchmarks would miss.
+
+
 
 
 

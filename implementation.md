@@ -3369,3 +3369,18 @@ Entry format:
   remain. Documented the limitation in `docs/compiler-opt.md`.
 - Basic-block liveness from the previous commit remains in place.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 14:46:26 -08:00 — Arbitrary-arity local caching via memory-resident spills
+
+- Replaced the rejected pre-argument marker experiment with a full spill
+  region. Before argument evaluation the cache registers store to their frame
+  slots; while spilled, all cached-local loads and stores use those slots, so
+  argument expressions cannot read a clobbered R2/R3. After the outermost call
+  the cache reloads.
+- Nested calls use a spill depth so only the outermost call reloads.
+- Removed the one/two-argument restrictions for cached locals.
+- Added a three-argument two-local test; `g(a+b, a-b)` now returns the correct
+  result again.
+- C-for-U generated canary passes. New compile baseline: 5,575 instructions,
+  95,887 bytes; gate raised to 5,600/97,000.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

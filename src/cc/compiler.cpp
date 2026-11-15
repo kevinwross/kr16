@@ -2073,9 +2073,23 @@ std::optional<std::string> cache_readonly_local_loads(
     const char cache_digit = cache_register[1];
     bool activated = false;
     bool replaced = false;
+    int spill_depth = 0;
     std::vector<std::string> output;
     for (const auto& entry : lines) {
         const std::string trimmed = trim_copy(entry);
+        if (trimmed == "; kr16-cache-spill") {
+            if (activated) {
+                if (spill_depth == 0) {
+                    output.push_back(std::string("  ") +
+                                     (character ? "STB [R4-" : "ST [R4-") +
+                                     std::to_string(offset) + "], " +
+                                     cache_register);
+                }
+                ++spill_depth;
+            }
+            output.push_back("; kr16-cache-spill");
+            continue;
+        }
         if (!activated && trimmed.rfind(store, 0) == 0) {
             const auto reg_position = trimmed.rfind('R');
             if (reg_position != std::string::npos &&
@@ -2102,6 +2116,17 @@ std::optional<std::string> cache_readonly_local_loads(
             return std::nullopt;
         }
         if (activated && trimmed.rfind("CALL ", 0) == 0) {
+            if (spill_depth > 0) {
+                --spill_depth;
+                output.push_back(entry);
+                if (spill_depth == 0) {
+                    output.push_back(std::string("  ") +
+                                     (character ? "LDB " : "LD ") +
+                                     cache_register + ", [R4-" +
+                                     std::to_string(offset) + "]");
+                }
+                continue;
+            }
             output.push_back(std::string("  ") +
                              (character ? "STB [R4-" : "ST [R4-") +
                              std::to_string(offset) + "], " +
@@ -2113,7 +2138,7 @@ std::optional<std::string> cache_readonly_local_loads(
                              std::to_string(offset) + "]");
             continue;
         }
-        if (activated && trimmed.rfind(store, 0) == 0) {
+        if (activated && spill_depth == 0 && trimmed.rfind(store, 0) == 0) {
             const auto reg_position = trimmed.rfind('R');
             if (reg_position != std::string::npos &&
                 reg_position + 1 < trimmed.size() &&
@@ -2128,7 +2153,7 @@ std::optional<std::string> cache_readonly_local_loads(
                 continue;
             }
         }
-        if (activated && trimmed.rfind(load, 0) == 0) {
+        if (activated && spill_depth == 0 && trimmed.rfind(load, 0) == 0) {
             const auto comma = trimmed.find(',');
             if (comma != std::string::npos &&
                 trimmed.find("[R4-" + std::to_string(offset) + "]") !=
@@ -2188,6 +2213,52 @@ bool assembly_clobbers_register(const std::string& text,
     std::string line;
     while (std::getline(input, line)) {
         const std::string trimmed = trim_copy(line);
+        if (trimmed.empty() || trimmed.front() == ';' ||
+            trimmed.front() == '.' || trimmed.back() == ':') {
+            continue;
+        }
+        if (trimmed.find(reg) == std::string::npos) {
+            continue;
+        }
+        if (trimmed.rfind("MOV " + reg + ", R0", 0) == 0 ||
+            trimmed.rfind("LD " + reg + ", [R4-", 0) == 0 ||
+            trimmed.rfind("LDB " + reg + ", [R4-", 0) == 0 ||
+            trimmed.rfind("ADD " + reg + ",", 0) == 0 ||
+            trimmed.rfind("SUB " + reg + ",", 0) == 0) {
+            continue;
+        }
+        const auto space = trimmed.find(' ');
+        const auto comma = trimmed.find(',');
+        const std::string first =
+            space == std::string::npos
+                ? trimmed
+                : trimmed.substr(space + 1,
+                                 comma == std::string::npos
+                                     ? std::string::npos
+                                     : comma - space - 1);
+        if (first == reg) {
+            return true;
+        }
+    }
+    return false;
+}
+bool assembly_clobbers_cache_register(const std::string& text,
+                                      const std::string& reg) {
+    std::istringstream input(text);
+    std::string line;
+    bool before_call = false;
+    while (std::getline(input, line)) {
+        if (trim_copy(line) == "; kr16-cache-spill") {
+            before_call = true;
+            continue;
+        }
+        const std::string trimmed = trim_copy(line);
+        if (before_call) {
+            if (trimmed.rfind("CALL ", 0) == 0) {
+                before_call = false;
+            }
+            continue;
+        }
         if (trimmed.empty() || trimmed.front() == ';' ||
             trimmed.front() == '.' || trimmed.back() == ':') {
             continue;
@@ -2293,7 +2364,16 @@ public:
             }
             out << ".text\n";
         }
-        return apply_adjacent_peepholes(out.str());
+        std::istringstream lines(out.str());
+        std::ostringstream cleaned;
+        std::string line;
+        while (std::getline(lines, line)) {
+            if (trim_copy(line) == "; kr16-cache-spill") {
+                continue;
+            }
+            cleaned << line << '\n';
+        }
+        return apply_adjacent_peepholes(cleaned.str());
     }
 
 private:
@@ -4695,7 +4775,6 @@ private:
                      variable.type->kind != TypeKind::Char &&
                      variable.type->kind != TypeKind::Pointer) ||
                     !stmt_mentions_name(function.body.get(), name) ||
-                    !stmt_calls_fit_argument_registers(function.body.get(), 2) ||
                      !parameter_cache_safe(function.body.get(), name, true,
                                             true, true)) {
                     continue;
@@ -4731,8 +4810,7 @@ private:
             int cached_local2_uses = -1;
             int cached_local2_span = -1;
             bool cached_local2_character = false;
-            if (!cached_local.empty() &&
-                stmt_calls_fit_argument_registers(function.body.get(), 1)) {
+            if (!cached_local.empty()) {
                 for (const auto& [name, variable] : locals_) {
                     if (name == cached_local) {
                         continue;
@@ -4807,12 +4885,12 @@ private:
                 }
                 bool clobbered = false;
                 if (transformed_ok) {
-                    clobbered = assembly_clobbers_r3(transformed_text);
+                    clobbered = assembly_clobbers_cache_register(transformed_text, "R3");
                     if (second_ok) {
                         clobbered =
                             clobbered ||
-                            assembly_clobbers_register(transformed_text,
-                                                       "R2");
+                            assembly_clobbers_cache_register(
+                                transformed_text, "R2");
                     }
                 }
                 if (transformed_ok && !clobbered) {
@@ -7394,6 +7472,7 @@ private:
             out << "  LD R0, [R0]\n";
             return;
         }
+        out << "; kr16-cache-spill\n";
         const auto local_function = function_map_.find(expr->text);
         const bool all_stack_variadic =
             (expr->text == "fprintf" || expr->text == "printf") ||
@@ -7645,6 +7724,10 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
 
 
 

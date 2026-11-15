@@ -369,7 +369,7 @@ TEST_CASE("simple multi-argument calls use argument registers directly") {
     CHECK(assembly.find("PUSH R0") == std::string::npos);
     CHECK(assembly.find("POP R1") == std::string::npos);
     CHECK(assembly.find("MOV R1, #.Lstr") != std::string::npos);
-    CHECK(assembly.find("MOV R2, R3") != std::string::npos);
+    CHECK(assembly.find("LD R2, [R4-2]") != std::string::npos);
     CHECK(assembly.find("CALL show") != std::string::npos);
 }
 
@@ -1256,8 +1256,8 @@ TEST_CASE("C-for-U compilation stays within instruction budget") {
         }
         return count;
     };
-    CHECK(count(assembly) < 5500);
-    CHECK(assembly.size() < 94500);
+    CHECK(count(assembly) < 5600);
+    CHECK(assembly.size() < 97000);
 }
 
 
@@ -1362,4 +1362,22 @@ TEST_CASE("cached locals survive branch joins and call spills") {
     CHECK(assembly.find("LD R2, [R4-4]") != std::string::npos);
     CHECK(assembly.find(".Lendif") != std::string::npos);
     CHECK(run_c(source) == 4);
+}
+
+
+
+TEST_CASE("cached locals survive three-argument calls") {
+    const std::string source =
+        "int add3(int a, int b, int c) { return a + b + c; }\n"
+        "int f(void) { int x = 1; int y = 2; int z = 0; "
+        "z = add3(x, y, 3); return x + y + z; }\n"
+        "int main(void) { return f(); }\n";
+    const auto assembly = compile_text(source, true);
+    CHECK(assembly.find("MOV R3, R0") != std::string::npos);
+    CHECK(assembly.find("MOV R2, R0") != std::string::npos);
+    CHECK(assembly.find("ST [R4-2], R3") != std::string::npos);
+    CHECK(assembly.find("ST [R4-4], R2") != std::string::npos);
+    CHECK(assembly.find("LD R3, [R4-2]") != std::string::npos);
+    CHECK(assembly.find("LD R2, [R4-4]") != std::string::npos);
+    CHECK(run_c(source) == 9);
 }
