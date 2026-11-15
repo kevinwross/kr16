@@ -2645,3 +2645,14 @@ Entry format:
 - Updated the final plan and VS Code README.
 - Tests: Windows 51/51 CTest; Linux 51/51 CTest.
 - Next: step back and delayed stack traces, or remaining compiler spills.
+
+### 2026-11-14 17:29:04 -08:00 — DAP delayed stack traces
+
+- `stackTrace` now honors `startFrame` and `levels`, returns a paged
+  `stackFrames` array, and reports the full `totalFrames`.
+- `supportsDelayedStackTraceLoading` is now true.
+- Added a DAP test requesting one frame and checking the page size and total.
+- Updated the final plan and VS Code README; only step back remains in the
+  debugger roadmap.
+- Tests: Windows 51/51 CTest; Linux 51/51 CTest.
+- Next: compiler spills or step back, then release pipeline parity.

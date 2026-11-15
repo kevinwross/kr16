@@ -750,7 +750,7 @@ and accepts `--raw`, `--base`, `--bios`, `--no-bios`.
 | step back | no |
 | restart | yes |
 | `setVariable` (registers/globals/locals) | yes |
-| delayed stack-trace loading | no |
+| delayed stack-trace loading | yes |
 | loaded sources, `source` | yes |
 
 The VS Code extension (`vscode/`, "KR16 Debug", 1.2.0) contributes:
@@ -865,7 +865,7 @@ extension, AppImage and single-exe packaging, and CI on four platforms.
 - Diagnostics for an unresolvable `#include` (currently silent).
 - Linker: `--gc-all`, relocatable `-r` links, weak/common symbols, linker
   scripts, embedded release BIOS selection, BIOS RAM loading.
-- Debugger: step back and delayed stack traces.
+- Debugger: step back.
 - Distribution: marketplace publication, code signing, installers.
 
 ### Known rough edges
@@ -883,8 +883,8 @@ Ordered by value to the teaching story:
 1. **Compiler optimization M3–M5.** Finish stack spilling/copy propagation,
    address folding, loop-invariant and induction-variable passes, and the
    benchmark suite in `docs/compiler-opt.md`.
-2. **Debugger depth.** Delayed stack traces would complete the VS Code
-   experience.
+2. **Debugger polish.** Step back remains; the rest of the VS Code
+   experience is in place.
 3. **Release pipeline parity.** The workflow publishes the exe and AppImages;
    the 1.0.0 tag also carried a VSIX and `SHA256SUMS`, which the automated
    workflow does not yet produce.
@@ -957,6 +957,8 @@ Branch conditions: `EQ NE CS/HS CC/LO MI PL VS VC HI LS GE LT GT LE AL/RA`.
 | **DebugSession** | the portable debug model shared by the GUI, DAP, and tests |
 | **sandbox** | the guest-visible filesystem root, quota, and read-only policy |
 | **C-for-U** | the C→assembly compiler written in KR16 C and used as an end-to-end test |
+
+
 
 
 

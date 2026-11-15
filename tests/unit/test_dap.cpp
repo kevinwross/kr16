@@ -134,6 +134,13 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
     REQUIRE(source != nullptr);
     CHECK(source->find("path")->as_string().ends_with("dap_loaded_source.c"));
     CHECK(stack->as_array()[0].find("line")->as_integer() == 1);
+    const auto paged_stack = session.handle_message(
+        "{\"seq\":4,\"type\":\"request\",\"command\":\"stackTrace\","
+        "\"arguments\":{\"threadId\":1,\"startFrame\":0,\"levels\":1}}");
+    REQUIRE(paged_stack.size() == 1);
+    const auto paged_body = kr16::dap::JsonValue::parse(paged_stack[0]);
+    CHECK(paged_body.find("body")->find("stackFrames")->as_array().size() == 1);
+    CHECK(paged_body.find("body")->find("totalFrames")->as_integer() >= 1);
     const auto restarted = session.handle_message(
         "{\"seq\":5,\"type\":\"request\",\"command\":\"restart\","
         "\"arguments\":{}}");
@@ -246,6 +253,7 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
     std::filesystem::remove(path);
     std::filesystem::remove(source_file);
 }
+
 
 
 

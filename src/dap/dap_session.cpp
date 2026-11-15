@@ -893,7 +893,8 @@ struct DapSession::Impl {
     std::vector<std::string> handle_configuration_done(
         const JsonValue& request);
     std::vector<std::string> handle_threads(const JsonValue& request);
-    std::vector<std::string> handle_stack_trace(const JsonValue& request);
+    std::vector<std::string> handle_stack_trace(const JsonValue& request,
+                                               const JsonValue* arguments);
     std::vector<std::string> handle_loaded_sources(const JsonValue& request);
     std::vector<std::string> handle_source(const JsonValue& request,
                                              const JsonValue* arguments);
@@ -935,7 +936,7 @@ std::vector<std::string> DapSession::Impl::handle_initialize(
     body.set("supportsRestartRequest", JsonValue::boolean(true));
     body.set("supportsSetVariable", JsonValue::boolean(true));
     body.set("supportsLoadedSourcesRequest", JsonValue::boolean(true));
-    body.set("supportsDelayedStackTraceLoading", JsonValue::boolean(false));
+    body.set("supportsDelayedStackTraceLoading", JsonValue::boolean(true));
     body.set("exceptionBreakpointFilters", JsonValue::array());
     append_response(out, request, "initialize", true, std::move(body));
     if (!initialized_event_sent) {
@@ -1195,7 +1196,7 @@ std::vector<std::string> DapSession::Impl::handle_threads(
 }
 
 std::vector<std::string> DapSession::Impl::handle_stack_trace(
-    const JsonValue& request) {
+    const JsonValue& request, const JsonValue* arguments) {
     std::vector<std::string> out;
     if (!launched) {
         append_response(out, request, "stackTrace", false, JsonValue::null(),
@@ -1246,9 +1247,22 @@ std::vector<std::string> DapSession::Impl::handle_stack_trace(
         frame_pointer = saved_pointer;
         add_frame(frame_pc, ++frame_id);
     }
+    const auto start_frame = std::max<std::int64_t>(
+        0, integer_or(arguments, "startFrame", 0));
+    const auto requested_levels =
+        std::max<std::int64_t>(0, integer_or(arguments, "levels", 0));
+    const auto total_frames = static_cast<std::int64_t>(frames.as_array().size());
+    const auto end_frame = requested_levels == 0
+                             ? total_frames
+                             : std::min(total_frames,
+                                            start_frame + requested_levels);
+    JsonValue page = JsonValue::array();
+    for (auto i = start_frame; i < end_frame; ++i) {
+        page.push(frames.as_array()[static_cast<std::size_t>(i)]);
+    }
     JsonValue body = JsonValue::object();
-    body.set("stackFrames", std::move(frames));
-    body.set("totalFrames", JsonValue::integer(frame_id));
+    body.set("stackFrames", std::move(page));
+    body.set("totalFrames", JsonValue::integer(total_frames));
     append_response(out, request, "stackTrace", true, std::move(body));
     return out;
 }
@@ -1836,7 +1850,7 @@ std::vector<std::string> DapSession::Impl::handle_message(
         return handle_threads(request);
     }
     if (command == "stackTrace") {
-        return handle_stack_trace(request);
+        return handle_stack_trace(request, arguments);
     }
     if (command == "loadedSources") {
         return handle_loaded_sources(request);
@@ -1915,6 +1929,7 @@ std::int64_t DapSession::last_sequence() const noexcept {
 }
 
 }  // namespace kr16::dap
+
 
 
 

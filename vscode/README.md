@@ -42,7 +42,7 @@ code --install-extension kr16-debug-1.2.0.vsix
 The debugger supports initialize/launch/configurationDone, source and address
 breakpoints (including simple register/PC conditions and hit counts),
 continue, pause, restart,
-step in/over/out, multi-frame stack walks, loaded sources, variable editing,
+step in/over/out, paged multi-frame stack walks, loaded sources, variable editing,
 register/global/local scopes, memory, evaluate, disassembly, function-entry
 breakpoints, and disconnect.
 
@@ -69,6 +69,7 @@ npm test
 The adapter writes a readiness marker next to the program after binding its
 TCP port; the extension waits for that marker instead of probing the
 single-client socket.
+
 
 
 
