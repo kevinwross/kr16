@@ -1256,8 +1256,8 @@ TEST_CASE("C-for-U compilation stays within instruction budget") {
         }
         return count;
     };
-    CHECK(count(assembly) < 5600);
-    CHECK(assembly.size() < 95000);
+    CHECK(count(assembly) < 5500);
+    CHECK(assembly.size() < 94500);
 }
 
 

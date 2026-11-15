@@ -401,13 +401,10 @@ is not valid because the callee addresses stack arguments at `[FP+4]` and later,
 above the caller's frame. The existing `PUSH` sequence is therefore already the
 minimal ABI-preserving encoding; no code change is worthwhile.
 
+## Compile-size regression gate
 
-
-
-
-
-
-
-
-
+The unit suite compiles `tests/kevin/C-for-U.c` as a self-hosted workload and
+requires fewer than 5,500 instructions and 94,500 assembly bytes. Current
+baseline: 5,459 instructions and 94,036 bytes. This catches large code-size
+regressions that the loop benchmarks would miss.
 

@@ -3304,3 +3304,14 @@ Entry format:
   - `--gc-all --map` keeps `_start`, drops `unused`, and prints
     `dropped-symbol unused`.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 13:44:28 -08:00 — Release handoff refresh and C-for-U gate
+
+- Rebuilt the release preset from main; release CTest passes 56/56.
+- Refreshed `..\KRCompiler\inbox\kr16.exe` with SHA-256
+  `49E289CFEB6F24A42C20C8B6CB2E60EEFE33BA691F0CFD3A0D9B1612DCC4E6F6` and
+  updated the handoff note with the new features.
+- Tightened the C-for-U compilation gate to 5,500 instructions / 94,500 bytes;
+  current baseline is 5,459 / 94,036.
+- Documented the gate in `docs/compiler-opt.md`.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest; release 56/56.
