@@ -2756,7 +2756,7 @@ private:
     }
 
     bool can_ir_function(const Function& function) const {
-        if (debug_ || function.variadic || function.parameters.size() > 3 ||
+        if (debug_ || function.variadic || function.parameters.size() > 2 ||
             !ir_scalar_type(function.return_type)) {
             return false;
         }
@@ -7157,6 +7157,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

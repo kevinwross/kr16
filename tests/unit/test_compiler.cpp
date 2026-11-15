@@ -1205,3 +1205,14 @@ TEST_CASE("nested calls fall back safely for parameter caches") {
     CHECK(run_c(source) == 10);
 }
 
+
+TEST_CASE("three-argument scalar functions use the fallback backend") {
+    CHECK(run_c("int add3(int a, int b, int c) { return a + b + c; }\n"
+                "int main(void) { return add3(1, 2, 3); }\n") == 6);
+    const std::string source =
+        "int add3(int a, int b, int c) { return a + b + c; }\n"
+        "int f(char *p) { int x = 1; int y = add3(x, 2, 3); "
+        "return x + y; }\n"
+        "int main(void) { char b[1]; return f(b); }\n";
+    CHECK(run_c(source) == 7);
+}

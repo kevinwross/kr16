@@ -175,7 +175,7 @@ Current M2 limits (used as the fallback outside the scalar IR subset):
 ### M3 — IR, CFG and local register allocation — [x] (scalar core + spills)
 
 Implemented for scalar functions that do not use calls, aggregates, pointers,
-globals, statics, or more than three parameters. Other functions fall back to
+globals, statics, or more than two parameters. Other functions fall back to
 the M1/M2 emitter, so behavior is always preserved.
 
 - [x] Lower the supported scalar subset to a three-address IR.
@@ -396,6 +396,7 @@ the right-to-left stack layout and caller-cleanup contract. Reusing a frame slot
 is not valid because the callee addresses stack arguments at `[FP+4]` and later,
 above the caller's frame. The existing `PUSH` sequence is therefore already the
 minimal ABI-preserving encoding; no code change is worthwhile.
+
 
 
 

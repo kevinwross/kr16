@@ -3165,3 +3165,12 @@ Entry format:
   returned 4 while the CLI at -O1 returned 7, so it was not committed without a
   root cause. That discrepancy still needs investigation.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 09:06:08 -08:00 — Three-argument IR miscompile fixed
+
+- Investigation of the unit-vs-CLI three-argument discrepancy found a real IR
+  backend bug: `add3(a,b,c)` ignored `c` and produced 4 instead of 7.
+- The IR backend now rejects functions with more than two parameters, sending
+  them to the fallback emitter.
+- Added direct and call-site three-argument tests; both return the correct result.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
