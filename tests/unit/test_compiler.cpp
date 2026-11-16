@@ -1518,3 +1518,17 @@ TEST_CASE("function pointer comparisons and arithmetic rejection") {
               "function pointer arithmetic") != std::string::npos);
 }
 
+
+TEST_CASE("variadic macros and pragmas") {
+    CHECK(run_c(
+              "#pragma once\n"
+              "#define ADD(a, ...) ((a) + (__VA_ARGS__))\n"
+              "#define PICK(a, ...) (a)\n"
+              "int main(void) { return ADD(1, 2) + PICK(4, 5, 6); }\n") == 7);
+    CHECK(run_c(
+              "#define IGNORE(...) 3\n"
+              "int main(void) { return IGNORE(1, 2, 3); }\n") == 3);
+    CHECK(run_c(
+              "#pragma GCC diagnostic ignored \"-Wall\"\n"
+              "int main(void) { return 5; }\n") == 5);
+}

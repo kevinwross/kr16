@@ -22,7 +22,7 @@ release.
 
 ## C language and runtime
 
-- Preprocessor pragmas and variadic macros.
+- Pragma semantics beyond accepting and ignoring directives.
 - Function-pointer arithmetic (equality/null and calls with stack arguments are supported).
 - True 32-bit `long`/`long long` arithmetic and helper routines. In 1.0,
   `long` is a documented 16-bit alias (ADR 0001).
@@ -39,6 +39,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 

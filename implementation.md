@@ -3475,3 +3475,13 @@ Entry format:
   include point at the real source.
 - Added a filename assertion to the `#line` test.
 - Tests: Windows 57/57 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 17:01:23 -08:00 — Variadic macros and pragmas
+
+- Function-like macros now accept `...`; named parameters bind normally and
+  `__VA_ARGS__` expands to the remaining comma-separated arguments.
+- Zero named parameters (`#define IGNORE(...)`) work.
+- `#pragma` directives are accepted and ignored, including `#pragma once` and
+  GCC-style diagnostic pragmas.
+- Added variadic, zero-parameter, and pragma tests.
+- Tests: Windows 57/57 CTest; Linux 57/57 CTest.

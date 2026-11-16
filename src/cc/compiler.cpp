@@ -130,6 +130,7 @@ std::string trim_copy(std::string_view text) {
 
 struct Macro {
     bool function = false;
+    bool variadic = false;
     std::vector<std::string> params;
     std::string body;
 };
@@ -328,8 +329,25 @@ std::string expand_macros(const std::string& line,
             }
             const auto args =
                 split_macro_args(line.substr(open + 1, close - open - 2));
+            auto params = macro->second.params;
+            auto effective_args = args;
+            if (macro->second.variadic) {
+                if (effective_args.size() < params.size()) {
+                    effective_args.resize(params.size());
+                }
+                std::string extra;
+                for (std::size_t index = params.size(); index < args.size();
+                     ++index) {
+                    if (!extra.empty()) {
+                        extra += ", ";
+                    }
+                    extra += args[index];
+                }
+                params.push_back("__VA_ARGS__");
+                effective_args.push_back(extra);
+            }
             const auto substituted = substitute_macro(
-                macro->second.body, macro->second.params, args);
+                macro->second.body, params, effective_args);
             out += expand_macros(substituted, macros, depth + 1);
             i = close;
             continue;
@@ -578,6 +596,11 @@ std::string preprocess_source_impl(
                             macro.params = split_macro_args(
                                 argument.substr(name_end + 1,
                                                 close - name_end - 2));
+                            if (!macro.params.empty() &&
+                                macro.params.back() == "...") {
+                                macro.variadic = true;
+                                macro.params.pop_back();
+                            }
                             body_start = close;
                         }
                         macro.body = trim_copy(argument.substr(body_start));
@@ -7933,6 +7956,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 
