@@ -3616,3 +3616,16 @@ Entry format:
 - Added tests for `70000 * 2`, `-1 * 1`, and `0x10000 * 0x10000` wrapping to 0.
 - Divide and modulo remain explicitly rejected.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 19:41:54 -08:00 — 32-bit long division and modulo
+
+- Added `__long_divmod` to `resources/libc.s`: 32-bit restoring division with
+  absolute values, signed quotient/remainder adjustment, and a mode argument
+  selecting quotient (`/`) or remainder (`%`).
+- Compiler emits a two-operand stack call to `__long_divmod`; division and
+  modulo are now supported for long values.
+- Added tests for positive, negative, and remainder cases.
+- Updated the libc resource hash in `resources/manifest.json`.
+- Updated ADR 0005, README, and deferred documentation.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+

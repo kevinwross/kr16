@@ -7416,9 +7416,21 @@ private:
                 out << "  ADD SP, #12\n";
                 return;
             }
-            throw CompileError(
-                expr->line, 1,
-                "32-bit long divide and modulo are not implemented yet");
+            if (op == "/" || op == "%") {
+                out << "  SUB SP, #8\n";
+                out << "  ST [SP], R2\n";
+                out << "  ST [SP+2], R3\n";
+                out << "  ST [SP+4], R0\n";
+                out << "  ST [SP+6], R1\n";
+                out << "  MOV R1, SP\n";
+                out << "  MOV R2, SP\n";
+                out << "  ADD R2, #4\n";
+                out << "  MOV R3, #" << (op == "%" ? 1 : 0) << "\n";
+                out << "  CALL __long_divmod\n";
+                out << "  ADD SP, #8\n";
+                external_calls_.insert("__long_divmod");
+                return;
+            }
         }
         throw CompileError(expr->line, 1,
                            "unsupported 32-bit long expression");
@@ -8317,6 +8329,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

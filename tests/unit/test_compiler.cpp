@@ -1691,3 +1691,19 @@ TEST_CASE("32-bit long multiply") {
               "  return 0;\n"
               "}\n") == 0);
 }
+
+TEST_CASE("32-bit long division and modulo") {
+    CHECK(run_c_libc_exit(
+              "int main(void) {\n"
+              "  long a = 140001;\n"
+              "  if ((a / 1000) != 140) return 1;\n"
+              "  if ((a % 1000) != 1) return 2;\n"
+              "  long b = -140000;\n"
+              "  if ((b / 1000) != -140) return 3;\n"
+              "  if ((b % 1000) != 0) return 4;\n"
+              "  long c = -7;\n"
+              "  if ((c / 3) != -2) return 5;\n"
+              "  if ((c % 3) != -1) return 6;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}

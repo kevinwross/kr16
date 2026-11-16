@@ -63,6 +63,197 @@ getchar:
   MOV R0, #0
   RET
 
+.global __long_divmod
+__long_divmod:
+  SUB SP, #26
+  ST [SP+20], R3
+  LD R0, [R1]
+  ST [SP+8], R0
+  LD R0, [R1+2]
+  ST [SP+10], R0
+  LD R0, [R2]
+  ST [SP+12], R0
+  LD R0, [R2+2]
+  ST [SP+14], R0
+  MOV R0, #0
+  ST [SP], R0
+  ST [SP+2], R0
+  ST [SP+4], R0
+  ST [SP+6], R0
+  LD R0, [SP+10]
+  AND R0, #32768
+  ST [SP+22], R0
+  LD R0, [SP+14]
+  AND R0, #32768
+  ST [SP+24], R0
+  LD R0, [SP+22]
+  CMP R0, #0
+  BEQ .Ldiv_apos
+  LD R0, [SP+8]
+  NEG R0
+  ST [SP+8], R0
+  LD R1, [SP+10]
+  NOT R1
+  CMP R0, #0
+  BNE .Ldiv_askip
+  INC R1
+.Ldiv_askip:
+  ST [SP+10], R1
+.Ldiv_apos:
+  LD R0, [SP+24]
+  CMP R0, #0
+  BEQ .Ldiv_bpos
+  LD R0, [SP+12]
+  NEG R0
+  ST [SP+12], R0
+  LD R1, [SP+14]
+  NOT R1
+  CMP R0, #0
+  BNE .Ldiv_bskip
+  INC R1
+.Ldiv_bskip:
+  ST [SP+14], R1
+.Ldiv_bpos:
+  MOV R0, #31
+  ST [SP+16], R0
+.Ldiv_loop:
+  LD R0, [SP+16]
+  CMP R0, #16
+  BLT .Ldiv_bitlow
+  SUB R0, #16
+  MOV R1, R0
+  LD R0, [SP+10]
+  SHR R0, R1
+  AND R0, #1
+  BRA .Ldiv_bitdone
+.Ldiv_bitlow:
+  MOV R1, R0
+  LD R0, [SP+8]
+  SHR R0, R1
+  AND R0, #1
+.Ldiv_bitdone:
+  ST [SP+18], R0
+  LD R2, [SP+4]
+  LD R3, [SP+6]
+  MOV R0, R2
+  MOV R1, #15
+  SHR R0, R1
+  MOV R1, #1
+  SHL R2, R1
+  SHL R3, R1
+  OR R3, R0
+  LD R0, [SP+18]
+  OR R2, R0
+  ST [SP+4], R2
+  ST [SP+6], R3
+  LD R0, [SP+6]
+  LD R1, [SP+14]
+  CMP R0, R1
+  BHI .Ldiv_sub
+  BCC .Ldiv_nosub
+  LD R0, [SP+4]
+  LD R1, [SP+12]
+  CMP R0, R1
+  BCC .Ldiv_nosub
+.Ldiv_sub:
+  LD R2, [SP+4]
+  LD R3, [SP+12]
+  CMP R2, R3
+  BCS .Ldiv_noborrow
+  LD R0, [SP+6]
+  LD R1, [SP+14]
+  SUB R0, R1
+  DEC R0
+  ST [SP+6], R0
+  LD R0, [SP+4]
+  LD R1, [SP+12]
+  SUB R0, R1
+  ST [SP+4], R0
+  BRA .Ldiv_subdone
+.Ldiv_noborrow:
+  LD R0, [SP+6]
+  LD R1, [SP+14]
+  SUB R0, R1
+  ST [SP+6], R0
+  LD R0, [SP+4]
+  LD R1, [SP+12]
+  SUB R0, R1
+  ST [SP+4], R0
+.Ldiv_subdone:
+  LD R0, [SP+16]
+  CMP R0, #16
+  BLT .Ldiv_qlow
+  SUB R0, #16
+  MOV R1, R0
+  MOV R0, #1
+  SHL R0, R1
+  LD R1, [SP+2]
+  OR R0, R1
+  ST [SP+2], R0
+  BRA .Ldiv_qdone
+.Ldiv_qlow:
+  MOV R1, R0
+  MOV R0, #1
+  SHL R0, R1
+  LD R1, [SP]
+  OR R0, R1
+  ST [SP], R0
+.Ldiv_qdone:
+.Ldiv_nosub:
+  LD R0, [SP+16]
+  DEC R0
+  ST [SP+16], R0
+  BGE .Ldiv_loop
+  LD R0, [SP+22]
+  CMP R0, #0
+  BEQ .Ldiv_qsigncheck
+  LD R0, [SP+24]
+  CMP R0, #0
+  BNE .Ldiv_qpos
+  BRA .Ldiv_negq
+.Ldiv_qsigncheck:
+  LD R0, [SP+24]
+  CMP R0, #0
+  BEQ .Ldiv_qpos
+.Ldiv_negq:
+  LD R0, [SP]
+  NEG R0
+  ST [SP], R0
+  LD R1, [SP+2]
+  NOT R1
+  CMP R0, #0
+  BNE .Ldiv_qskip
+  INC R1
+.Ldiv_qskip:
+  ST [SP+2], R1
+.Ldiv_qpos:
+  LD R0, [SP+22]
+  CMP R0, #0
+  BEQ .Ldiv_rpos
+  LD R0, [SP+4]
+  NEG R0
+  ST [SP+4], R0
+  LD R1, [SP+6]
+  NOT R1
+  CMP R0, #0
+  BNE .Ldiv_rskip
+  INC R1
+.Ldiv_rskip:
+  ST [SP+6], R1
+.Ldiv_rpos:
+  LD R0, [SP+20]
+  CMP R0, #1
+  BEQ .Ldiv_mod
+  LD R0, [SP]
+  LD R1, [SP+2]
+  BRA .Ldiv_done
+.Ldiv_mod:
+  LD R0, [SP+4]
+  LD R1, [SP+6]
+.Ldiv_done:
+  ADD SP, #26
+  RET
+
 .bss
 .align 2
 stdin_buffer:
