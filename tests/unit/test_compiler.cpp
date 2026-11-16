@@ -1476,17 +1476,43 @@ TEST_CASE("function pointers call through local, global, and parameter values") 
 }
 
 
-TEST_CASE("indirect calls above three arguments are rejected") {
+TEST_CASE("indirect calls accept four and mixed arguments") {
+    CHECK(run_c(
+              "int add4(int a, int b, int c, int d) { "
+              "return a + b + c + d; }\n"
+              "int main(void) { int (*fp)(int, int, int, int) = add4; "
+              "return fp(1, 2, 3, 4); }\n") == 10);
+    CHECK(run_c(
+              "int inc(int n) { return n + 1; }\n"
+              "int add4(int a, int b, int c, int d) { "
+              "return a + b + c + d; }\n"
+              "int main(void) { int (*fp)(int, int, int, int) = add4; "
+              "return fp(inc(0), 2, 3, 4); }\n") == 10);
+}
+
+
+TEST_CASE("function pointer comparisons and arithmetic rejection") {
+    CHECK(run_c(
+              "int add1(int x) { return x + 1; }\n"
+              "int main(void) { int (*fp)(int) = 0; "
+              "if (fp) return 1; fp = add1; if (fp == 0) return 2; "
+              "return fp(4); }\n") == 5);
+    CHECK(run_c(
+              "int add1(int x) { return x + 1; }\n"
+              "int add2(int x) { return x + 2; }\n"
+              "int main(void) { int (*fp)(int) = add1; "
+              "fp = add2; return fp != 0 ? fp(4) : 0; }\n") == 6);
+
     kr16::CompileOptions options;
     options.source_name =
-        (std::filesystem::current_path() / "kr16_fp_limit.c").string();
-    const auto result = kr16::compile_c(
-        "int add4(int a, int b, int c, int d) { return a + b + c + d; }\n"
-        "int main(void) { int (*fp)(int, int, int, int) = add4; "
-        "return fp(1, 2, 3, 4); }\n",
+        (std::filesystem::current_path() / "kr16_fp_arith.c").string();
+    const auto arithmetic = kr16::compile_c(
+        "int add1(int x) { return x + 1; }\n"
+        "int main(void) { int (*fp)(int) = add1; "
+        "return (fp + 1)(4); }\n",
         options);
-    REQUIRE(!result.ok);
-    REQUIRE(!result.diagnostics.empty());
-    CHECK(result.diagnostics.front().message.find("more than three") !=
-          std::string::npos);
+    REQUIRE(!arithmetic.ok);
+    REQUIRE(!arithmetic.diagnostics.empty());
+    CHECK(arithmetic.diagnostics.front().message.find(
+              "function pointer arithmetic") != std::string::npos);
 }

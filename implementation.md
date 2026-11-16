@@ -3453,3 +3453,14 @@ Entry format:
 - Current baseline: 1,137,413 cycles; limit 1,200,000.
 - The existing generated canary and compile-size gate remain in place.
 - Tests: Windows C-for-U 5/5; full Windows and Linux suites rerun.
+
+### 2026-11-15 16:40:00 -08:00 — Function-pointer stack args and comparisons
+
+- Indirect calls now support more than three arguments: 4+ arguments are
+  pushed in reverse, the first three go to R1-R3, the pointer loads last, and
+  the caller cleans the stack.
+- Added four-argument and mixed register/stack indirect-call tests.
+- Function-pointer equality, inequality, null checks, and reassignment work;
+  parser-level checks reject `+`, `-`, `*`, `/`, `%` arithmetic on function
+  pointers with a clear diagnostic.
+- Tests: Windows 57/57 CTest; Linux 57/57 CTest.

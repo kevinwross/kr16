@@ -1161,6 +1161,7 @@ private:
         ++position_;
         expect("*");
         name = parse_name();
+        function_pointer_names_.insert(name);
         expect(")");
         auto function = make_type(TypeKind::Function, return_type);
         expect("(");
@@ -1838,8 +1839,21 @@ private:
         while (check("+") || check("-")) {
             const std::string op = peek().text;
             const int line = peek().line;
+            if (expr && expr->kind == Expr::Kind::Identifier &&
+                function_pointer_names_.count(expr->text) != 0) {
+                throw CompileError(
+                    line, 1,
+                    "function pointer arithmetic is not supported");
+            }
             ++position_;
-            expr = make_binary(op, std::move(expr), parse_multiplicative(), line);
+            auto right = parse_multiplicative();
+            if (right && right->kind == Expr::Kind::Identifier &&
+                function_pointer_names_.count(right->text) != 0) {
+                throw CompileError(
+                    line, 1,
+                    "function pointer arithmetic is not supported");
+            }
+            expr = make_binary(op, std::move(expr), std::move(right), line);
         }
         return expr;
     }
@@ -2032,6 +2046,7 @@ private:
     bool optimize_ = true;
     bool pending_static_ = false;
     std::unordered_map<std::string, int> identifier_occurrences_;
+    std::unordered_set<std::string> function_pointer_names_;
     std::unordered_map<std::string, std::int64_t> enum_constants_;
     std::unordered_map<std::string, std::shared_ptr<Type>> typedefs_;
     std::unordered_map<std::string, std::shared_ptr<Type>> structs_;
@@ -2823,8 +2838,18 @@ private:
                        (expr->op == "+" || expr->op == "-" || expr->op == "~") &&
                        can_ir_expr(expr->children[0].get());
             case Expr::Kind::Binary:
-                return expr->children.size() == 2 &&
-                       expr->op != "&&" && expr->op != "||" &&
+                if (expr->children.size() != 2) {
+                    return false;
+                }
+                if (is_function_pointer_type(
+                        expression_type(expr->children[0].get())) ||
+                    is_function_pointer_type(
+                        expression_type(expr->children[1].get()))) {
+                    if (expr->op != "==" && expr->op != "!=") {
+                        return false;
+                    }
+                }
+                return expr->op != "&&" && expr->op != "||" &&
                        can_ir_expr(expr->children[0].get()) &&
                        can_ir_expr(expr->children[1].get());
             default:
@@ -4955,7 +4980,7 @@ private:
         return offset >= -32 && offset <= 31;
     }
 
-    std::shared_ptr<Type> expression_type(const Expr* expr) {
+    std::shared_ptr<Type> expression_type(const Expr* expr) const {
         if (expr == nullptr) {
             return make_type(TypeKind::Int);
         }
@@ -7360,6 +7385,14 @@ private:
     }
 
     void gen_unary(const Expr* expr, std::ostringstream& out) {
+        if ((expr->op == "++" || expr->op == "--") &&
+            !expr->children.empty() &&
+            is_function_pointer_type(
+                expression_type(expr->children[0].get()))) {
+            throw CompileError(
+                expr->line, 1,
+                "function pointer arithmetic is not supported");
+        }
         if (cached_loop_.active &&
             (expr->op == "++" || expr->op == "--") &&
             expr->children.size() == 1 &&
@@ -7422,7 +7455,22 @@ private:
         }
     }
 
+    bool is_function_pointer_type(const std::shared_ptr<Type>& type) const {
+        return type && type->kind == TypeKind::Pointer && type->base &&
+               type->base->kind == TypeKind::Function;
+    }
+
     void gen_binary(const Expr* expr, std::ostringstream& out) {
+        const auto left_type = expression_type(expr->children[0].get());
+        const auto right_type = expression_type(expr->children[1].get());
+        if (is_function_pointer_type(left_type) ||
+            is_function_pointer_type(right_type)) {
+            if (expr->op != "==" && expr->op != "!=") {
+                throw CompileError(
+                    expr->line, 1,
+                    "function pointer arithmetic is not supported");
+            }
+        }
         if (expr->op == "&&" || expr->op == "||") {
             const auto short_label = new_label("logic");
             const auto end = new_label("logicend");
@@ -7578,9 +7626,20 @@ private:
         }
         if (indirect) {
             if (expr->children.size() > 3) {
-                throw CompileError(
-                    expr->line, 1,
-                    "indirect calls with more than three arguments are not supported");
+                for (std::size_t i = expr->children.size(); i-- > 3;) {
+                    gen_expr(expr->children[i].get(), out);
+                    out << "  PUSH R0\n";
+                }
+                for (std::size_t i = 0; i < 3; ++i) {
+                    gen_expr(expr->children[i].get(), out);
+                    out << "  MOV R" << (i + 1) << ", R0\n";
+                }
+                gen_load_identifier(expr->text, out, 0);
+                out << "  CALL R0\n";
+                finish_cached_call(out);
+                out << "  ADD SP, #" << (expr->children.size() - 3) * 2
+                    << "\n";
+                return;
             }
             for (std::size_t i = 0; i < expr->children.size(); ++i) {
                 gen_expr(expr->children[i].get(), out);
@@ -7849,6 +7908,12 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
+
 
 
 
