@@ -3768,3 +3768,19 @@ Entry format:
 - `scripts/package.ps1` optionally signs the staged `kr16.exe` with
   `signtool` when `KR16_SIGN_CERT` is set.
 - Tests: Windows 59/59 CTest; Linux 57/57 CTest.
+
+### 2026-11-15T21:55:37-08:00 — conditional signing and marketplace automation
+
+- The release workflow packages the Windows installer zip and publishes it with
+  the other release assets.
+- `WINDOWS_PFX_BASE64` and `WINDOWS_PFX_PASSWORD` are decoded on the Windows
+  runner and passed to the existing `signtool` hook; absent secrets produce an
+  unsigned build.
+- `VSCE_PAT` enables the `vsce publish` step; absent token still produces the
+  VSIX artifact.
+- Added `-SkipBuild` to `scripts/package.ps1` so CI can package already-built
+  binaries, and added password-protected PFX support.
+- Re-verified the Windows zip is deterministic with the installer and signing
+  changes: two runs produced
+  `AC67A7737A04528474FAE2E962592C0325F2774C3A2E52F532E56E67498EC400`.
+- Tests: Windows 59/59 CTest; Linux 57/57 CTest.

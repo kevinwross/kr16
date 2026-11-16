@@ -1,6 +1,7 @@
 param(
   [string]$Version = "1.0.0",
-  [string]$Configuration = "windows-ninja-release"
+  [string]$Configuration = "windows-ninja-release",
+  [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,9 +19,11 @@ function Get-Sha256([string]$Path) {
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
 try {
-  cmake --preset $Configuration
-  cmake --build --preset $Configuration
-  ctest --preset $Configuration
+  if (-not $SkipBuild) {
+    cmake --preset $Configuration
+    cmake --build --preset $Configuration
+    ctest --preset $Configuration
+  }
 
   $dist = Join-Path $root "dist"
   $stage = Join-Path $dist "kr16-$Version-windows-x64"
@@ -61,7 +64,12 @@ try {
     } else {
       "http://timestamp.digicert.com"
     }
-    & $signtool.Source sign /fd SHA256 /f $signingCertificate /tr $timestamp /td SHA256 $stagedExe
+    $signArgs = @("sign", "/fd", "SHA256", "/f", $signingCertificate)
+    if ($env:KR16_SIGN_PASSWORD) {
+      $signArgs += @("/p", $env:KR16_SIGN_PASSWORD)
+    }
+    $signArgs += @("/tr", $timestamp, "/td", "SHA256", $stagedExe)
+    & $signtool.Source @signArgs
     if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE" }
   }
   $stream = [IO.File]::Open($zip, [IO.FileMode]::Create)
@@ -92,6 +100,8 @@ try {
 } finally {
   Pop-Location
 }
+
+
 
 
 

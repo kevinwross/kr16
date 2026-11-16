@@ -219,7 +219,9 @@ directory to the user `PATH`, and creates a Start Menu shortcut. Pass
 `-NoPath` or `-NoShortcut` to skip either step, or `-InstallDir <path>` to
 choose a different location. Release packaging signs the staged `kr16.exe`
 when `KR16_SIGN_CERT` points at a `.pfx`; no certificate means an unsigned
-build.
+build. The release workflow reads `WINDOWS_PFX_BASE64` and
+`WINDOWS_PFX_PASSWORD` to create that certificate, and publishes the VS Code
+extension when `VSCE_PAT` is present; missing secrets skip those steps.
 
 The interactive shell remains available explicitly:
 

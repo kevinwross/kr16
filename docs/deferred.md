@@ -31,9 +31,12 @@ release.
 
 ## Release engineering
 
-- Marketplace publishing and code signing. The Windows installer and ARM64
-  AppImage are built by the release workflow.
+- Marketplace publishing and code signing require repository secrets
+  (`VSCE_PAT`, `WINDOWS_PFX_BASE64`). The release workflow publishes and signs
+  when they are present; the Windows installer and ARM64 AppImage are built
+  unconditionally.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
