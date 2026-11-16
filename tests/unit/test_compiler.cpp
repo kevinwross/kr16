@@ -1426,3 +1426,32 @@ TEST_CASE("cached parameters survive branch joins") {
     CHECK(assembly.find("CMP R0, #0") != std::string::npos);
     CHECK(run_c(source) == 11);
 }
+
+TEST_CASE("preprocessor #error and #line") {
+    kr16::CompileOptions options;
+    options.source_name =
+        (std::filesystem::current_path() / "kr16_line_test.c").string();
+
+    const auto error = kr16::compile_c(
+        "#error deliberate failure\n"
+        "int main(void) { return 0; }\n",
+        options);
+    REQUIRE(!error.ok);
+    REQUIRE(!error.diagnostics.empty());
+    CHECK(error.diagnostics.front().message.find("deliberate failure") !=
+          std::string::npos);
+
+    const auto inactive = kr16::compile_c(
+        "#if 0\n#error hidden\n#endif\n"
+        "int main(void) { return 3; }\n",
+        options);
+    REQUIRE(inactive.ok);
+
+    const auto relocated = kr16::compile_c(
+        "#line 100 \"renamed.c\"\n"
+        "int main(void) { return 1 }\n",
+        options);
+    REQUIRE(!relocated.ok);
+    REQUIRE(!relocated.diagnostics.empty());
+    CHECK(relocated.diagnostics.front().line == 100);
+}

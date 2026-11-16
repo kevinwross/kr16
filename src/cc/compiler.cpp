@@ -519,6 +519,24 @@ std::string preprocess_source_impl(
                 out += "#line " + std::to_string(source_line + 1) + "\n";
                 continue;
             }
+            if (directive == "error" && active()) {
+                throw CompileError(
+                    source_line, 1,
+                    argument.empty()
+                        ? "#error"
+                        : expand_macros(argument, macros, 0));
+            }
+            if (directive == "line" && active()) {
+                std::istringstream line_argument(argument);
+                int number = 0;
+                if (!(line_argument >> number) || number < 1) {
+                    throw CompileError(source_line, 1,
+                                       "invalid #line directive");
+                }
+                out += "#line " + std::to_string(number) + "\n";
+                source_line = number - 1;
+                continue;
+            }
             if (directive == "define") {
                 if (active()) {
                     std::size_t name_end = 0;

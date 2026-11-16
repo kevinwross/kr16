@@ -3413,3 +3413,12 @@ Entry format:
   candidate, providing the start/end data needed by a future linear scan.
 - Current cache ranking still uses the live-block count; behavior is unchanged.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 16:01:11 -08:00 — #error and #line
+
+- Added `#error` with macro expansion; active errors abort compilation with the
+  directive text, inactive errors are ignored.
+- Added `#line N ["file"]`, emitting a lexer line directive and updating the
+  preprocessor line counter so later diagnostics use the relocated line.
+- Removed `#error`/`#line` from the deferred preprocessor list and README.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

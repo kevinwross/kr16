@@ -74,7 +74,7 @@ and `exit`.
 and a scalar IR/graph-coloring backend where supported); `-O0` keeps the
 straightforward stack-based codegen for stepping and teaching. Debug builds
 (`-g`) use the simpler backend so frame-based debug variables stay valid.
-Strict C99 conformance, the full preprocessor (`#line`, pragmas), and
+Strict C99 conformance, preprocessor pragmas, and
 `fscanf`/`freopen`/`tmpfile` remain deferred beyond 1.0.
 
 The DAP TCP server, live VS Code debug session, locals/globals scopes,
@@ -242,6 +242,7 @@ its generated program assembled, linked, and executed by CTest.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 
 
