@@ -3422,3 +3422,16 @@ Entry format:
   preprocessor line counter so later diagnostics use the relocated line.
 - Removed `#error`/`#line` from the deferred preprocessor list and README.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 16:13:24 -08:00 — Function pointers
+
+- Added `TypeKind::Function` and a function-pointer declarator parser for
+  `int (*fp)(int)` in locals, globals, parameters, and prototypes.
+- Function names and `&function` load their address; global function-pointer
+  initializers emit `.word function`.
+- Indirect calls evaluate up to three arguments into R1-R3, load the pointer
+  last, and use `CALL R0`; more than three arguments is a compile error.
+- Added local, address-of, global, and parameter function-pointer tests.
+- Documented the remaining limitations (pointer arithmetic/comparisons and
+  >3-argument indirect calls).
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.

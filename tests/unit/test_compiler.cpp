@@ -1455,3 +1455,38 @@ TEST_CASE("preprocessor #error and #line") {
     REQUIRE(!relocated.diagnostics.empty());
     CHECK(relocated.diagnostics.front().line == 100);
 }
+
+TEST_CASE("function pointers call through local, global, and parameter values") {
+    CHECK(run_c(
+              "int add1(int x) { return x + 1; }\n"
+              "int main(void) { int (*fp)(int); fp = add1; return fp(4); }\n") ==
+          5);
+    CHECK(run_c(
+              "int add1(int x) { return x + 1; }\n"
+              "int main(void) { int (*fp)(int); fp = &add1; return fp(4); }\n") ==
+          5);
+    CHECK(run_c(
+              "int add(int a, int b) { return a + b; }\n"
+              "int (*gp)(int, int) = add;\n"
+              "int main(void) { return gp(2, 3); }\n") == 5);
+    CHECK(run_c(
+              "int add1(int x) { return x + 1; }\n"
+              "int apply(int (*f)(int), int x) { return f(x); }\n"
+              "int main(void) { return apply(add1, 4); }\n") == 5);
+}
+
+
+TEST_CASE("indirect calls above three arguments are rejected") {
+    kr16::CompileOptions options;
+    options.source_name =
+        (std::filesystem::current_path() / "kr16_fp_limit.c").string();
+    const auto result = kr16::compile_c(
+        "int add4(int a, int b, int c, int d) { return a + b + c + d; }\n"
+        "int main(void) { int (*fp)(int, int, int, int) = add4; "
+        "return fp(1, 2, 3, 4); }\n",
+        options);
+    REQUIRE(!result.ok);
+    REQUIRE(!result.diagnostics.empty());
+    CHECK(result.diagnostics.front().message.find("more than three") !=
+          std::string::npos);
+}

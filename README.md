@@ -55,7 +55,7 @@ directory that already contains build outputs can make every write fail with
 size of the tree.
 
 The C compiler currently implements a teaching subset: `int`/`char`/`_Bool`, pointers,
-arrays, functions and prototypes, object/function macros, `#`/`##`, conditionals,
+arrays, functions and prototypes, function pointers, object/function macros, `#`/`##`, conditionals,
 quoted and built-in system headers, `-I` paths, `stdarg.h` variadics,
 local/global/static variables, qualifiers, `if`/`else`, `while`, `do`/`while`,
 `for`, `switch`, `enum`, `typedef`, `struct`/`union` (including by-value
@@ -242,6 +242,7 @@ its generated program assembled, linked, and executed by CTest.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 
 

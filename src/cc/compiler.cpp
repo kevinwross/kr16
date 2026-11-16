@@ -41,7 +41,7 @@ std::string escape_debug_path(std::string_view path) {
     return result;
 }
 
-enum class TypeKind { Void, Char, Int, Pointer, Array, Struct, Union };
+enum class TypeKind { Void, Char, Int, Pointer, Array, Function, Struct, Union };
 
 struct Type;
 struct Member {
@@ -54,8 +54,10 @@ struct Type {
     TypeKind kind = TypeKind::Int;
     int count = 0;
     std::shared_ptr<Type> base;
+    std::vector<std::shared_ptr<Type>> parameters;
     std::vector<Member> members;
     std::string name;
+    bool variadic = false;
 
     int size() const {
         switch (kind) {
@@ -64,6 +66,7 @@ struct Type {
             case TypeKind::Int: return 2;
             case TypeKind::Pointer: return 2;
             case TypeKind::Array: return count * (base ? base->size() : 2);
+            case TypeKind::Function: return 0;
             case TypeKind::Struct: {
                 int total = 0;
                 for (const auto& member : members) {
@@ -1149,6 +1152,41 @@ private:
         return type;
     }
 
+    std::shared_ptr<Type> parse_function_pointer(
+        std::shared_ptr<Type> return_type, std::string& name) {
+        if (!check("(") || position_ + 1 >= tokens_.size() ||
+            tokens_[position_ + 1].text != "*") {
+            return nullptr;
+        }
+        ++position_;
+        expect("*");
+        name = parse_name();
+        expect(")");
+        auto function = make_type(TypeKind::Function, return_type);
+        expect("(");
+        if (!check(")")) {
+            if (peek().text == "void" && tokens_[position_ + 1].text == ")") {
+                ++position_;
+            } else {
+                for (;;) {
+                    if (peek().text == "...") {
+                        function->variadic = true;
+                        ++position_;
+                        break;
+                    }
+                    function->parameters.push_back(parse_type());
+                    if (peek().kind == TokenKind::Identifier) {
+                        parse_name();
+                    }
+                    if (!accept(",")) {
+                        break;
+                    }
+                }
+            }
+        }
+        expect(")");
+        return make_type(TypeKind::Pointer, function);
+    }
     std::shared_ptr<Type> parse_array_suffix(std::shared_ptr<Type> type) {
         while (accept("[")) {
             int count = 0;
@@ -1196,8 +1234,15 @@ private:
         if (accept(";")) {
             return;
         }
-        const std::string name = parse_name();
-        if (accept("(")) {
+        std::string name;
+        const auto function_pointer = parse_function_pointer(type, name);
+        const bool is_function_pointer = function_pointer != nullptr;
+        if (is_function_pointer) {
+            type = function_pointer;
+        } else {
+            name = parse_name();
+        }
+        if (!is_function_pointer && accept("(")) {
             Function function;
             function.name = name;
             function.return_type = type;
@@ -1217,8 +1262,15 @@ private:
                         }
                         auto param_type = parse_type();
                         Decl parameter;
-                        parameter.type = param_type;
-                        if (peek().kind == TokenKind::Identifier) {
+                        const auto parameter_pointer =
+                            parse_function_pointer(param_type, parameter.name);
+                        if (parameter_pointer) {
+                            parameter.type = parameter_pointer;
+                        } else {
+                            parameter.type = param_type;
+                        }
+                        if (!parameter_pointer &&
+                            peek().kind == TokenKind::Identifier) {
                             parameter.name = parse_name();
                             while (accept("[")) {
                                 expect("]");
@@ -1319,8 +1371,14 @@ private:
             }
             for (;;) {
                 Decl decl;
-                decl.name = parse_name();
-                decl.type = type;
+                const auto function_pointer =
+                    parse_function_pointer(type, decl.name);
+                if (function_pointer) {
+                    decl.type = function_pointer;
+                } else {
+                    decl.name = parse_name();
+                    decl.type = type;
+                }
                 decl.is_static = is_static;
                 decl.line = peek().line;
                 if (accept("[")) {
@@ -2413,6 +2471,8 @@ private:
             case TypeKind::Array:
                 return type_text(type->base) + "[" +
                        std::to_string(type->count) + "]";
+            case TypeKind::Function:
+                return type_text(type->base) + "()";
             case TypeKind::Struct:
                 if (type->name.rfind("struct ", 0) == 0) {
                     return type->name;
@@ -2550,6 +2610,25 @@ private:
                 if (cursor < global.type->size()) {
                     out << "  .space " << (global.type->size() - cursor) << "\n";
                 }
+            } else if (global.init &&
+                       global.init->kind == Expr::Kind::Identifier &&
+                       (function_map_.count(global.init->text) != 0 ||
+                        global_map_.count(global.init->text) != 0)) {
+                out << ".data\n";
+                out << ".align 2\n";
+                out << ".global " << global.name << "\n";
+                out << global.name << ":\n";
+                out << "  .word " << global.init->text << "\n";
+            } else if (global.init &&
+                       global.init->kind == Expr::Kind::Unary &&
+                       global.init->op == "&" &&
+                       global.init->children.size() == 1 &&
+                       global.init->children[0]->kind == Expr::Kind::Identifier) {
+                out << ".data\n";
+                out << ".align 2\n";
+                out << ".global " << global.name << "\n";
+                out << global.name << ":\n";
+                out << "  .word " << global.init->children[0]->text << "\n";
             } else if (global.init &&
                        global.init->kind == Expr::Kind::String &&
                        global.type->size() == 2) {
@@ -7177,6 +7256,10 @@ private:
             }
             return;
         }
+        if (function_map_.count(name) != 0) {
+            out << "  MOV R" << target << ", #" << name << "\n";
+            return;
+        }
         out << "  MOV R" << target << ", #0\n";
     }
 
@@ -7513,6 +7596,36 @@ private:
         }
         out << "; kr16-cache-spill\n";
         begin_cached_call(out);
+        bool indirect = false;
+        const auto pointer_local = locals_.find(expr->text);
+        if (pointer_local != locals_.end() && pointer_local->second.type &&
+            pointer_local->second.type->kind == TypeKind::Pointer &&
+            pointer_local->second.type->base &&
+            pointer_local->second.type->base->kind == TypeKind::Function) {
+            indirect = true;
+        }
+        const auto pointer_global = global_map_.find(expr->text);
+        if (pointer_global != global_map_.end() && pointer_global->second->type &&
+            pointer_global->second->type->kind == TypeKind::Pointer &&
+            pointer_global->second->type->base &&
+            pointer_global->second->type->base->kind == TypeKind::Function) {
+            indirect = true;
+        }
+        if (indirect) {
+            if (expr->children.size() > 3) {
+                throw CompileError(
+                    expr->line, 1,
+                    "indirect calls with more than three arguments are not supported");
+            }
+            for (std::size_t i = 0; i < expr->children.size(); ++i) {
+                gen_expr(expr->children[i].get(), out);
+                out << "  MOV R" << (i + 1) << ", R0\n";
+            }
+            gen_load_identifier(expr->text, out, 0);
+            out << "  CALL R0\n";
+            finish_cached_call(out);
+            return;
+        }
         const auto local_function = function_map_.find(expr->text);
         const bool all_stack_variadic =
             (expr->text == "fprintf" || expr->text == "printf") ||
@@ -7771,6 +7884,14 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
+
+
+
 
 
 

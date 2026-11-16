@@ -23,7 +23,7 @@ release.
 ## C language and runtime
 
 - Preprocessor pragmas and variadic macros.
-- Function pointers.
+- Function-pointer arithmetic/comparisons and indirect calls with more than three arguments.
 - True 32-bit `long`/`long long` arithmetic and helper routines. In 1.0,
   `long` is a documented 16-bit alias (ADR 0001).
 - Full libc: the complete `printf` family, `errno` plumbing, and broader
@@ -39,6 +39,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 
