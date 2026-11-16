@@ -1717,6 +1717,19 @@ private:
         if (optimize_ && left && right &&
             left->kind == Expr::Kind::Number &&
             right->kind == Expr::Kind::Number) {
+            const bool wide = left->value < -32768 || left->value > 32767 ||
+                              right->value < -32768 || right->value > 32767;
+            if (wide && (op == "+" || op == "-" || op == "*")) {
+                std::int64_t value = 0;
+                if (op == "+") {
+                    value = left->value + right->value;
+                } else if (op == "-") {
+                    value = left->value - right->value;
+                } else {
+                    value = left->value * right->value;
+                }
+                return make_number(value, line);
+            }
             std::int64_t value = 0;
             if (fold_binary_values(op, left->value, right->value, value)) {
                 return make_number(value, line);
@@ -8225,6 +8238,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

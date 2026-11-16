@@ -3589,3 +3589,11 @@ Entry format:
 - Updated ADR 0005, README, and deferred documentation.
 - Added arithmetic/comparison/global/assignment tests.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 19:21:36 -08:00 — Wide constant folding for long
+
+- Constant expressions containing a value outside the 16-bit range now fold
+  `+`, `-`, and `*` in 32 bits, so `long f = 0 - 70000;` produces a negative
+  32-bit value instead of a folded 16-bit result.
+- Added the folded-subtraction case to the long arithmetic test.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.
