@@ -396,6 +396,25 @@ std::string builtin_header(std::string_view name) {
                "int remove(const char *path);\n"
                "int rename(const char *old_path, const char *new_path);\n";
     }
+    if (name == "errno.h") {
+        return "int *__errno_location(void);\n"
+               "#define errno (*__errno_location())\n"
+               "#define ENOENT 2\n"
+               "#define EIO 5\n"
+               "#define EBADF 9\n"
+               "#define EACCES 13\n"
+               "#define EFAULT 14\n"
+               "#define EEXIST 17\n"
+               "#define ENOTDIR 20\n"
+               "#define EISDIR 21\n"
+               "#define EINVAL 22\n"
+               "#define EMFILE 24\n"
+               "#define ENOSPC 28\n"
+               "#define ENAMETOOLONG 36\n"
+               "#define ENOSYS 38\n"
+               "char *strerror(int error);\n";
+    }
+
     if (name == "stdlib.h") {
         return "typedef int size_t;\n"
                "void exit(int code);\n"
@@ -7956,6 +7975,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 

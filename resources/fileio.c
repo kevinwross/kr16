@@ -320,6 +320,37 @@ static int mode_flags(const char *mode, int *readable, int *writable) {
     return flags;
 }
 
+int errno = 0;
+
+int *__errno_location(void) {
+    return &errno;
+}
+
+static int errno_from_status(int status) {
+    switch (status) {
+        case SYS_ENOENT: return 2;
+        case SYS_EIO: return 5;
+        case SYS_EBADF: return 9;
+        case SYS_EACCES: return 13;
+        case SYS_EFAULT: return 14;
+        case SYS_EEXIST: return 17;
+        case SYS_ENOTDIR: return 20;
+        case SYS_EISDIR: return 21;
+        case SYS_EINVAL: return 22;
+        case SYS_EMFILE: return 24;
+        case SYS_ENOSPC: return 28;
+        case SYS_ENAMETOOLONG: return 36;
+        case SYS_ENOSYS: return 38;
+        default: return 5;
+    }
+}
+
+static void set_errno_status(int status) {
+    if (status != SYS_OK) {
+        errno = errno_from_status(status);
+    }
+}
+
 FILE *fopen(const char *path, const char *mode) {
     struct sys_open_args args;
     struct sys_open_result result;
@@ -328,30 +359,38 @@ FILE *fopen(const char *path, const char *mode) {
     int writable;
     int flags;
     if (path == 0 || mode == 0) {
+        errno = 22;
         return 0;
     }
     readable = 0;
     writable = 0;
     flags = mode_flags(mode, &readable, &writable);
     if (flags < 0) {
+        errno = 22;
         return 0;
     }
     args.path = (char *)path;
     args.flags = (sys_u16)flags;
     args.mode = 0;
-    if (sys_open(&args, &result) != SYS_OK) {
-        return 0;
+    {
+        int open_status = sys_open(&args, &result);
+        if (open_status != SYS_OK) {
+            set_errno_status(open_status);
+            return 0;
+        }
     }
     stream = file_alloc();
     if (stream == 0) {
         struct sys_close_args close_args;
         close_args.fd = result.fd;
         sys_close(&close_args);
+        errno = 24;
         return 0;
     }
     stream->fd = result.fd;
     stream->readable = readable;
     stream->writable = writable;
+    errno = 0;
     return stream;
 }
 
@@ -404,6 +443,7 @@ int fclose(FILE *stream) {
     struct sys_close_args args;
     int status;
     if (stream == 0) {
+        errno = 9;
         return KR16_EOF;
     }
     if (stream == KR16_STDIN || stream == KR16_STDOUT ||
@@ -411,10 +451,12 @@ int fclose(FILE *stream) {
         return 0;
     }
     if (flush_stream(stream) != 0) {
+        errno = 5;
         return KR16_EOF;
     }
     args.fd = stream->fd;
     status = sys_close(&args);
+    set_errno_status(status);
     file_release(stream);
     return status == SYS_OK ? 0 : KR16_EOF;
 }
@@ -901,24 +943,58 @@ void clearerr(FILE *stream) {
     }
 }
 
+char *strerror(int error) {
+    switch (error) {
+        case 0: return "success";
+        case 2: return "no such file or directory";
+        case 5: return "input/output error";
+        case 9: return "bad file descriptor";
+        case 13: return "permission denied";
+        case 14: return "bad address";
+        case 17: return "file exists";
+        case 20: return "not a directory";
+        case 21: return "is a directory";
+        case 22: return "invalid argument";
+        case 24: return "too many open files";
+        case 28: return "no space left on device";
+        case 36: return "file name too long";
+        case 38: return "function not implemented";
+        default: return "unknown error";
+    }
+}
+
 int remove(const char *path) {
     struct sys_unlink_args args;
+    int status;
     if (path == 0) {
+        errno = 22;
         return KR16_EOF;
     }
     args.path = (char *)path;
-    return sys_unlink(&args) == SYS_OK ? 0 : KR16_EOF;
+    status = sys_unlink(&args);
+    set_errno_status(status);
+    return status == SYS_OK ? 0 : KR16_EOF;
 }
 
 int rename(const char *old_path, const char *new_path) {
     struct sys_rename_args args;
+    int status;
     if (old_path == 0 || new_path == 0) {
+        errno = 22;
         return KR16_EOF;
     }
     args.old_path = (char *)old_path;
     args.new_path = (char *)new_path;
-    return sys_rename(&args) == SYS_OK ? 0 : KR16_EOF;
+    status = sys_rename(&args);
+    set_errno_status(status);
+    return status == SYS_OK ? 0 : KR16_EOF;
 }
+
+
+
+
+
+
 
 
 

@@ -26,8 +26,8 @@ release.
 - Function-pointer arithmetic (equality/null and calls with stack arguments are supported).
 - True 32-bit `long`/`long long` arithmetic and helper routines. In 1.0,
   `long` is a documented 16-bit alias (ADR 0001).
-- Full libc: the complete `printf` family, `errno` plumbing, and broader
-  string/stdio coverage.
+- Full libc: the complete `printf` family, broader `errno` coverage, and
+  broader string/stdio coverage.
 - Floating point is explicitly out of scope; see [ADR 0004](decisions/0004-no-floating-point.md).
 - Locale, signals, `setjmp`/`longjmp`, and wide characters.
 
@@ -38,6 +38,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 

@@ -3517,3 +3517,15 @@ Entry format:
 - Updated `docs/deferred.md` and README to point at ADR 0004 instead of listing
   floating point as deferred work.
 - Docs-only change; no compiler, VM, image-format, or handoff changes.
+
+### 2026-11-15 18:22:53 -08:00 — errno and strerror
+
+- Added a built-in `errno.h` using `int *__errno_location(void)` and a macro
+  `errno`, plus ENOENT/EIO/EBADF/EACCES/EFAULT/EEXIST/ENOTDIR/EISDIR/EINVAL/
+  EMFILE/ENOSPC/ENAMETOOLONG/ENOSYS constants.
+- Added `errno` storage and `strerror` to `resources/fileio.c`.
+- `fopen` now sets errno for invalid arguments, host-service failures, and
+  file-table exhaustion; successful opens clear it.
+- `fclose`, `remove`, and `rename` paths now have errno plumbing prepared.
+- Added a missing-file/errno/strerror test.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

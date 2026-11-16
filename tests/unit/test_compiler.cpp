@@ -1532,3 +1532,16 @@ TEST_CASE("variadic macros and pragmas") {
               "#pragma GCC diagnostic ignored \"-Wall\"\n"
               "int main(void) { return 5; }\n") == 5);
 }
+
+TEST_CASE("stdio failures set errno and strerror") {
+    CHECK(run_c_libc_exit(
+              "#include <stdio.h>\n"
+              "#include <errno.h>\n"
+              "int main(void) {\n"
+              "  FILE *f = fopen(\"kr16_missing_errno_file\", \"r\");\n"
+              "  if (f != 0) return 1;\n"
+              "  if (errno != ENOENT) return 2;\n"
+              "  char *message = strerror(errno);\n"
+              "  return message[0] == 'n' ? 0 : 3;\n"
+              "}\n") == 0);
+}
