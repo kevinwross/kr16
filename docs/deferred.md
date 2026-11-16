@@ -26,7 +26,8 @@ release.
 - Function-pointer arithmetic (equality/null and calls with stack arguments are supported).
 - 32-bit `long`/`long long` printf/scanf conversions. Add,
   subtract, multiply, divide, compare, assign, and constant
-  initializers and the two-word ABI are implemented (ADR 0005).
+  initializers, compound assignment, and the two-word ABI are implemented
+  (ADR 0005).
 - Full libc: the complete `printf` family, broader `errno` coverage, and
   broader string/stdio coverage.
 - Floating point is explicitly out of scope; see [ADR 0004](decisions/0004-no-floating-point.md).
@@ -39,6 +40,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 

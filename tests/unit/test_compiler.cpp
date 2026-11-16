@@ -1738,3 +1738,25 @@ TEST_CASE("32-bit long increment and decrement") {
               "  return 0;\n"
               "}\n") == 0);
 }
+
+TEST_CASE("32-bit long compound assignment") {
+    CHECK(run_c_libc_exit(
+              "int main(void) {\n"
+              "  long a = 70000;\n"
+              "  a += 2;\n"
+              "  if (a != 70002) return 1;\n"
+              "  a -= 3;\n"
+              "  if (a != 69999) return 2;\n"
+              "  a *= 2;\n"
+              "  if (a != 139998) return 3;\n"
+              "  a /= 3;\n"
+              "  if (a != 46666) return 4;\n"
+              "  a <<= 1;\n"
+              "  if (a != 93332) return 5;\n"
+              "  a >>= 1;\n"
+              "  if (a != 46666) return 6;\n"
+              "  a &= 0xFFFF;\n"
+              "  if (a != 46666) return 7;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}

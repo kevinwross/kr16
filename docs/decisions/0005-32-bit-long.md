@@ -25,12 +25,11 @@ Implemented:
 - parser spelling for `long`, `long long`, and `long int`
 - 32-bit `+`, `-`, `*`, `/`, `%`, unary `-`, `~`, `&`, `|`, `^`, `<<`, `>>`
 - 32-bit equality and relational comparisons
-- assignment, `++`/`--`, and constant local/global initializers
+- assignment, `++`/`--`, and compound assignment
 - two-word stack ABI for long parameters and returns
 
 Not yet implemented (explicit diagnostics, no silent truncation):
 
-- compound assignment (`+=`, `-=`, `*=`, `/=`, and related) on long values
 - `printf`/`scanf` length modifiers and conversions
 
 Unsupported operations raise a diagnostic rather than silently producing a

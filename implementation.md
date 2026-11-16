@@ -3655,3 +3655,13 @@ Entry format:
 - `%ld` formatting was investigated but not completed; it remains explicitly
   unsupported for now.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 20:12:42 -08:00 — long compound assignment
+
+- Verified and covered compound assignment for long values: `+=`, `-=`, `*=`,
+  `/=`, `<<=`, `>>=`, and `&=`.
+- The parser expands compounds to an assignment of a binary expression on a
+  cloned lvalue; the long expression/assignment paths already handle the
+  resulting 32-bit operation.
+- Added a test covering the full set and wrap-sensitive values.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.
