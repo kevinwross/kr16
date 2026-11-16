@@ -208,6 +208,19 @@ the Windows zip was verified byte-identical across two runs with the same
 epoch. The tag workflow in `.github/workflows/release.yml` publishes the
 Windows exe, both AppImages, the VS Code VSIX, and `SHA256SUMS`.
 
+The Windows zip includes `install.ps1` and `uninstall.ps1`. Extract it and run:
+
+```text
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+The installer copies KR16 under `%LOCALAPPDATA%\Programs\KR16`, adds its `bin`
+directory to the user `PATH`, and creates a Start Menu shortcut. Pass
+`-NoPath` or `-NoShortcut` to skip either step, or `-InstallDir <path>` to
+choose a different location. Release packaging signs the staged `kr16.exe`
+when `KR16_SIGN_CERT` points at a `.pfx`; no certificate means an unsigned
+build.
+
 The interactive shell remains available explicitly:
 
 ```text

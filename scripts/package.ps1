@@ -28,6 +28,7 @@ try {
   New-Item -ItemType Directory -Force -Path (Join-Path $stage "bin") | Out-Null
   Copy-Item (Join-Path (Join-Path "build" $Configuration) "kr16.exe") (Join-Path $stage "bin/kr16.exe")
   Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md, RELEASE_NOTES-1.0.0.md $stage
+  Copy-Item packaging/windows/install.ps1, packaging/windows/uninstall.ps1 $stage
   Copy-Item docs, examples, resources $stage -Recurse
   $vscodeStage = Join-Path $stage "vscode"
   New-Item -ItemType Directory -Force -Path $vscodeStage | Out-Null
@@ -48,6 +49,21 @@ try {
     }
   }
   $epoch = [DateTimeOffset]::FromUnixTimeSeconds($epochSeconds).UtcDateTime
+  $signingCertificate = $env:KR16_SIGN_CERT
+  if (-not [string]::IsNullOrWhiteSpace($signingCertificate)) {
+    $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue
+    if ($null -eq $signtool) {
+      throw "KR16_SIGN_CERT is set but signtool.exe was not found"
+    }
+    $stagedExe = Join-Path $stage "bin/kr16.exe"
+    $timestamp = if ($env:KR16_SIGN_TIMESTAMP) {
+      $env:KR16_SIGN_TIMESTAMP
+    } else {
+      "http://timestamp.digicert.com"
+    }
+    & $signtool.Source sign /fd SHA256 /f $signingCertificate /tr $timestamp /td SHA256 $stagedExe
+    if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE" }
+  }
   $stream = [IO.File]::Open($zip, [IO.FileMode]::Create)
   $archive = [System.IO.Compression.ZipArchive]::new(
     $stream, [System.IO.Compression.ZipArchiveMode]::Create)
@@ -76,5 +92,6 @@ try {
 } finally {
   Pop-Location
 }
+
 
 

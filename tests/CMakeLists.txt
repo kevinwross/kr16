@@ -117,6 +117,17 @@ if(KR16_PWSH)
     LABELS "policy" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif()
 
+if(WIN32 AND KR16_PWSH)
+  add_test(NAME kr16.installer
+    COMMAND ${KR16_PWSH} -NoProfile -ExecutionPolicy Bypass
+      -File "${CMAKE_CURRENT_SOURCE_DIR}/installer.ps1"
+      -SourceExe $<TARGET_FILE:kr16>
+      -InstallScript "${CMAKE_SOURCE_DIR}/packaging/windows/install.ps1"
+      -UninstallScript "${CMAKE_SOURCE_DIR}/packaging/windows/uninstall.ps1"
+  )
+  set_tests_properties(kr16.installer PROPERTIES LABELS "integration")
+endif()
+
 add_test(NAME kr16.vm.bios
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/vm_hello.bin"
     --raw --base 0x100 --bios "${CMAKE_CURRENT_BINARY_DIR}/bios.bin"
@@ -465,6 +476,7 @@ add_test(NAME kr16.example.putchar.run
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/putchar.kex")
 set_tests_properties(kr16.example.putchar.run PROPERTIES LABELS "integration"
   DEPENDS kr16.example.putchar.build PASS_REGULAR_EXPRESSION "KR16")
+
 
 
 

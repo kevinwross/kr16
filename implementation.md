@@ -3755,3 +3755,16 @@ Entry format:
 - Narrowed deferred release work to marketplace publishing, code signing, and
   Windows installers; the ARM64 AppImage is built by the release workflow.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15T21:53:22-08:00 — Windows installer and signing hook
+
+- Added `packaging/windows/install.ps1` and `uninstall.ps1`.
+- The installer copies `bin`, runtime resources, docs, and the VS Code files
+  under `%LOCALAPPDATA%\Programs\KR16`, optionally adds `bin` to the user PATH,
+  and creates a Start Menu shortcut.
+- The package now ships both scripts; the Windows zip was updated and tested by
+  extracting it, installing, running `kr16 version`, and uninstalling.
+- Added `kr16.installer` CTest coverage for the install/run/uninstall cycle.
+- `scripts/package.ps1` optionally signs the staged `kr16.exe` with
+  `signtool` when `KR16_SIGN_CERT` is set.
+- Tests: Windows 59/59 CTest; Linux 57/57 CTest.
