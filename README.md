@@ -68,8 +68,11 @@ provides `putchar`, `puts`, `getchar`, buffered `fopen`/`fread`/`fwrite`/
 `abs`, a first-fit heap allocator (`malloc`, `calloc`, `realloc`, `free`),
 and `exit`.
 
-`long` is a **16-bit alias** for `int`; see
-[`docs/decisions/0001-16-bit-long.md`](docs/decisions/0001-16-bit-long.md).
+`long` and `long long` are 32-bit types with 4-byte storage and `sizeof`
+support; arithmetic, initializers, function ABI, and `printf`/`scanf`
+conversions are still being implemented and are rejected rather than silently
+truncated. See
+[`docs/decisions/0005-32-bit-long.md`](docs/decisions/0005-32-bit-long.md).
 `kr16 cc` uses `-O1` by default (constant folding, simple-expression codegen,
 and a scalar IR/graph-coloring backend where supported); `-O0` keeps the
 straightforward stack-based codegen for stepping and teaching. Debug builds

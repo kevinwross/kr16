@@ -1633,3 +1633,14 @@ TEST_CASE("buffered stdin serves scripted keys") {
               "}\n",
               "abc") == 0);
 }
+
+TEST_CASE("long and long long are 32-bit types") {
+    CHECK(run_c_libc_exit(
+              "int main(void) { long x; long long y; "
+              "return sizeof(long) + sizeof(x) + sizeof(y); }") == 12);
+    const auto rejected = kr16::compile_c(
+        "int main(void) { long x = 1; return 0; }", kr16::CompileOptions{});
+    CHECK(!rejected.ok);
+    CHECK(rejected.diagnostics.front().message.find("32-bit long") !=
+          std::string::npos);
+}

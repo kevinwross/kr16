@@ -1,6 +1,6 @@
 # ADR 0001: `long` is a 16-bit alias
 
-- Status: accepted for the 1.0 teaching-toolchain release
+- Status: superseded by [ADR 0005](0005-32-bit-long.md)
 - Date: 2026-10-27
 
 ## Context
@@ -28,3 +28,4 @@ teaching-toolchain release, not a claim of strict C99 conformance.
   multiword routines or a future compiler extension.
 - Strict C99 conformance remains deferred beyond 1.0.
 - Documentation and release notes must state the alias explicitly.
+

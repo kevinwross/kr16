@@ -3563,3 +3563,15 @@ Entry format:
 - Added a scripted-keyboard test through `VmOptions.input_path`.
 - Updated the libc resource hash in `resources/manifest.json`.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 19:00:37 -08:00 — 32-bit long foundation
+
+- Added `TypeKind::Long`: `long`, `long long`, and `long int` now parse as
+  32-bit types with 4-byte storage and `sizeof == 4`.
+- Local/global storage allocates 4 bytes; debug type text reports `long`.
+- Added explicit diagnostics for long initializers, long expressions, long
+  function parameters, and long returns so 32-bit values are never silently
+  truncated to 16 bits while arithmetic/ABI support is incomplete.
+- Added ADR 0005, superseded ADR 0001, and updated README/deferred text.
+- Added a `sizeof`/rejection test.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

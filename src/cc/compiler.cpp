@@ -46,7 +46,7 @@ std::string escape_debug_path(std::string_view path) {
     return result;
 }
 
-enum class TypeKind { Void, Char, Int, Pointer, Array, Function, Struct, Union };
+enum class TypeKind { Void, Char, Int, Long, Pointer, Array, Function, Struct, Union };
 
 struct Type;
 struct Member {
@@ -69,6 +69,7 @@ struct Type {
             case TypeKind::Void: return 0;
             case TypeKind::Char: return 1;
             case TypeKind::Int: return 2;
+            case TypeKind::Long: return 4;
             case TypeKind::Pointer: return 2;
             case TypeKind::Array: return count * (base ? base->size() : 2);
             case TypeKind::Function: return 0;
@@ -90,6 +91,7 @@ struct Type {
         return 2;
     }
     bool is_char() const { return kind == TypeKind::Char; }
+    bool is_long() const { return kind == TypeKind::Long; }
     bool is_array() const { return kind == TypeKind::Array; }
 };
 
@@ -1205,7 +1207,7 @@ private:
         if (accept("long")) {
             accept("long");
             accept("int");
-            return make_type(TypeKind::Int);
+            return make_type(TypeKind::Long);
         }
         error("expected a type");
         return make_type(TypeKind::Int);
@@ -2550,6 +2552,8 @@ private:
                 return "char";
             case TypeKind::Int:
                 return "int";
+            case TypeKind::Long:
+                return "long";
             case TypeKind::Pointer:
                 return type_text(type->base) + " *";
             case TypeKind::Array:
@@ -2669,6 +2673,11 @@ private:
 
     void emit_globals(std::ostringstream& out) {
         for (const auto& global : program_.globals) {
+            if (global.type->is_long() && global.init) {
+                throw CompileError(
+                    global.line, 1,
+                    "32-bit long initializers are not implemented yet");
+            }
             if (global.init && global.init->kind == Expr::Kind::Number) {
                 out << ".data\n";
                 out << ".align 2\n";
@@ -4703,6 +4712,18 @@ private:
                parameter_cache_safe(stmt->init.get(), name, allow_writes, allow_switch, allow_calls);
     }
     void compile_function(Function& function, std::ostringstream& out) {
+        if (function.return_type && function.return_type->is_long()) {
+            throw CompileError(
+                function.line, 1,
+                "32-bit long return values are not implemented yet");
+        }
+        for (const auto& parameter : function.parameters) {
+            if (parameter.type && parameter.type->is_long()) {
+                throw CompileError(
+                    function.line, 1,
+                    "32-bit long parameters are not implemented yet");
+            }
+        }
         locals_.clear();
         frame_size_ = 0;
         current_named_params_ = static_cast<int>(function.parameters.size());
@@ -6002,6 +6023,11 @@ private:
                     if (decl.is_static) {
                         continue;
                     }
+                    if (decl.type->is_long() && decl.init) {
+                        throw CompileError(
+                            decl.line, 1,
+                            "32-bit long initializers are not implemented yet");
+                    }
                     if (decl.init) {
                         const auto it = locals_.find(decl.name);
                         if (it == locals_.end()) {
@@ -7102,6 +7128,11 @@ private:
         if (expr == nullptr) {
             out << "  MOV R0, #0\n";
             return;
+        }
+        if (expression_type(expr)->is_long()) {
+            throw CompileError(
+                expr->line, 1,
+                "32-bit long expressions are not implemented yet");
         }
         if (optimize_ && emit_simple_assignment(expr, out)) {
             return;
