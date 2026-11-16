@@ -3729,3 +3729,15 @@ Entry format:
 - Updated the deferred DAP item to only threaded console coordination and
   marketplace publishing.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15T21:29:18-08:00 — checked-in embedded runtime resources
+
+- Regenerated `src/resources/embedded_libc.cpp`; the checked-in copy was stale
+  and did not include the current stdio and long-runtime changes.
+- Added a resource test that compares embedded `libc.s`, `fileio.c`, and
+  `systemservices.h` byte-for-byte with their checked-in sources.
+- Extended `resources/manifest.json` to cover `fileio.c` and
+  `systemservices.h`, and refreshed hashes with `scripts/bootstrap-check.ps1`.
+- Removed checked-in prebuilt resources from the deferred list; marketplace,
+  signing, installers, and arm64 release builds remain deferred.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

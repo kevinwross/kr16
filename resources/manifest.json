@@ -11,6 +11,16 @@
       "name": "libc",
       "source": "resources/libc.s",
       "sha256": "60E28161FE92D21962D75531CF9C7F6DA0C6483C3E5A7CA4F894EFD4A311803B"
+    },
+    {
+      "name": "fileio",
+      "source": "resources/fileio.c",
+      "sha256": "32BE71CB3D041FD0054F2CC1FB7C23FDD0F74A9AFBF0CB64359F8DB6060D9E3E"
+    },
+    {
+      "name": "systemservices",
+      "source": "include/kr16/systemservices.h",
+      "sha256": "C7FA623A86395D211A693C502DF98DAB5C56B6F08CDA77BFBD330DC36B141E99"
     }
   ]
 }

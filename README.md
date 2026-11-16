@@ -200,8 +200,10 @@ bash packaging/linux/package-appimage.sh
 It writes `dist/KR16-<arch>.AppImage`. The AppImage contains the GUI, the CLI,
 the embedded fonts and `resources/libc.s`, so it needs no separate resource
 directory. The Windows `kr16.exe` is also self-contained: it embeds the fonts
-and falls back to an embedded `libc.s` when no `resources/` directory is
-present. The tag workflow in `.github/workflows/release.yml` publishes the
+and falls back to embedded `libc.s`, `fileio.c`, and `systemservices.h` when no
+`resources/` directory is present. The checked-in prebuilt resources are
+verified against their sources by the resource test. The tag workflow in
+`.github/workflows/release.yml` publishes the
 Windows exe, both AppImages, the VS Code VSIX, and `SHA256SUMS`.
 
 The interactive shell remains available explicitly:
