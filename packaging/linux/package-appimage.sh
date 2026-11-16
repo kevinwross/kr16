@@ -12,6 +12,7 @@ case "$ARCH_NAME" in
   *) echo "unsupported architecture: $ARCH_NAME" >&2; exit 2 ;;
 esac
 APPIMAGE_ARCH="${KR16_APPIMAGE_ARCH:-$APPIMAGE_ARCH}"
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT" log -1 --format=%ct)}"
 BINARY="${KR16_BINARY:-$BUILD/kr16}"
 
 if [ -z "${KR16_BINARY:-}" ]; then
@@ -28,6 +29,10 @@ rm -rf "$APP"
 install -Dm755 "$BINARY" "$APP/usr/bin/kr16"
 install -Dm644 "$ROOT/resources/libc.s" \
   "$APP/usr/share/kr16/resources/libc.s"
+install -Dm644 "$ROOT/resources/fileio.c" \
+  "$APP/usr/share/kr16/resources/fileio.c"
+install -Dm644 "$ROOT/include/kr16/systemservices.h" \
+  "$APP/usr/share/kr16/include/kr16/systemservices.h"
 install -Dm644 "$ROOT/packaging/linux/kr16.desktop" \
   "$APP/usr/share/applications/kr16.desktop"
 install -Dm644 "$ROOT/packaging/linux/kr16.desktop" "$APP/kr16.desktop"

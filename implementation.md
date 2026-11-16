@@ -3741,3 +3741,17 @@ Entry format:
 - Removed checked-in prebuilt resources from the deferred list; marketplace,
   signing, installers, and arm64 release builds remain deferred.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15T21:32:38-08:00 — packaging completeness and determinism
+
+- Packaged the Windows release twice with `SOURCE_DATE_EPOCH=1700000000`; both
+  `dist/kr16-1.0.0-windows-x64.zip` runs produced the same SHA-256:
+  `BB8FCF251CB8090EE89CFCFB15498A0EFF87C586C7B4BF124E56326C1996C364`.
+- The AppImage now installs `resources/fileio.c` and
+  `include/kr16/systemservices.h` alongside `libc.s`, so `kr16 build` inside
+  the AppImage has the complete runtime.
+- The AppImage script exports `SOURCE_DATE_EPOCH`, defaulting to the latest
+  commit time.
+- Narrowed deferred release work to marketplace publishing, code signing, and
+  Windows installers; the ARM64 AppImage is built by the release workflow.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

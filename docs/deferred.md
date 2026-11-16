@@ -31,33 +31,8 @@ release.
 
 ## Release engineering
 
-- Marketplace publishing, code signing, installers, and arm64 releases.
+- Marketplace publishing, code signing, and Windows installers. The ARM64
+  AppImage is built by the release workflow.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
