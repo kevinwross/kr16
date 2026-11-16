@@ -23,6 +23,7 @@ struct FILE {
     int position;
     int length;
     int pushback;
+    char temporary_path[16];
     unsigned char buffer[KR16_BUFFER_SIZE];
 };
 
@@ -60,6 +61,7 @@ static struct FILE *file_alloc(void) {
             file_table[i].position = 0;
             file_table[i].length = 0;
             file_table[i].pushback = -1;
+            file_table[i].temporary_path[0] = 0;
             return &file_table[i];
         }
     }
@@ -457,8 +459,102 @@ int fclose(FILE *stream) {
     args.fd = stream->fd;
     status = sys_close(&args);
     set_errno_status(status);
+    if (stream->temporary_path[0] != 0) {
+        struct sys_unlink_args unlink_args;
+        unlink_args.path = stream->temporary_path;
+        sys_unlink(&unlink_args);
+    }
     file_release(stream);
     return status == SYS_OK ? 0 : KR16_EOF;
+}
+
+FILE *freopen(const char *path, const char *mode, FILE *stream) {
+    struct sys_open_args open_args;
+    struct sys_open_result result;
+    struct sys_close_args close_args;
+    int readable;
+    int writable;
+    int flags;
+    int status;
+    if (stream == 0 || path == 0 || mode == 0 ||
+        stream == KR16_STDIN || stream == KR16_STDOUT ||
+        stream == KR16_STDERR) {
+        errno = 22;
+        return 0;
+    }
+    if (flush_stream(stream) != 0) {
+        errno = 5;
+        return 0;
+    }
+    readable = 0;
+    writable = 0;
+    flags = mode_flags(mode, &readable, &writable);
+    if (flags < 0) {
+        errno = 22;
+        return 0;
+    }
+    open_args.path = (char *)path;
+    open_args.flags = (sys_u16)flags;
+    open_args.mode = 0;
+    status = sys_open(&open_args, &result);
+    if (status != SYS_OK) {
+        set_errno_status(status);
+        close_args.fd = stream->fd;
+        sys_close(&close_args);
+        file_release(stream);
+        return 0;
+    }
+    close_args.fd = stream->fd;
+    sys_close(&close_args);
+    stream->fd = result.fd;
+    stream->readable = readable;
+    stream->writable = writable;
+    stream->eof = 0;
+    stream->error = 0;
+    stream->mode = KR16_FULL_BUFFER;
+    stream->buffered = 0;
+    stream->position = 0;
+    stream->length = 0;
+    stream->pushback = -1;
+    stream->temporary_path[0] = 0;
+    errno = 0;
+    return stream;
+}
+
+FILE *tmpfile(void) {
+    static int temporary_counter = 0;
+    int attempt;
+    for (attempt = 0; attempt < 100; ++attempt) {
+        char path[16];
+        int number = temporary_counter;
+        int index;
+        FILE *stream;
+        temporary_counter = (temporary_counter + 1) % 100;
+        path[0] = 'k';
+        path[1] = 'r';
+        path[2] = '1';
+        path[3] = '6';
+        path[4] = '_';
+        path[5] = 't';
+        path[6] = 'm';
+        path[7] = 'p';
+        path[8] = '_';
+        path[9] = (char)(48 + number / 10);
+        path[10] = (char)(48 + number % 10);
+        path[11] = 0;
+        stream = fopen(path, "w+x");
+        if (stream != 0) {
+            for (index = 0; index < 16; ++index) {
+                stream->temporary_path[index] = path[index];
+            }
+            return stream;
+        }
+        if (errno != 17) {
+            return 0;
+        }
+    }
+    errno = 24;
+    return 0;
 }
 
 int fread(void *buffer, int size, int count, FILE *stream) {
@@ -1189,6 +1285,9 @@ int rename(const char *old_path, const char *new_path) {
     set_errno_status(status);
     return status == SYS_OK ? 0 : KR16_EOF;
 }
+
+
+
 
 
 

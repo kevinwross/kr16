@@ -378,6 +378,8 @@ std::string builtin_header(std::string_view name) {
                "int fprintf(FILE *stream, char *fmt, ...);\n"
                "int fscanf(FILE *stream, const char *fmt, ...);\n"
                "FILE *fopen(const char *path, const char *mode);\n"
+               "FILE *freopen(const char *path, const char *mode, FILE *stream);\n"
+               "FILE *tmpfile(void);\n"
                "int fclose(FILE *stream);\n"
                "int fread(void *buffer, int size, int count, FILE *stream);\n"
                "int fwrite(const void *buffer, int size, int count, FILE *stream);\n"
@@ -7980,6 +7982,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

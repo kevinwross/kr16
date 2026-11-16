@@ -3542,3 +3542,15 @@ Entry format:
   `va_list` state must not be reloaded across helper calls.
 - Added a write/read/reopen test for `%d` and width-limited `%s`.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 18:43:58 -08:00 — freopen and tmpfile
+
+- Added `freopen` for ordinary streams: flush, close the old descriptor, open the
+  new path, and reset the stream state. Standard-stream `freopen` remains
+  deferred.
+- Added `tmpfile`: creates `kr16_tmp_NN` with `w+x`, records the path on the
+  stream, and removes it in `fclose`.
+- Added prototypes to the built-in `stdio.h`.
+- Added tests for `tmpfile` write/rewind/read and cleanup, and for `freopen`
+  switching a stream from one file to another.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

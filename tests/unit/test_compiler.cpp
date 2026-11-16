@@ -1567,3 +1567,42 @@ TEST_CASE("fscanf parses integers and strings") {
               "  return 0;\n"
               "}\n") == 0);
 }
+
+TEST_CASE("tmpfile and freopen") {
+    CHECK(run_c_libc_exit(
+              "#include <stdio.h>\n"
+              "int main(void) {\n"
+              "  FILE *f = tmpfile();\n"
+              "  if (f == 0) return 1;\n"
+              "  fputs(\"abc\", f);\n"
+              "  rewind(f);\n"
+              "  if (fgetc(f) != 'a') return 2;\n"
+              "  if (fgetc(f) != 'b') return 3;\n"
+              "  if (fgetc(f) != 'c') return 4;\n"
+              "  fclose(f);\n"
+              "  f = fopen(\"kr16_tmp_00\", \"r\");\n"
+              "  if (f != 0) { fclose(f); return 5; }\n"
+              "  return 0;\n"
+              "}\n") == 0);
+    CHECK(run_c_libc_exit(
+              "#include <stdio.h>\n"
+              "int main(void) {\n"
+              "  FILE *a = fopen(\"kr16_freopen_a\", \"w\");\n"
+              "  if (a == 0) return 1;\n"
+              "  fputs(\"a\", a);\n"
+              "  fclose(a);\n"
+              "  FILE *f = fopen(\"kr16_freopen_a\", \"r\");\n"
+              "  if (f == 0) return 2;\n"
+              "  f = freopen(\"kr16_freopen_b\", \"w\", f);\n"
+              "  if (f == 0) return 3;\n"
+              "  fputs(\"ok\", f);\n"
+              "  fclose(f);\n"
+              "  f = fopen(\"kr16_freopen_b\", \"r\");\n"
+              "  if (f == 0) return 4;\n"
+              "  int value = fgetc(f);\n"
+              "  fclose(f);\n"
+              "  remove(\"kr16_freopen_a\");\n"
+              "  remove(\"kr16_freopen_b\");\n"
+              "  return value == 'o' ? 0 : 5;\n"
+              "}\n") == 0);
+}
