@@ -218,6 +218,18 @@ add_test(NAME kr16.cforu.generated
 set_tests_properties(kr16.cforu.generated PROPERTIES LABELS "integration"
   DEPENDS kr16.cc.cforu)
 
+
+add_test(NAME kr16.cforu.cycles
+  COMMAND ${CMAKE_COMMAND}
+    "-DKR16=$<TARGET_FILE:kr16>"
+    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    "-DCFORU_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
+    "-DCFORU_INPUT=C-for-U-input.c"
+    "-DCFORU_MAX_CYCLES=1200000"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_cycles.cmake"
+)
+set_tests_properties(kr16.cforu.cycles PROPERTIES LABELS "integration"
+  DEPENDS kr16.cc.cforu)
 # Heap allocator: the checker is a test-only object, linked explicitly so the
 # runtime itself stays small.
 add_test(NAME kr16.as.heapcheck
@@ -443,3 +455,4 @@ add_test(NAME kr16.example.putchar.run
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/putchar.kex")
 set_tests_properties(kr16.example.putchar.run PROPERTIES LABELS "integration"
   DEPENDS kr16.example.putchar.build PASS_REGULAR_EXPRESSION "KR16")
+

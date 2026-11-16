@@ -420,6 +420,9 @@ The unit suite compiles `tests/kevin/C-for-U.c` as a self-hosted workload and
 requires fewer than 5,500 instructions and 95,000 assembly bytes. Current
 baseline: 5,477 instructions and 94,384 bytes. This catches large code-size
 regressions that the loop benchmarks would miss.
+A separate integration test runs the C-for-U image under `--stats` and
+requires fewer than 1,200,000 cycles; current baseline is 1,137,413 cycles.
+
 
 
 

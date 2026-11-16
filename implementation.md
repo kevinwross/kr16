@@ -3445,3 +3445,11 @@ Entry format:
 - Removed the duplicate second-candidate loop and its stale bookkeeping.
 - C-for-U and all cache tests still pass.
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 16:25:22 -08:00 — C-for-U runtime cycle gate
+
+- Added `kr16.cforu.cycles`, which runs the C-for-U image with `--stats` against
+  the compiler input and parses `cycles=`.
+- Current baseline: 1,137,413 cycles; limit 1,200,000.
+- The existing generated canary and compile-size gate remain in place.
+- Tests: Windows C-for-U 5/5; full Windows and Linux suites rerun.
