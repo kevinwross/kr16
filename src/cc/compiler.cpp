@@ -4823,11 +4823,14 @@ private:
                 gen_stmt(function.body.get(), out);
             }
         } else {
-            std::string cached_local;
-            int cached_local_offset = 0;
-            int cached_local_uses = -1;
-            int cached_local_span = -1;
-            bool cached_local_character = false;
+            struct LocalInterval {
+                std::string name;
+                int offset = 0;
+                int uses = 0;
+                int span = 0;
+                bool character = false;
+            };
+            std::vector<LocalInterval> intervals;
             for (const auto& [name, variable] : locals_) {
                 bool is_parameter = false;
                 for (const auto& parameter : function.parameters) {
@@ -4842,91 +4845,53 @@ private:
                      variable.type->kind != TypeKind::Char &&
                      variable.type->kind != TypeKind::Pointer) ||
                     !stmt_mentions_name(function.body.get(), name) ||
-                     !parameter_cache_safe(function.body.get(), name, true,
-                                            true, true)) {
+                    !parameter_cache_safe(function.body.get(), name, true,
+                                           true, true)) {
                     continue;
                 }
-                const int uses =
-                    stmt_name_uses(function.body.get(), name);
-                int span = block_live_span(function.body.get(), name);
+                const int uses = stmt_name_uses(function.body.get(), name);
+                int first = -1;
+                int last = -1;
+                int span = block_live_span(function.body.get(), name, &first,
+                                           &last);
                 if (span < 0) {
                     span = cfg_live_span(function.body.get(), name);
                 }
                 if (span < 0) {
                     int position = 0;
-                    int first = -1;
-                    int last = -1;
                     stmt_name_positions(function.body.get(), name, position,
                                         first, last);
                     span = first >= 0 ? last - first : 0;
                 }
-                if (cached_local.empty() || span > cached_local_span ||
-                    (span == cached_local_span &&
-                     (uses > cached_local_uses ||
-                      (uses == cached_local_uses &&
-                       variable.offset < cached_local_offset)))) {
-                    cached_local = name;
-                    cached_local_offset = variable.offset;
-                    cached_local_uses = uses;
-                    cached_local_span = span;
-                    cached_local_character = variable.type->is_char();
-                }
+                intervals.push_back(LocalInterval{name, variable.offset, uses,
+                                                  span,
+                                                  variable.type->is_char()});
+            }
+            std::sort(intervals.begin(), intervals.end(),
+                      [](const LocalInterval& a, const LocalInterval& b) {
+                          if (a.span != b.span) {
+                              return a.span > b.span;
+                          }
+                          if (a.uses != b.uses) {
+                              return a.uses > b.uses;
+                          }
+                          return a.offset < b.offset;
+                      });
+            std::string cached_local;
+            int cached_local_offset = 0;
+            bool cached_local_character = false;
+            if (!intervals.empty()) {
+                cached_local = intervals[0].name;
+                cached_local_offset = intervals[0].offset;
+                cached_local_character = intervals[0].character;
             }
             std::string cached_local2;
             int cached_local2_offset = 0;
-            int cached_local2_uses = -1;
-            int cached_local2_span = -1;
             bool cached_local2_character = false;
-            if (!cached_local.empty()) {
-                for (const auto& [name, variable] : locals_) {
-                    if (name == cached_local) {
-                        continue;
-                    }
-                    bool is_parameter = false;
-                    for (const auto& parameter : function.parameters) {
-                        if (parameter.name == name) {
-                            is_parameter = true;
-                            break;
-                        }
-                    }
-                    if (is_parameter || variable.indirect ||
-                        variable.global || !variable.symbol.empty() ||
-                        !variable.type ||
-                        (variable.type->kind != TypeKind::Int &&
-                         variable.type->kind != TypeKind::Char &&
-                         variable.type->kind != TypeKind::Pointer) ||
-                        !stmt_mentions_name(function.body.get(), name) ||
-                        !parameter_cache_safe(function.body.get(), name,
-                                               true, true, true)) {
-                        continue;
-                    }
-                    const int uses =
-                        stmt_name_uses(function.body.get(), name);
-                    int span = block_live_span(function.body.get(), name);
-                if (span < 0) {
-                    span = cfg_live_span(function.body.get(), name);
-                }
-                    if (span < 0) {
-                        int position = 0;
-                        int first = -1;
-                        int last = -1;
-                        stmt_name_positions(function.body.get(), name,
-                                            position, first, last);
-                        span = first >= 0 ? last - first : 0;
-                    }
-                    if (cached_local2.empty() ||
-                        span > cached_local2_span ||
-                        (span == cached_local2_span &&
-                         (uses > cached_local2_uses ||
-                          (uses == cached_local2_uses &&
-                           variable.offset < cached_local2_offset)))) {
-                        cached_local2 = name;
-                        cached_local2_offset = variable.offset;
-                        cached_local2_uses = uses;
-                        cached_local2_span = span;
-                        cached_local2_character = variable.type->is_char();
-                    }
-                }
+            if (intervals.size() > 1) {
+                cached_local2 = intervals[1].name;
+                cached_local2_offset = intervals[1].offset;
+                cached_local2_character = intervals[1].character;
             }
             if (!cached_local.empty()) {
                 std::ostringstream trial;

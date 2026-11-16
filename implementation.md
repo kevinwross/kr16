@@ -3435,3 +3435,13 @@ Entry format:
 - Documented the remaining limitations (pointer arithmetic/comparisons and
   >3-argument indirect calls).
 - Tests: Windows 56/56 CTest; Linux 56/56 CTest.
+
+### 2026-11-15 16:24:07 -08:00 — Linear scan over local live intervals
+
+- Replaced the duplicated first/second local-cache scans with a single
+  `LocalInterval` vector carrying span, use count, offset, and character flag.
+- The vector is sorted by span, uses, then offset; intervals 0 and 1 receive
+  R3 and R2, and every remaining scalar local stays in its frame slot.
+- Removed the duplicate second-candidate loop and its stale bookkeeping.
+- C-for-U and all cache tests still pass.
+- Tests: Windows 56/56 CTest; Linux 56/56 CTest.
