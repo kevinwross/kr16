@@ -3529,3 +3529,16 @@ Entry format:
 - `fclose`, `remove`, and `rename` paths now have errno plumbing prepared.
 - Added a missing-file/errno/strerror test.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 18:36:37 -08:00 — fscanf
+
+- Added `fscanf` to `resources/fileio.c` with `%d`, `%u`, `%x`, `%c`, `%s`
+  (including width limits and `*` suppression), whitespace, literals, `%%`,
+  and EOF/assignment-count handling.
+- Added the `fscanf` prototype to the built-in `stdio.h`.
+- Fixed the fallback emitter to pass all arguments to `fscanf` on the stack,
+  matching the variadic ABI used by `printf`/`fprintf`.
+- Disabled local register caching in variadic functions; cached pointers and
+  `va_list` state must not be reloaded across helper calls.
+- Added a write/read/reopen test for `%d` and width-limited `%s`.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

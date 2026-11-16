@@ -1545,3 +1545,25 @@ TEST_CASE("stdio failures set errno and strerror") {
               "  return message[0] == 'n' ? 0 : 3;\n"
               "}\n") == 0);
 }
+
+TEST_CASE("fscanf parses integers and strings") {
+    CHECK(run_c_libc_exit(
+              "#include <stdio.h>\n"
+              "int main(void) {\n"
+              "  FILE *f = fopen(\"kr16_scan_test.txt\", \"w\");\n"
+              "  if (f == 0) return 1;\n"
+              "  fputs(\"42 hello\\n\", f);\n"
+              "  fclose(f);\n"
+              "  f = fopen(\"kr16_scan_test.txt\", \"r\");\n"
+              "  if (f == 0) return 2;\n"
+              "  int n = 0;\n"
+              "  char word[8];\n"
+              "  int got = fscanf(f, \"%d %7s\", &n, word);\n"
+              "  fclose(f);\n"
+              "  remove(\"kr16_scan_test.txt\");\n"
+              "  if (got != 2) return 3;\n"
+              "  if (n != 42) return 4;\n"
+              "  if (word[0] != 'h' || word[5] != 0) return 5;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}

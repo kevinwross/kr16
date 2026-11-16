@@ -10,8 +10,8 @@ release.
   `SYS_OPEN`/`SYS_CLOSE`/`SYS_READ`/`SYS_WRITE`/`SYS_SEEK`/`SYS_STAT`,
   directory and namespace services, and buffered `fopen`/`fread`/`fwrite`/
   `fclose` with `fprintf`, `ungetc`, `setvbuf`, and standard streams.
-- Remaining stdio gaps: `fscanf`, `freopen`, `tmpfile`, and interactive stdin
-  buffering. `printf`/`fprintf` formatting, `setvbuf`, and `ungetc` are
+- Remaining stdio gaps: `freopen`, `tmpfile`, and interactive stdin buffering.
+  `printf`/`fprintf` formatting, `fscanf`, `setvbuf`, and `ungetc` are
   implemented.
 - BIOS RAM loading, embedded release BIOS selection, and linker scripts.
 - Relocatable `-r` links, weak/common symbols, and arm64 hosts.
@@ -38,6 +38,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 

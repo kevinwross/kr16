@@ -376,6 +376,7 @@ std::string builtin_header(std::string_view name) {
                "int getchar(void);\n"
                "int printf(char *fmt, ...);\n"
                "int fprintf(FILE *stream, char *fmt, ...);\n"
+               "int fscanf(FILE *stream, const char *fmt, ...);\n"
                "FILE *fopen(const char *path, const char *mode);\n"
                "int fclose(FILE *stream);\n"
                "int fread(void *buffer, int size, int count, FILE *stream);\n"
@@ -4940,6 +4941,9 @@ private:
                                            true, true)) {
                     continue;
                 }
+                if (function.variadic) {
+                    continue;
+                }
                 const int uses = stmt_name_uses(function.body.get(), name);
                 int first = -1;
                 int last = -1;
@@ -7718,7 +7722,8 @@ private:
         }
         const auto local_function = function_map_.find(expr->text);
         const bool all_stack_variadic =
-            (expr->text == "fprintf" || expr->text == "printf") ||
+            (expr->text == "fprintf" || expr->text == "printf" ||
+             expr->text == "fscanf") ||
             (local_function != function_map_.end() &&
              local_function->second->variadic);
         if (all_stack_variadic) {
@@ -7975,6 +7980,9 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
 
 
 

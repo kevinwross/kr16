@@ -963,6 +963,206 @@ char *strerror(int error) {
     }
 }
 
+static int scan_is_space(int value) {
+    return value == 32 || (value >= 9 && value <= 13);
+}
+
+static int scan_digit_value(int value, int base) {
+    if (value >= 48 && value <= 57) {
+        value -= 48;
+    } else if (value >= 65 && value <= 70) {
+        value -= 55;
+    } else if (value >= 97 && value <= 102) {
+        value -= 87;
+    } else {
+        return -1;
+    }
+    return value < base ? value : -1;
+}
+
+int fscanf(FILE *stream, const char *format, ...) {
+    va_list args;
+    int assigned;
+    int value;
+    int character;
+    int index;
+    int width;
+    int suppress;
+    int negative;
+    if (stream == 0 || format == 0) {
+        errno = 22;
+        return KR16_EOF;
+    }
+    va_start(args, format);
+    assigned = 0;
+    while (*format != 0) {
+        if (scan_is_space(*format)) {
+            while (scan_is_space(*format)) {
+                ++format;
+            }
+            for (;;) {
+                character = fgetc(stream);
+                if (character == KR16_EOF) {
+                    va_end(args);
+                    return assigned == 0 ? KR16_EOF : assigned;
+                }
+                if (!scan_is_space(character)) {
+                    ungetc(character, stream);
+                    break;
+                }
+            }
+            continue;
+        }
+        if (*format != 37) {
+            character = fgetc(stream);
+            if (character == KR16_EOF) {
+                va_end(args);
+                return assigned == 0 ? KR16_EOF : assigned;
+            }
+            if (character != *format) {
+                ungetc(character, stream);
+                break;
+            }
+            ++format;
+            continue;
+        }
+        ++format;
+        suppress = 0;
+        if (*format == 42) {
+            suppress = 1;
+            ++format;
+        }
+        width = 0;
+        while (*format >= 48 && *format <= 57) {
+            width = width * 10 + (*format - 48);
+            ++format;
+        }
+        if (*format == 100 || *format == 117 || *format == 120) {
+            int base = *format == 120 ? 16 : 10;
+            int count = 0;
+            int total = 0;
+            int digit;
+            negative = 0;
+            for (;;) {
+                character = fgetc(stream);
+                if (character == KR16_EOF) {
+                    break;
+                }
+                if (!scan_is_space(character)) {
+                    ungetc(character, stream);
+                    break;
+                }
+            }
+            character = fgetc(stream);
+            if (character == 43 || character == 45) {
+                negative = character == 45;
+                character = fgetc(stream);
+            }
+            if (character == KR16_EOF) {
+                va_end(args);
+                return assigned == 0 ? KR16_EOF : assigned;
+            }
+            for (;;) {
+                digit = scan_digit_value(character, base);
+                if (digit < 0) {
+                    break;
+                }
+                total = total * base + digit;
+                ++count;
+                if (width > 0 && count >= width) {
+                    character = KR16_EOF;
+                    break;
+                }
+                character = fgetc(stream);
+            }
+            if (character != KR16_EOF) {
+                ungetc(character, stream);
+            }
+            if (count == 0) {
+                break;
+            }
+            if (negative) {
+                total = -total;
+            }
+            if (!suppress) {
+                int *target = va_arg(args, int *);
+                *target = total;
+                ++assigned;
+            }
+            ++format;
+            continue;
+        }
+        if (*format == 99) {
+            character = fgetc(stream);
+            if (character == KR16_EOF) {
+                va_end(args);
+                return assigned == 0 ? KR16_EOF : assigned;
+            }
+            if (!suppress) {
+                char *target = va_arg(args, char *);
+                *target = (char)character;
+                ++assigned;
+            }
+            ++format;
+            continue;
+        }
+        if (*format == 115) {
+            char *target;
+            int count;
+            for (;;) {
+                character = fgetc(stream);
+                if (character == KR16_EOF) {
+                    va_end(args);
+                    return assigned == 0 ? KR16_EOF : assigned;
+                }
+                if (!scan_is_space(character)) {
+                    ungetc(character, stream);
+                    break;
+                }
+            }
+            target = suppress ? 0 : va_arg(args, char *);
+            count = 0;
+            for (;;) {
+                character = fgetc(stream);
+                if (character == KR16_EOF || scan_is_space(character)) {
+                    if (character != KR16_EOF) {
+                        ungetc(character, stream);
+                    }
+                    break;
+                }
+                if (target != 0) {
+                    *target = (char)character;
+                    ++target;
+                }
+                ++count;
+                if (width > 0 && count >= width) {
+                    break;
+                }
+            }
+            if (target != 0) {
+                *target = 0;
+                ++assigned;
+            }
+            ++format;
+            continue;
+        }
+        if (*format == 37) {
+            character = fgetc(stream);
+            if (character != 37) {
+                if (character != KR16_EOF) {
+                    ungetc(character, stream);
+                }
+                break;
+            }
+            ++format;
+            continue;
+        }
+        break;
+    }
+    va_end(args);
+    return assigned;
+}
+
 int remove(const char *path) {
     struct sys_unlink_args args;
     int status;
@@ -989,6 +1189,7 @@ int rename(const char *old_path, const char *new_path) {
     set_errno_status(status);
     return status == SYS_OK ? 0 : KR16_EOF;
 }
+
 
 
 
