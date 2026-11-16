@@ -70,7 +70,7 @@ and `exit`.
 
 `long` and `long long` are 32-bit types with 4-byte storage, `sizeof`,
 add/subtract/multiply/divide, shifts, bitwise operations, comparisons, assignment, and constant
-initializers. Function ABI and `printf`/`scanf`
+initializers. Two-word long parameters/returns are supported; `printf`/`scanf`
 conversions remain unsupported and are rejected rather than silently
 truncated. See
 [`docs/decisions/0005-32-bit-long.md`](docs/decisions/0005-32-bit-long.md).
@@ -247,6 +247,7 @@ its generated program assembled, linked, and executed by CTest.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 
 

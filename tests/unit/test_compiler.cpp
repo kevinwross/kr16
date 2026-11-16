@@ -1707,3 +1707,19 @@ TEST_CASE("32-bit long division and modulo") {
               "  return 0;\n"
               "}\n") == 0);
 }
+
+TEST_CASE("32-bit long function ABI") {
+    CHECK(run_c_libc_exit(
+              "long add(long a, long b) { return a + b; }\n"
+              "long mix(int x, long a) { return a + x; }\n"
+              "int main(void) {\n"
+              "  long a = 70000;\n"
+              "  long c = mix(3, a);\n"
+              "  if (c != 70003) return 2;\n"
+              "  long b = add(a, 2);\n"
+              "  if (b != 70002) return 1;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}
+
+

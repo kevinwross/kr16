@@ -3629,3 +3629,17 @@ Entry format:
 - Updated ADR 0005, README, and deferred documentation.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
 
+
+### 2026-11-15 19:57:06 -08:00 — 32-bit long function ABI
+
+- Functions with long parameters or a long return use a two-word stack ABI.
+- Caller pushes arguments in reverse order: a long contributes high then low;
+  an int contributes one word.
+- Callee prologue reads stack words into 4-byte parameter slots; long returns
+  use R0 (low) and R1 (high).
+- Implicit int-to-long arguments are sign-extended; int return values from a
+  long function are sign-extended.
+- Disabled parameter caching in long-ABI functions so cached registers cannot
+  be clobbered by the high-word load.
+- Added an ABI test with `long add(long,long)` and `long mix(int,long)`.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

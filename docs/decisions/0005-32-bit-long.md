@@ -26,23 +26,21 @@ Implemented:
 - 32-bit `+`, `-`, `*`, `/`, `%`, unary `-`, `~`, `&`, `|`, `^`, `<<`, `>>`
 - 32-bit equality and relational comparisons
 - assignment and constant local/global initializers
+- two-word stack ABI for long parameters and returns
 
 Not yet implemented (explicit diagnostics, no silent truncation):
 
 - compound assignment and `++`/`--` on long values
-- long function parameters and return values
 - `printf`/`scanf` length modifiers and conversions
 
 Unsupported operations raise a diagnostic rather than silently producing a
 16-bit result.
-cannot silently receive 16-bit behavior.
 
 ## Consequences
 
 - `long` and `long long` are now distinct from `int` in the type system.
 - Existing 16-bit-alias assumptions must not be used for new code.
-- The ABI will gain a two-word scalar convention when function interfaces are
-  implemented.
+- Long parameters and returns use a two-word stack convention.
 - Debug information reports a size of 4 for these types.
 
 ## Alternatives considered
@@ -51,6 +49,7 @@ cannot silently receive 16-bit behavior.
   semantics.
 - Make `long long` 64-bit: more faithful to ISO C, but substantially more
   arithmetic and ABI work; KR16 targets a 32-bit long pair first.
+
 
 
 

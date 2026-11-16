@@ -4736,16 +4736,10 @@ private:
                parameter_cache_safe(stmt->init.get(), name, allow_writes, allow_switch, allow_calls);
     }
     void compile_function(Function& function, std::ostringstream& out) {
-        if (function.return_type && function.return_type->is_long()) {
-            throw CompileError(
-                function.line, 1,
-                "32-bit long return values are not implemented yet");
-        }
+        bool long_abi = function.return_type && function.return_type->is_long();
         for (const auto& parameter : function.parameters) {
             if (parameter.type && parameter.type->is_long()) {
-                throw CompileError(
-                    function.line, 1,
-                    "32-bit long parameters are not implemented yet");
+                long_abi = true;
             }
         }
         locals_.clear();
@@ -4755,7 +4749,11 @@ private:
 
         int frame = 0;
         for (auto& parameter : function.parameters) {
-            frame += 2;
+            if (parameter.type && parameter.type->is_long()) {
+                frame += 4;
+            } else {
+                frame += 2;
+            }
             Variable variable;
             variable.type = parameter.type;
             variable.offset = frame;
@@ -4844,7 +4842,7 @@ private:
 
         std::string cached_parameter;
         int cached_parameter_register = 0;
-        if (!debug_ && !function.variadic) {
+        if (!debug_ && !function.variadic && !long_abi) {
             for (std::size_t i = 0;
                  i < function.parameters.size() && i < 3; ++i) {
                 const auto& parameter = function.parameters[i];
@@ -4899,6 +4897,32 @@ private:
         if (frame_size_ > 0) {
             out << "  SUB SP, #" << frame_size_ << "\n";
         }
+        if (long_abi) {
+            int offset = 4;
+            for (std::size_t i = 0; i < function.parameters.size(); ++i) {
+                const auto& parameter = function.parameters[i];
+                const auto it = locals_.find(parameter.name);
+                if (it == locals_.end()) {
+                    offset += parameter.type && parameter.type->is_long() ? 4 : 2;
+                    continue;
+                }
+                if (parameter.type && parameter.type->is_long()) {
+                    out << "  LD R0, [R4+" << offset << "]\n";
+                    out << "  ST [R4-" << it->second.offset << "], R0\n";
+                    out << "  LD R0, [R4+" << (offset + 2) << "]\n";
+                    out << "  ST [R4-" << (it->second.offset - 2)
+                        << "], R0\n";
+                    offset += 4;
+                } else {
+                    out << "  LD R0, [R4+" << offset << "]\n";
+                    out << (parameter.type && parameter.type->is_char()
+                                ? "  STB "
+                                : "  ST ")
+                        << "[R4-" << it->second.offset << "], R0\n";
+                    offset += 2;
+                }
+            }
+        } else {
         for (std::size_t i = 0; i < function.parameters.size(); ++i) {
             const auto& parameter = function.parameters[i];
             if (parameter.name == cached_parameter && !cached_call_spill_) {
@@ -4935,6 +4959,7 @@ private:
                 out << (parameter.type->is_char() ? "  STB " : "  ST ")
                     << "[R4-" << it->second.offset << "], R0\n";
             }
+        }
         }
         if (!cached_parameter.empty()) {
             cached_loop_.parameter = true;
@@ -7229,6 +7254,10 @@ private:
             out << "  LD R1, [R2+2]\n";
             return;
         }
+        if (expr->kind == Expr::Kind::Call) {
+            gen_call(expr, out);
+            return;
+        }
         if (expr->kind == Expr::Kind::Assign && expr->children.size() == 2 &&
             (expr->op.empty() || expr->op == "=")) {
             gen_addr(expr->children[0].get(), out);
@@ -8089,6 +8118,43 @@ private:
             }
             return;
         }
+        const bool long_abi_call =
+            local_function != function_map_.end() &&
+            (local_function->second->return_type->is_long() ||
+             [&]() {
+                 for (const auto& parameter : local_function->second->parameters) {
+                     if (parameter.type && parameter.type->is_long()) {
+                         return true;
+                     }
+                 }
+                 return false;
+             }());
+        if (long_abi_call) {
+            int words = 0;
+            for (std::size_t i = expr->children.size(); i-- > 0;) {
+                const auto& parameters = local_function->second->parameters;
+                const bool parameter_long =
+                    i < parameters.size() && parameters[i].type &&
+                    parameters[i].type->is_long();
+                if (parameter_long ||
+                    expression_type(expr->children[i].get())->is_long()) {
+                    gen_long_operand(expr->children[i].get(), out);
+                    out << "  PUSH R1\n";
+                    out << "  PUSH R0\n";
+                    words += 2;
+                } else {
+                    gen_expr(expr->children[i].get(), out);
+                    out << "  PUSH R0\n";
+                    ++words;
+                }
+            }
+            out << "  CALL " << expr->text << "\n";
+            finish_cached_call(out);
+            if (words > 0) {
+                out << "  ADD SP, #" << words * 2 << "\n";
+            }
+            return;
+        }
         external_calls_.insert(expr->text);
         std::vector<bool> struct_args(expr->children.size(), false);
         if (local_function != function_map_.end()) {
@@ -8329,6 +8395,12 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
+
 
 
 
