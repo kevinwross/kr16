@@ -3554,3 +3554,12 @@ Entry format:
 - Added tests for `tmpfile` write/rewind/read and cleanup, and for `freopen`
   switching a stream from one file to another.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 18:49:15 -08:00 — Buffered stdin
+
+- `getchar` now fills a 64-byte internal buffer from the keyboard data/status
+  registers and serves subsequent characters without re-reading the register.
+- Empty input still returns 0, preserving the existing non-blocking contract.
+- Added a scripted-keyboard test through `VmOptions.input_path`.
+- Updated the libc resource hash in `resources/manifest.json`.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

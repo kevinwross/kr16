@@ -28,6 +28,51 @@ puts:
 
 .global getchar
 getchar:
+  LD R0, [stdin_index]
+  LD R1, [stdin_count]
+  CMP R0, R1
+  BLT .Lgetchar_pop
+  LDB R1, [0xF005]
+  AND R1, #1
+  BEQ .Lgetchar_empty
+  MOV R2, #0
+  MOV R3, #stdin_buffer
+.Lgetchar_fill:
+  LDB R0, [0xF004]
+  STB [R3], R0
+  INC R3
+  INC R2
+  CMP R2, #64
+  BEQ .Lgetchar_filled
+  LDB R1, [0xF005]
+  AND R1, #1
+  BNE .Lgetchar_fill
+.Lgetchar_filled:
+  ST [stdin_count], R2
+  MOV R0, #0
+  ST [stdin_index], R0
+.Lgetchar_pop:
+  MOV R2, #stdin_buffer
+  ADD R2, R0
+  LDB R2, [R2]
+  INC R0
+  ST [stdin_index], R0
+  MOV R0, R2
+  RET
+.Lgetchar_empty:
+  MOV R0, #0
+  RET
+
+.bss
+.align 2
+stdin_buffer:
+  .space 64
+stdin_index:
+  .space 2
+stdin_count:
+  .space 2
+.text
+
   LDB R0, [0xF004]
   RET
 
@@ -789,4 +834,5 @@ __kr16_heap_peak:
 exit:
   MOV R0, R1
   HLT
+
 

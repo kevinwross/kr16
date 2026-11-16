@@ -103,7 +103,7 @@ std::string run_c_with_libc(const std::string& source,
     return result.output;
 }
 
-int run_c_libc_exit(const std::string& source) {
+int run_c_libc_exit(const std::string& source, const std::string& input = {}) {
     const auto compiled = kr16::compile_c(source, kr16::CompileOptions{});
     REQUIRE(compiled.ok);
     const auto assembled =
@@ -138,8 +138,22 @@ int run_c_libc_exit(const std::string& source) {
         output.write(reinterpret_cast<const char*>(bytes.data()),
                      static_cast<std::streamsize>(bytes.size()));
     }
-    const auto result = kr16::run_vm(path.string(), kr16::VmOptions{});
+    kr16::VmOptions vm_options;
+    std::filesystem::path input_path;
+    if (!input.empty()) {
+        input_path = std::filesystem::current_path() /
+                     ("kr16_c_libc_input_" + std::to_string(counter++) + ".txt");
+        std::ofstream input_file(input_path, std::ios::binary);
+        input_file.write(input.data(),
+                         static_cast<std::streamsize>(input.size()));
+        input_file.close();
+        vm_options.input_path = input_path.string();
+    }
+    const auto result = kr16::run_vm(path.string(), vm_options);
     std::filesystem::remove(path);
+    if (!input_path.empty()) {
+        std::filesystem::remove(input_path);
+    }
     REQUIRE(result.ok);
     return result.exit_code;
 }
@@ -1605,4 +1619,17 @@ TEST_CASE("tmpfile and freopen") {
               "  remove(\"kr16_freopen_b\");\n"
               "  return value == 'o' ? 0 : 5;\n"
               "}\n") == 0);
+}
+
+
+TEST_CASE("buffered stdin serves scripted keys") {
+    CHECK(run_c_libc_exit(
+              "#include <stdio.h>\n"
+              "int main(void) {\n"
+              "  if (getchar() != 'a') return 1;\n"
+              "  if (getchar() != 'b') return 2;\n"
+              "  if (getchar() != 'c') return 3;\n"
+              "  return 0;\n"
+              "}\n",
+              "abc") == 0);
 }

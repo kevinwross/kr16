@@ -10,9 +10,9 @@ release.
   `SYS_OPEN`/`SYS_CLOSE`/`SYS_READ`/`SYS_WRITE`/`SYS_SEEK`/`SYS_STAT`,
   directory and namespace services, and buffered `fopen`/`fread`/`fwrite`/
   `fclose` with `fprintf`, `ungetc`, `setvbuf`, and standard streams.
-- Remaining stdio gaps: interactive stdin buffering and `freopen` on the
-  standard streams. `printf`/`fprintf` formatting, `fscanf`, `freopen` on
-  ordinary streams, `tmpfile`, `setvbuf`, and `ungetc` are implemented.
+- Remaining stdio gap: `freopen` on the standard streams. `printf`/`fprintf`
+  formatting, `fscanf`, `freopen` on ordinary streams, `tmpfile`, buffered
+  stdin, `setvbuf`, and `ungetc` are implemented.
 - BIOS RAM loading, embedded release BIOS selection, and linker scripts.
 - Relocatable `-r` links, weak/common symbols, and arm64 hosts.
 - Real-time pacing accuracy and the full interactive monitor.
@@ -38,6 +38,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 

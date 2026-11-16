@@ -1,16 +1,16 @@
 {
-    "format":  1,
-    "tool":  "0.1.0",
-    "resources":  [
-                      {
-                          "name":  "bios",
-                          "source":  "resources/bios.s",
-                          "sha256":  "8B02884368A5973BD8CF46261FD9B496AD723A910421FFA7945684D8CA15AB64"
-                      },
-                      {
-                          "name":  "libc",
-                          "source":  "resources/libc.s",
-                          "sha256":  "065A7DEEE474D81A49CC9EB15D322E804488EDDF84E487937AFD10F95CC72184"
-                      }
-                  ]
+  "format": 1,
+  "tool": "0.1.0",
+  "resources": [
+    {
+      "name": "bios",
+      "source": "resources/bios.s",
+      "sha256": "8B02884368A5973BD8CF46261FD9B496AD723A910421FFA7945684D8CA15AB64"
+    },
+    {
+      "name": "libc",
+      "source": "resources/libc.s",
+      "sha256": "46B4E0EBD2009397257B2ABE78E211D6DF5555CB93EECC0B2F5A243C2CC1674A"
+    }
+  ]
 }
