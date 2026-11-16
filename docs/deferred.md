@@ -16,9 +16,9 @@ release.
 - BIOS RAM loading, embedded release BIOS selection, and linker scripts.
 - arm64 hosts.
 - Real-time pacing accuracy and the full interactive monitor.
-- DAP memory/disassembly/evaluate views, function-entry breakpoints, threaded
-  console/DAP coordination, and live VSIX marketplace publishing. The minimal
-  DAP TCP server, basic VS Code extension, and VSIX packaging exist.
+- DAP threaded console coordination and live VSIX marketplace publishing.
+  The DAP TCP server, memory/disassembly/evaluate views, function-entry
+  breakpoints, basic VS Code extension, and VSIX packaging exist.
 
 ## C language and runtime
 
@@ -36,6 +36,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 

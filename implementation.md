@@ -3719,3 +3719,13 @@ Entry format:
 - Common symbols are emitted as ordinary defined `.bss` symbols in the image.
 - Added a test that checks the object binding/size and `.bss` allocation.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 21:21:51 -08:00 — DAP view coverage
+
+- Verified the existing DAP `readMemory`, `disassemble`, and
+  `setFunctionBreakpoints` handlers against a loaded image.
+- Added a test covering memory reads, two decoded instructions, a verified
+  `_start` function breakpoint, and an unknown function.
+- Updated the deferred DAP item to only threaded console coordination and
+  marketplace publishing.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

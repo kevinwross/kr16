@@ -283,3 +283,73 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
 
 
 
+
+TEST_CASE("DAP reads memory disassembles and sets function breakpoints") {
+    const auto assembled = kr16::assemble_text(
+        ".text\n.global _start\n_start:\n  MOV R0, #0x1234\n  HLT\n",
+        kr16::AsmOptions{});
+    REQUIRE(assembled.ok);
+    const auto linked = kr16::link_objects({assembled.object});
+    REQUIRE(linked.ok);
+    const auto bytes = linked.image.write();
+    const auto path = std::filesystem::current_path() / "dap_views.kex";
+    {
+        std::ofstream output(path, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+    }
+    kr16::dap::DapOptions options;
+    options.program = path.string();
+    kr16::dap::DapSession session(options);
+    session.handle_message(
+        "{\"seq\":1,\"type\":\"request\",\"command\":\"initialize\","
+        "\"arguments\":{}}");
+    session.handle_message(
+        "{\"seq\":2,\"type\":\"request\",\"command\":\"launch\","
+        "\"arguments\":{}}");
+    session.handle_message(
+        "{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\","
+        "\"arguments\":{}}");
+
+    const auto memory = session.handle_message(
+        "{\"seq\":4,\"type\":\"request\",\"command\":\"readMemory\","
+        "\"arguments\":{\"memoryReference\":\"0x0100\",\"count\":2}}");
+    REQUIRE(memory.size() == 1);
+    const auto memory_response = kr16::dap::JsonValue::parse(memory[0]);
+    CHECK(memory_response.find("success")->as_boolean());
+    CHECK(memory_response.find("body")->find("address")->as_string() ==
+          "0x0100");
+    CHECK_FALSE(
+        memory_response.find("body")->find("data")->as_string().empty());
+
+    const auto disassembled = session.handle_message(
+        "{\"seq\":5,\"type\":\"request\",\"command\":\"disassemble\","
+        "\"arguments\":{\"memoryReference\":\"0x0100\","
+        "\"instructionCount\":2}}");
+    REQUIRE(disassembled.size() == 1);
+    const auto disassembly = kr16::dap::JsonValue::parse(disassembled[0]);
+    REQUIRE(disassembly.find("success")->as_boolean());
+    const auto* instructions = disassembly.find("body")->find("instructions");
+    REQUIRE(instructions != nullptr);
+    REQUIRE(instructions->as_array().size() == 2);
+    CHECK(instructions->as_array()[0]
+              .find("instruction")
+              ->as_string()
+              .find("MOV") != std::string::npos);
+
+    const auto breakpoints = session.handle_message(
+        "{\"seq\":6,\"type\":\"request\","
+        "\"command\":\"setFunctionBreakpoints\","
+        "\"arguments\":{\"breakpoints\":[{\"name\":\"_start\"},"
+        "{\"name\":\"missing\"}]}}");
+    REQUIRE(breakpoints.size() == 1);
+    const auto breakpoint_response = kr16::dap::JsonValue::parse(breakpoints[0]);
+    REQUIRE(breakpoint_response.find("success")->as_boolean());
+    const auto* entries =
+        breakpoint_response.find("body")->find("breakpoints");
+    REQUIRE(entries != nullptr);
+    REQUIRE(entries->as_array().size() == 2);
+    CHECK(entries->as_array()[0].find("verified")->as_boolean());
+    CHECK_FALSE(entries->as_array()[1].find("verified")->as_boolean());
+    std::filesystem::remove(path);
+}
