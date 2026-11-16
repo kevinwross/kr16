@@ -3464,3 +3464,14 @@ Entry format:
   parser-level checks reject `+`, `-`, `*`, `/`, `%` arithmetic on function
   pointers with a clear diagnostic.
 - Tests: Windows 57/57 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 16:55:51 -08:00 — #line filenames in diagnostics
+
+- Tokens now carry a file name from `#line N "file"`.
+- `CompileError` and `CompileDiagnostic` carry the file; the CLI prints the
+  relocated file when present.
+- The preprocessor threads the current file through includes and emits
+  `#line N "file"` when restoring the parent file, so diagnostics after an
+  include point at the real source.
+- Added a filename assertion to the `#line` test.
+- Tests: Windows 57/57 CTest; Linux 57/57 CTest.

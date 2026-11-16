@@ -23,10 +23,15 @@ namespace kr16 {
 namespace {
 
 struct CompileError : std::runtime_error {
-    CompileError(int line, int column, std::string message)
-        : std::runtime_error(std::move(message)), line(line), column(column) {}
+    CompileError(int line, int column, std::string message,
+                 std::string file = {})
+        : std::runtime_error(std::move(message)),
+          line(line),
+          column(column),
+          file(std::move(file)) {}
     int line;
     int column;
+    std::string file;
 };
 
 std::string escape_debug_path(std::string_view path) {
@@ -106,6 +111,7 @@ struct Token {
     std::int64_t value = 0;
     int line = 1;
     int column = 1;
+    std::string file;
 };
 
 std::string trim_copy(std::string_view text) {
@@ -419,6 +425,7 @@ std::string builtin_header(std::string_view name) {
 
 std::string preprocess_source_impl(
     const std::string& source, const std::string& base_dir,
+    const std::string& file_name,
     const std::vector<std::string>& include_paths,
     std::map<std::string, Macro>& macros, int depth) {
     std::istringstream input(source);
@@ -476,7 +483,7 @@ std::string preprocess_source_impl(
                         std::istreambuf_iterator<char>()};
                     out += preprocess_source_impl(
                         included_text, path.parent_path().string(),
-                        include_paths, macros, depth + 1);
+                        path.string(), include_paths, macros, depth + 1);
                     emitted_include = true;
                     return true;
                 };
@@ -506,8 +513,8 @@ std::string preprocess_source_impl(
                         if (macros.count(guard) == 0) {
                             macros[guard] = Macro{};
                             out += preprocess_source_impl(
-                                header, base_dir, include_paths, macros,
-                                depth + 1);
+                                header, base_dir, "<" + file + ">",
+                                include_paths, macros, depth + 1);
                             emitted_include = true;
                         }
                     }
@@ -519,7 +526,8 @@ std::string preprocess_source_impl(
                             ? "cannot resolve #include directive"
                             : "cannot resolve #include \"" + file + "\"");
                 }
-                out += "#line " + std::to_string(source_line + 1) + "\n";
+                out += "#line " + std::to_string(source_line + 1) + " \"" +
+                       file_name + "\"\n";
                 continue;
             }
             if (directive == "error" && active()) {
@@ -536,7 +544,7 @@ std::string preprocess_source_impl(
                     throw CompileError(source_line, 1,
                                        "invalid #line directive");
                 }
-                out += "#line " + std::to_string(number) + "\n";
+                out += "#line " + argument + "\n";
                 source_line = number - 1;
                 continue;
             }
@@ -628,21 +636,28 @@ std::string preprocess_source_impl(
 
 std::string preprocess_source(const std::string& source,
                               const std::string& base_dir,
+                              const std::string& file_name,
                               const std::vector<std::string>& include_paths) {
     std::map<std::string, Macro> macros;
-    return preprocess_source_impl(source, base_dir, include_paths, macros, 0);
+    return preprocess_source_impl(source, base_dir, file_name, include_paths,
+                                  macros, 0);
 }
 
 class Lexer {
 public:
-    Lexer(std::string_view source) : source_(source) {}
+    Lexer(std::string_view source, std::string file = {})
+        : source_(source), file_(std::move(file)) {}
 
     std::vector<Token> run() {
         std::vector<Token> tokens;
+        auto push = [&](Token token) {
+            token.file = file_;
+            tokens.push_back(std::move(token));
+        };
         for (;;) {
             skip_space_and_comments();
             if (position_ >= source_.size()) {
-                tokens.push_back(Token{TokenKind::Eof, "", 0, line_, column_});
+                push(Token{TokenKind::Eof, "", 0, line_, column_, {}});
                 return tokens;
             }
             if (source_[position_] == '#') {
@@ -665,6 +680,14 @@ public:
                         const int number =
                             std::stoi(directive.substr(cursor));
                         line_ = std::max(1, number) - 1;
+                        const auto quote = directive.find('"', cursor);
+                        if (quote != std::string::npos) {
+                            const auto close = directive.find('"', quote + 1);
+                            if (close != std::string::npos) {
+                                file_ = directive.substr(
+                                    quote + 1, close - quote - 1);
+                            }
+                        }
                     } catch (const std::exception&) {
                     }
                 }
@@ -675,15 +698,15 @@ public:
             }
             const char ch = source_[position_];
             if (std::isalpha(static_cast<unsigned char>(ch)) != 0 || ch == '_') {
-                tokens.push_back(identifier());
+                push(identifier());
             } else if (std::isdigit(static_cast<unsigned char>(ch)) != 0) {
-                tokens.push_back(number());
+                push(number());
             } else if (ch == '\'') {
-                tokens.push_back(character());
+                push(character());
             } else if (ch == '"') {
-                tokens.push_back(string_literal());
+                push(string_literal());
             } else {
-                tokens.push_back(punctuation());
+                push(punctuation());
             }
         }
     }
@@ -744,7 +767,7 @@ private:
         }
         return Token{TokenKind::Identifier,
                      std::string(source_.substr(start, position_ - start)), 0,
-                     line, column};
+                     line, column, {}};
     }
 
     Token number() {
@@ -772,7 +795,7 @@ private:
         const std::string text(source_.substr(start, position_ - start));
         return Token{TokenKind::Number, text,
                      static_cast<std::int64_t>(std::stoll(text, nullptr, base)),
-                     line, column};
+                     line, column, {}};
     }
 
     Token character() {
@@ -803,7 +826,7 @@ private:
         }
         return Token{TokenKind::Character, "", static_cast<std::int64_t>(
                                                static_cast<unsigned char>(value)),
-                     line, column};
+                     line, column, {}};
     }
 
     Token string_literal() {
@@ -832,7 +855,7 @@ private:
         if (position_ < source_.size()) {
             advance();
         }
-        return Token{TokenKind::String, std::move(value), 0, line, column};
+        return Token{TokenKind::String, std::move(value), 0, line, column, {}};
     }
 
     Token punctuation() {
@@ -849,15 +872,16 @@ private:
                 for (std::size_t i = 0; i < length; ++i) {
                     advance();
                 }
-                return Token{TokenKind::Punct, std::move(text), 0, line, column};
+                return Token{TokenKind::Punct, std::move(text), 0, line, column, {}};
             }
         }
         const char ch = source_[position_];
         advance();
-        return Token{TokenKind::Punct, std::string(1, ch), 0, line, column};
+        return Token{TokenKind::Punct, std::string(1, ch), 0, line, column, {}};
     }
 
     std::string_view source_;
+    std::string file_;
     std::size_t position_ = 0;
     int line_ = 1;
     int column_ = 1;
@@ -980,7 +1004,7 @@ private:
     }
 
     void error(const std::string& message) const {
-        throw CompileError(peek().line, peek().column, message);
+        throw CompileError(peek().line, peek().column, message, peek().file);
     }
 
     bool is_type(std::string_view text) const {
@@ -7887,8 +7911,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
             source_path.has_parent_path() ? source_path.parent_path().string()
                                           : "";
         const std::string preprocessed =
-            preprocess_source(source, base_dir, options.include_paths);
-        Lexer lexer(preprocessed);
+            preprocess_source(source, base_dir, options.source_name, options.include_paths);
+        Lexer lexer(preprocessed, options.source_name);
         auto tokens = lexer.run();
         Parser parser(std::move(tokens), options.source_name,
                       options.optimize);
@@ -7898,16 +7922,33 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
         result.assembly = codegen.run();
         result.ok = true;
     } catch (const CompileError& error) {
-        result.diagnostics.push_back(
-            CompileDiagnostic{error.line, error.column, error.what()});
+        result.diagnostics.push_back(CompileDiagnostic{
+            error.file.empty() ? options.source_name : error.file,
+            error.line, error.column, error.what()});
     } catch (const std::exception& error) {
         result.diagnostics.push_back(
-            CompileDiagnostic{0, 1, error.what()});
+            CompileDiagnostic{options.source_name, 0, 1, error.what()});
     }
     return result;
 }
 
 }  // namespace kr16
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

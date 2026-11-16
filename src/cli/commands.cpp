@@ -900,9 +900,10 @@ int run_cc_command(int argc, char** argv) {
         const auto result = compile_c(source, options);
         if (!result.ok) {
             for (const auto& diagnostic : result.diagnostics) {
-                std::cerr << input << ":" << diagnostic.line << ":"
-                          << diagnostic.column << ": " << diagnostic.message
-                          << '\n';
+                std::cerr
+                    << (diagnostic.file.empty() ? input : diagnostic.file)
+                    << ":" << diagnostic.line << ":" << diagnostic.column
+                    << ": " << diagnostic.message << '\n';
             }
             return 1;
         }

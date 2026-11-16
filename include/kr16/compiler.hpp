@@ -6,6 +6,7 @@
 namespace kr16 {
 
 struct CompileDiagnostic {
+    std::string file;
     int line = 0;
     int column = 0;
     std::string message;
@@ -28,3 +29,4 @@ CompileResult compile_c(const std::string& source,
                         const CompileOptions& options = {});
 
 }  // namespace kr16
+

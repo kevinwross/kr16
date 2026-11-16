@@ -1454,6 +1454,7 @@ TEST_CASE("preprocessor #error and #line") {
     REQUIRE(!relocated.ok);
     REQUIRE(!relocated.diagnostics.empty());
     CHECK(relocated.diagnostics.front().line == 100);
+    CHECK(relocated.diagnostics.front().file == "renamed.c");
 }
 
 TEST_CASE("function pointers call through local, global, and parameter values") {
@@ -1516,3 +1517,4 @@ TEST_CASE("function pointer comparisons and arithmetic rejection") {
     CHECK(arithmetic.diagnostics.front().message.find(
               "function pointer arithmetic") != std::string::npos);
 }
+
