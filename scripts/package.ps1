@@ -26,7 +26,7 @@ try {
   $stage = Join-Path $dist "kr16-$Version-windows-x64"
   if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
   New-Item -ItemType Directory -Force -Path (Join-Path $stage "bin") | Out-Null
-  Copy-Item "build/windows-ninja/kr16.exe" (Join-Path $stage "bin/kr16.exe")
+  Copy-Item (Join-Path (Join-Path "build" $Configuration) "kr16.exe") (Join-Path $stage "bin/kr16.exe")
   Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md, RELEASE_NOTES-1.0.0.md $stage
   Copy-Item docs, examples, resources $stage -Recurse
   $vscodeStage = Join-Path $stage "vscode"
@@ -76,4 +76,5 @@ try {
 } finally {
   Pop-Location
 }
+
 

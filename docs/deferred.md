@@ -32,13 +32,12 @@ release.
 
 ## Release engineering
 
-- Checked-in prebuilt BIOS/runtime resources and `manifest.json`.
-- `bootstrap-check`/`bootstrap-update` and resource hash gates.
-- Marketplace publishing, code signing, deterministic Windows zip/Linux tar.gz
-  packaging, installers, and arm64 releases.
+- Checked-in prebuilt BIOS/runtime resources.
+- Marketplace publishing, code signing, installers, and arm64 releases.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 

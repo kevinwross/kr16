@@ -107,6 +107,16 @@ add_test(NAME kr16.as.bios
 )
 set_tests_properties(kr16.as.bios PROPERTIES LABELS "integration")
 
+find_program(KR16_PWSH NAMES pwsh powershell)
+if(KR16_PWSH)
+  add_test(NAME kr16.resources.manifest
+    COMMAND ${KR16_PWSH} -NoProfile -ExecutionPolicy Bypass
+      -File "${CMAKE_SOURCE_DIR}/scripts/bootstrap-check.ps1"
+  )
+  set_tests_properties(kr16.resources.manifest PROPERTIES
+    LABELS "policy" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+endif()
+
 add_test(NAME kr16.vm.bios
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/vm_hello.bin"
     --raw --base 0x100 --bios "${CMAKE_CURRENT_BINARY_DIR}/bios.bin"
@@ -455,4 +465,6 @@ add_test(NAME kr16.example.putchar.run
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/putchar.kex")
 set_tests_properties(kr16.example.putchar.run PROPERTIES LABELS "integration"
   DEPENDS kr16.example.putchar.build PASS_REGULAR_EXPRESSION "KR16")
+
+
 

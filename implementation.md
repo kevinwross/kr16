@@ -3497,3 +3497,15 @@ Entry format:
   would add a determinism surface. Revisit if many inline/static functions per
   unit or C++ input appear.
 - Tests unchanged: Windows 57/57 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 17:08:12 -08:00 — Resource hash gate and packaging path
+
+- Added `kr16.resources.manifest` to CTest where PowerShell is available; it
+  runs `scripts/bootstrap-check.ps1` from the repository root and fails on
+  resource hash drift.
+- Fixed `scripts/package.ps1` to copy `build/<configuration>/kr16.exe` instead
+  of always copying the debug `build/windows-ninja/kr16.exe`.
+- Packaging remains deterministic: sorted zip entries and tar input, fixed
+  1980 ZIP epoch, `SOURCE_DATE_EPOCH` support, normalized ownership.
+- Removed the now-gated resource/bootstrap item from `docs/deferred.md`.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest (no PowerShell test).
