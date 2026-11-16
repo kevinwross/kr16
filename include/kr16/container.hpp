@@ -40,6 +40,7 @@ enum class SymbolBinding : std::uint8_t {
     Global = 1,
     Extern = 2,
     Weak = 3,
+    Common = 4,
 };
 
 enum class SymbolType : std::uint8_t {
@@ -136,4 +137,5 @@ struct Container {
 };
 
 }  // namespace kr16
+
 

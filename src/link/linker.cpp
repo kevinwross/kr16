@@ -330,6 +330,29 @@ LinkResult link_objects(const std::vector<Container>& input_objects,
             }
         }
 
+        std::unordered_map<std::string, std::uint32_t> common_offsets;
+        for (const auto& object : objects) {
+            for (const auto& symbol : object.symbols) {
+                if (symbol.binding != SymbolBinding::Common ||
+                    common_offsets.count(symbol.name) != 0) {
+                    continue;
+                }
+                auto found = output_index.find(".bss");
+                if (found == output_index.end()) {
+                    Section bss;
+                    bss.name = ".bss";
+                    bss.type = SectionType::Nobits;
+                    bss.flags = SectionAlloc | SectionWrite;
+                    outputs.push_back(std::move(bss));
+                    found = output_index.emplace(".bss", outputs.size() - 1).first;
+                }
+                auto& bss = outputs[found->second];
+                const std::uint32_t offset = align_up(bss.nobits_size, 2);
+                common_offsets.emplace(symbol.name, offset);
+                bss.nobits_size = offset + std::max<std::uint32_t>(symbol.size, 1);
+            }
+        }
+
         if (output_index.find(".text") == output_index.end()) {
             throw std::runtime_error("no .text section");
         }
@@ -486,6 +509,14 @@ LinkResult link_objects(const std::vector<Container>& input_objects,
                 }
                 throw std::runtime_error("duplicate global symbol " +
                                          symbol.name);
+            }
+        }
+
+        if (auto* bss = section_by_name(".bss")) {
+            for (const auto& [name, offset] : common_offsets) {
+                globals.emplace(name,
+                                static_cast<std::uint16_t>(bss->address + offset));
+                global_bindings.emplace(name, SymbolBinding::Common);
             }
         }
 
@@ -684,6 +715,11 @@ LinkResult link_files(const std::vector<std::string>& paths,
 }
 
 }  // namespace kr16
+
+
+
+
+
 
 
 

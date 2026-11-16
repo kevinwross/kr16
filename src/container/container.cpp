@@ -406,7 +406,7 @@ Container Container::read(std::span<const std::uint8_t> data) {
             throw ParseError(symbol_table_offset + i * kSymbolSize + 6,
                              "symbol section index out of range");
         }
-        if (static_cast<std::uint8_t>(symbol.binding) > 3 ||
+        if (static_cast<std::uint8_t>(symbol.binding) > 4 ||
             static_cast<std::uint8_t>(symbol.type) > 4 ||
             static_cast<std::uint8_t>(symbol.visibility) > 2) {
             throw ParseError(symbol_table_offset + i * kSymbolSize + 12,
@@ -511,4 +511,5 @@ std::string Container::dump() const {
 }
 
 }  // namespace kr16
+
 

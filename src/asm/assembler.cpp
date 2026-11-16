@@ -499,6 +499,7 @@ struct AsmSymbol {
     bool global = false;
     bool external = false;
     bool weak = false;
+    bool common = false;
     SymbolType type = SymbolType::NoType;
 };
 
@@ -608,6 +609,7 @@ private:
     void handle_global(const std::vector<std::string>& operands);
     void handle_extern(const std::vector<std::string>& operands);
     void handle_weak(const std::vector<std::string>& operands);
+    void handle_comm(const std::vector<std::string>& operands);
     void handle_section(const std::string& name);
     std::optional<std::pair<bool, int>> parse_memory(std::string_view text,
                                                      int line,
@@ -971,7 +973,8 @@ AsmResult Assembler::run() {
         }
 
         for (const auto& symbol : symbols_) {
-            if (!symbol.defined && !symbol.external && !symbol.global) {
+            if (!symbol.defined && !symbol.external && !symbol.global &&
+                !symbol.common) {
                 continue;
             }
             kr16::Symbol output;
@@ -979,18 +982,20 @@ AsmResult Assembler::run() {
             output.value = static_cast<std::uint16_t>(symbol.value & 0xFFFF);
             output.size = symbol.size;
             output.section =
-                symbol.external
+                (symbol.external || symbol.common)
                     ? 0
                     : section_numbers.at(
                           sections_[static_cast<std::size_t>(symbol.section)]
                               .name);
-            output.binding = symbol.weak
-                                 ? SymbolBinding::Weak
-                                 : (symbol.external
-                                        ? SymbolBinding::Extern
-                                        : (symbol.global
-                                               ? SymbolBinding::Global
-                                               : SymbolBinding::Local));
+            output.binding = symbol.common
+                                 ? SymbolBinding::Common
+                                 : (symbol.weak
+                                        ? SymbolBinding::Weak
+                                        : (symbol.external
+                                               ? SymbolBinding::Extern
+                                               : (symbol.global
+                                                      ? SymbolBinding::Global
+                                                      : SymbolBinding::Local)));
             output.type = symbol.type;
             object.symbols.push_back(std::move(output));
         }
@@ -1522,6 +1527,8 @@ void Assembler::handle_directive(const std::string& mnemonic,
         handle_extern(operands);
     } else if (mnemonic == ".weak") {
         handle_weak(operands);
+    } else if (mnemonic == ".comm" || mnemonic == ".common") {
+        handle_comm(operands);
     } else if (mnemonic == ".type" || mnemonic == ".size") {
         if (operands.size() < 2) {
             throw AsmError(line, 1, mnemonic + " needs two operands");
@@ -1655,6 +1662,25 @@ void Assembler::handle_weak(const std::vector<std::string>& operands) {
         }
         symbols_[symbol_index_[name]].weak = true;
     }
+}
+
+void Assembler::handle_comm(const std::vector<std::string>& operands) {
+    if (operands.size() < 2) {
+        throw AsmError(1, 1, ".comm needs a name and size");
+    }
+    const std::string name = trim(operands[0]);
+    const std::uint32_t size = static_cast<std::uint32_t>(
+        std::stoul(trim(operands[1]), nullptr, 0));
+    if (symbol_index_.count(name) == 0) {
+        AsmSymbol symbol;
+        symbol.name = name;
+        symbols_.push_back(std::move(symbol));
+        symbol_index_[name] = symbols_.size() - 1;
+    }
+    auto& symbol = symbols_[symbol_index_[name]];
+    symbol.common = true;
+    symbol.external = false;
+    symbol.size = size;
 }
 
 void Assembler::handle_section(const std::string& name) {
@@ -2213,6 +2239,12 @@ AsmResult assemble_file(const std::string& path, AsmOptions options) {
 }
 
 }  // namespace kr16
+
+
+
+
+
+
 
 
 

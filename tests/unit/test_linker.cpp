@@ -241,3 +241,27 @@ TEST_CASE("undefined weak symbols resolve to zero") {
 
 
 
+
+TEST_CASE("common symbols allocate in bss") {
+    const auto object = assemble(
+        ".comm shared, 4\n"
+        ".text\n"
+        ".global _start\n"
+        "_start:\n"
+        "  LD R0, [shared]\n"
+        "  HLT\n");
+    bool found = false;
+    for (const auto& symbol : object.symbols) {
+        if (symbol.name == "shared") {
+            found = true;
+            CHECK(symbol.binding == kr16::SymbolBinding::Common);
+            CHECK(symbol.size == 4);
+        }
+    }
+    CHECK(found);
+    const auto linked = kr16::link_objects({object});
+    REQUIRE(linked.ok);
+    const auto* bss = linked.image.find_section(".bss");
+    REQUIRE(bss != nullptr);
+    CHECK(bss->nobits_size >= 4);
+}

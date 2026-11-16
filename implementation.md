@@ -3710,3 +3710,12 @@ Entry format:
 - Added tests for strong-over-weak and undefined weak behavior.
 - Common symbols remain deferred.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 21:16:56 -08:00 — common symbols
+
+- Added `SymbolBinding::Common` and assembler `.comm name, size`.
+- Final linking allocates each common symbol in `.bss` with alignment, assigns
+  addresses, and resolves relocations through the common table.
+- Common symbols are emitted as ordinary defined `.bss` symbols in the image.
+- Added a test that checks the object binding/size and `.bss` allocation.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.
