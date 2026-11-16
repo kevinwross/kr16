@@ -796,12 +796,83 @@ static void print_number(FILE *stream, int value, int base, int upper,
         print_char(stream, digits[i], count);
     }
 }
+static void long_divide_small(int low, int high, int base,
+                              int *out_low, int *out_high, int *remainder) {
+    int quotient = 0;
+    int rem = 0;
+    int bit;
+    for (bit = 15; bit >= 0; --bit) {
+        rem = rem * 2 + ((high >> bit) & 1);
+        if (rem >= base) {
+            rem -= base;
+            quotient |= (1 << bit);
+        }
+    }
+    *out_high = quotient;
+    quotient = 0;
+    for (bit = 15; bit >= 0; --bit) {
+        rem = rem * 2 + ((low >> bit) & 1);
+        if (rem >= base) {
+            rem -= base;
+            quotient |= (1 << bit);
+        }
+    }
+    *out_low = quotient;
+    *remainder = rem;
+}
+
+static void print_long_words(FILE *stream, int low, int high, int base,
+                             int upper, int width, int pad, int *count) {
+    char digits[16];
+    int length = 0;
+    int negative = 0;
+    int total;
+    int index;
+    char temp;
+    if (base == 10 && (high & 32768) != 0) {
+        int old_low = low;
+        negative = 1;
+        low = 0 - low;
+        high = ~high;
+        if (old_low == 0) {
+            ++high;
+        }
+    }
+    for (;;) {
+        int remainder;
+        long_divide_small(low, high, base, &low, &high, &remainder);
+        digits[length] = (char)(remainder < 10 ? 48 + remainder
+                                              : (upper ? 55 : 87) + remainder);
+        ++length;
+        if (low == 0 && high == 0) {
+            break;
+        }
+    }
+    if (negative) {
+        digits[length] = 45;
+        ++length;
+    }
+    for (index = 0; index < length / 2; ++index) {
+        temp = digits[index];
+        digits[index] = digits[length - 1 - index];
+        digits[length - 1 - index] = temp;
+    }
+    total = length;
+    for (index = total; index < width; ++index) {
+        print_char(stream, pad, count);
+    }
+    for (index = 0; index < length; ++index) {
+        print_char(stream, digits[index], count);
+    }
+}
+
 static int format_stream(FILE *stream, const char *format, va_list args) {
     int count;
     int width;
     int pad;
     int left;
     int value;
+    int long_flag;
     char *text;
     char byte[2];
     const char *cursor;
@@ -832,10 +903,34 @@ static int format_stream(FILE *stream, const char *format, va_list args) {
             width = width * 10 + (*cursor - '0');
             ++cursor;
         }
-        if (*cursor == 'l' || *cursor == 'h') {
+        long_flag = 0;
+        if (*cursor == 'l') {
+            long_flag = 1;
+            ++cursor;
+            if (*cursor == 'l') {
+                ++cursor;
+            }
+        } else if (*cursor == 'h') {
             ++cursor;
         }
-        if (*cursor == 'u') {
+        if (long_flag && (*cursor == 'u' || *cursor == 'd' ||
+                          *cursor == 'i' || *cursor == 'x' ||
+                          *cursor == 'X' || *cursor == 'o')) {
+            int low = va_arg(args, int);
+            int high = va_arg(args, int);
+            int base;
+            int upper;
+            if (*cursor == 'x' || *cursor == 'X') {
+                base = 16;
+            } else if (*cursor == 'o') {
+                base = 8;
+            } else {
+                base = 10;
+            }
+            upper = *cursor == 'X';
+            print_long_words(stream, low, high, base, upper, width, pad,
+                             &count);
+        } else if (*cursor == 'u') {
             value = va_arg(args, int);
             print_number(stream, value, 10, 0, width, pad, 0, &count);
         } else if (*cursor == 'd' || *cursor == 'i') {

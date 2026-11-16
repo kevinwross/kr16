@@ -27,10 +27,11 @@ Implemented:
 - 32-bit equality and relational comparisons
 - assignment, `++`/`--`, and compound assignment
 - two-word stack ABI for long parameters and returns
+- `printf` `%ld`, `%lu`, `%lx`, and `%lo` formatting
 
 Not yet implemented (explicit diagnostics, no silent truncation):
 
-- `printf`/`scanf` length modifiers and conversions
+- long `scanf` conversions (`%ld`, `%lu`, `%lx`)
 
 Unsupported operations raise a diagnostic rather than silently producing a
 16-bit result.
@@ -48,6 +49,7 @@ Unsupported operations raise a diagnostic rather than silently producing a
   semantics.
 - Make `long long` 64-bit: more faithful to ISO C, but substantially more
   arithmetic and ABI work; KR16 targets a 32-bit long pair first.
+
 
 
 

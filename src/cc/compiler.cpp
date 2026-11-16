@@ -6928,6 +6928,24 @@ private:
         if (expr == nullptr || !is_simple_condition(expr)) {
             return false;
         }
+        std::function<bool(const Expr*)> uses_long =
+            [&](const Expr* value) {
+                if (value == nullptr) {
+                    return false;
+                }
+                if (expression_type(value)->is_long()) {
+                    return true;
+                }
+                for (const auto& child : value->children) {
+                    if (uses_long(child.get())) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+        if (uses_long(expr)) {
+            return false;
+        }
         if (expression_type(expr)->is_long()) {
             return false;
         }
@@ -7495,6 +7513,8 @@ private:
             return;
         }
         if (expression_type(expr)->is_long() ||
+            (expr->kind == Expr::Kind::Cast && expr->children.size() == 1 &&
+             expression_type(expr->children[0].get())->is_long()) ||
             (expr->kind == Expr::Kind::Binary && expr->children.size() == 2 &&
              (expression_type(expr->children[0].get())->is_long() ||
               expression_type(expr->children[1].get())->is_long()) &&
@@ -8130,15 +8150,24 @@ private:
              local_function->second->variadic);
         if (all_stack_variadic) {
             external_calls_.insert(expr->text);
+            int stack_words = 0;
             for (auto it = expr->children.rbegin(); it != expr->children.rend();
                  ++it) {
-                gen_expr(it->get(), out);
-                out << "  PUSH R0\n";
+                if (expression_type(it->get())->is_long()) {
+                    gen_long_operand(it->get(), out);
+                    out << "  PUSH R1\n";
+                    out << "  PUSH R0\n";
+                    stack_words += 2;
+                } else {
+                    gen_expr(it->get(), out);
+                    out << "  PUSH R0\n";
+                    ++stack_words;
+                }
             }
             out << "  CALL " << expr->text << "\n";
             finish_cached_call(out);
-            if (!expr->children.empty()) {
-                out << "  ADD SP, #" << expr->children.size() * 2 << "\n";
+            if (stack_words > 0) {
+                out << "  ADD SP, #" << stack_words * 2 << "\n";
             }
             return;
         }

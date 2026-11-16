@@ -1760,3 +1760,14 @@ TEST_CASE("32-bit long compound assignment") {
               "  return 0;\n"
               "}\n") == 0);
 }
+
+TEST_CASE("32-bit long printf") {
+    CHECK(run_c_with_libc(
+              "#include <stdio.h>\n"
+              "int main(void) {\n"
+              "  long a = 70000;\n"
+              "  long b = -140000;\n"
+              "  printf(\"%ld %ld %lx\\n\", a, b, a);\n"
+              "  return 0;\n"
+              "}\n") == "70000 -140000 11170\n");
+}

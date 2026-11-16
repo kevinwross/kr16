@@ -3665,3 +3665,15 @@ Entry format:
   resulting 32-bit operation.
 - Added a test covering the full set and wrap-sensitive values.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 20:21:08 -08:00 — long printf `%ld`/`%lu`/`%lx`
+
+- Variadic calls now push a long argument as two words (high then low), so
+  `printf`/`fprintf` receive both halves.
+- Added a word-based 32-bit formatter to `fileio.c` that divides the low/high
+  pair by a small base without relying on the long codegen path.
+- `format_stream` recognizes `l`/`ll` and formats signed decimal, unsigned
+  decimal, hexadecimal, and octal long values.
+- Added a printf output test for `70000`, `-140000`, and hex.
+- Long `scanf` conversions remain unsupported.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.
