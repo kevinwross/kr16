@@ -3509,3 +3509,11 @@ Entry format:
   1980 ZIP epoch, `SOURCE_DATE_EPOCH` support, normalized ownership.
 - Removed the now-gated resource/bootstrap item from `docs/deferred.md`.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest (no PowerShell test).
+
+### 2026-11-15 18:12:35 -08:00 — Floating point declared out of scope
+
+- Added ADR 0004: KR16 has no `float`, `double`, `long double`, soft-float
+  runtime, FPU, floating-point ABI, or floating-point libc formatting.
+- Updated `docs/deferred.md` and README to point at ADR 0004 instead of listing
+  floating point as deferred work.
+- Docs-only change; no compiler, VM, image-format, or handoff changes.

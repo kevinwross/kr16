@@ -28,7 +28,8 @@ release.
   `long` is a documented 16-bit alias (ADR 0001).
 - Full libc: the complete `printf` family, `errno` plumbing, and broader
   string/stdio coverage.
-- Floating point, locale, signals, `setjmp`/`longjmp`, and wide characters.
+- Floating point is explicitly out of scope; see [ADR 0004](decisions/0004-no-floating-point.md).
+- Locale, signals, `setjmp`/`longjmp`, and wide characters.
 
 ## Release engineering
 
@@ -37,6 +38,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 
