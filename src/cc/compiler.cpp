@@ -1988,8 +1988,7 @@ private:
                     return operand;
                 }
                 if (op == "-") {
-                    return make_number(
-                        static_cast<std::uint16_t>(0u - value), line);
+                    return make_number(0 - operand->value, line);
                 }
                 if (op == "~") {
                     return make_number(
@@ -2674,9 +2673,21 @@ private:
     void emit_globals(std::ostringstream& out) {
         for (const auto& global : program_.globals) {
             if (global.type->is_long() && global.init) {
-                throw CompileError(
-                    global.line, 1,
-                    "32-bit long initializers are not implemented yet");
+                if (global.init->kind != Expr::Kind::Number) {
+                    throw CompileError(
+                        global.line, 1,
+                        "32-bit long global initializer must be a constant");
+                }
+                out << ".data\n.align 2\n";
+                out << ".global " << global.name << "\n";
+                out << global.name << ":\n";
+                out << "  .word "
+                    << static_cast<std::uint16_t>(global.init->value) << "\n";
+                out << "  .word "
+                    << static_cast<std::uint16_t>(
+                           static_cast<std::uint64_t>(global.init->value) >> 16)
+                    << "\n";
+                continue;
             }
             if (global.init && global.init->kind == Expr::Kind::Number) {
                 out << ".data\n";
@@ -5077,6 +5088,28 @@ private:
         if (expr == nullptr) {
             return make_type(TypeKind::Int);
         }
+        if (expr->kind == Expr::Kind::Assign &&
+            expr->children.size() == 2) {
+            return expression_type(expr->children[0].get());
+        }
+        if (expr->kind == Expr::Kind::Unary &&
+            expr->children.size() == 1 &&
+            (expr->op == "-" || expr->op == "+" || expr->op == "~")) {
+            return expression_type(expr->children[0].get());
+        }
+        if (expr->kind == Expr::Kind::Binary &&
+            expr->children.size() == 2) {
+            const auto left = expression_type(expr->children[0].get());
+            const auto right = expression_type(expr->children[1].get());
+            if (expr->op == "==" || expr->op == "!=" || expr->op == "<" ||
+                expr->op == ">" || expr->op == "<=" || expr->op == ">=" ||
+                expr->op == "&&" || expr->op == "||") {
+                return make_type(TypeKind::Int);
+            }
+            if (left->is_long() || right->is_long()) {
+                return make_type(TypeKind::Long);
+            }
+        }
         if (expr->kind == Expr::Kind::Identifier) {
             const auto local = locals_.find(expr->text);
             if (local != locals_.end()) {
@@ -6024,9 +6057,16 @@ private:
                         continue;
                     }
                     if (decl.type->is_long() && decl.init) {
-                        throw CompileError(
-                            decl.line, 1,
-                            "32-bit long initializers are not implemented yet");
+                        const auto it = locals_.find(decl.name);
+                        if (it == locals_.end()) {
+                            continue;
+                        }
+                        gen_long_operand(decl.init.get(), out);
+                        out << "  LEA R2, [R4-" << it->second.offset
+                            << "]\n";
+                        out << "  ST [R2], R0\n";
+                        out << "  ST [R2+2], R1\n";
+                        continue;
                     }
                     if (decl.init) {
                         const auto it = locals_.find(decl.name);
@@ -6849,6 +6889,16 @@ private:
         if (expr == nullptr || !is_simple_condition(expr)) {
             return false;
         }
+        if (expression_type(expr)->is_long()) {
+            return false;
+        }
+        if (expr->kind == Expr::Kind::Binary) {
+            for (const auto& child : expr->children) {
+                if (expression_type(child.get())->is_long()) {
+                    return false;
+                }
+            }
+        }
         if (expr->kind == Expr::Kind::Binary &&
             (expr->op == "&&" || expr->op == "||")) {
             if (expr->op == "&&") {
@@ -7124,15 +7174,177 @@ private:
         }
     }
 
+    void gen_long_sign_extend(std::ostringstream& out) {
+        const auto positive = new_label("longpos");
+        out << "  MOV R1, #0\n";
+        out << "  CMP R0, #0\n";
+        out << "  BGE " << positive << "\n";
+        out << "  MOV R1, #65535\n";
+        out << positive << ":\n";
+    }
+
+    void gen_long_operand(const Expr* expr, std::ostringstream& out) {
+        if (expr != nullptr && expr->kind == Expr::Kind::Number) {
+            out << "  MOV R0, #"
+                << static_cast<std::uint16_t>(expr->value) << "\n";
+            out << "  MOV R1, #"
+                << static_cast<std::uint16_t>(
+                       static_cast<std::uint64_t>(expr->value) >> 16)
+                << "\n";
+            return;
+        }
+        gen_expr(expr, out);
+        if (expr == nullptr || !expression_type(expr)->is_long()) {
+            gen_long_sign_extend(out);
+        }
+    }
+
+    void gen_long_expr(const Expr* expr, std::ostringstream& out) {
+        if (expr->kind == Expr::Kind::Number) {
+            out << "  MOV R0, #"
+                << static_cast<std::uint16_t>(expr->value) << "\n";
+            out << "  MOV R1, #"
+                << static_cast<std::uint16_t>(
+                       static_cast<std::uint64_t>(expr->value) >> 16)
+                << "\n";
+            return;
+        }
+        if (expr->kind == Expr::Kind::Identifier) {
+            gen_addr(expr, out);
+            out << "  MOV R2, R0\n";
+            out << "  LD R0, [R2]\n";
+            out << "  LD R1, [R2+2]\n";
+            return;
+        }
+        if (expr->kind == Expr::Kind::Assign && expr->children.size() == 2 &&
+            (expr->op.empty() || expr->op == "=")) {
+            gen_addr(expr->children[0].get(), out);
+            out << "  PUSH R0\n";
+            gen_long_operand(expr->children[1].get(), out);
+            out << "  POP R2\n";
+            out << "  ST [R2], R0\n";
+            out << "  ST [R2+2], R1\n";
+            return;
+        }
+        if (expr->kind == Expr::Kind::Cast && expr->children.size() == 1) {
+            gen_expr(expr->children[0].get(), out);
+            if (expr->type != nullptr && expr->type->is_long() &&
+                !expression_type(expr->children[0].get())->is_long()) {
+                gen_long_sign_extend(out);
+            }
+            return;
+        }
+        if (expr->kind == Expr::Kind::Unary && expr->children.size() == 1 &&
+            (expr->op == "-" || expr->op == "~")) {
+            gen_long_operand(expr->children[0].get(), out);
+            if (expr->op == "~") {
+                out << "  NOT R0\n";
+                out << "  NOT R1\n";
+                return;
+            }
+            const auto no_carry = new_label("longneg");
+            out << "  MOV R2, R0\n";
+            out << "  NEG R0\n";
+            out << "  NOT R1\n";
+            out << "  CMP R2, #0\n";
+            out << "  BEQ " << no_carry << "\n";
+            out << "  INC R1\n";
+            out << no_carry << ":\n";
+            return;
+        }
+        if (expr->kind == Expr::Kind::Binary && expr->children.size() == 2) {
+            const std::string& op = expr->op;
+            const auto left = expr->children[0].get();
+            const auto right = expr->children[1].get();
+            gen_long_operand(left, out);
+            out << "  PUSH R1\n";
+            out << "  PUSH R0\n";
+            gen_long_operand(right, out);
+            out << "  POP R2\n";
+            out << "  POP R3\n";
+            if (op == "==" || op == "!=" || op == "<" || op == "<=" ||
+                op == ">" || op == ">=") {
+                const auto yes = new_label("longtrue");
+                const auto no = new_label("longfalse");
+                const auto done = new_label("longcmpend");
+                if (op == "==" || op == "!=") {
+                    out << "  CMP R2, R0\n";
+                    out << "  BNE " << (op == "==" ? no : yes) << "\n";
+                    out << "  CMP R3, R1\n";
+                    out << "  BNE " << (op == "==" ? no : yes) << "\n";
+                    out << "  BRA " << (op == "==" ? yes : no) << "\n";
+                } else if (op == "<" || op == "<=") {
+                    out << "  CMP R3, R1\n";
+                    out << "  BLT " << yes << "\n";
+                    out << "  BGT " << no << "\n";
+                    out << "  CMP R2, R0\n";
+                    out << (op == "<" ? "  BCS " : "  BHI ") << no << "\n";
+                    out << "  BRA " << yes << "\n";
+                } else {
+                    out << "  CMP R3, R1\n";
+                    out << "  BGT " << yes << "\n";
+                    out << "  BLT " << no << "\n";
+                    out << "  CMP R2, R0\n";
+                    out << (op == ">" ? "  BHI " : "  BCS ") << yes << "\n";
+                    out << "  BRA " << no << "\n";
+                }
+                out << yes << ":\n  MOV R0, #1\n  BRA " << done << "\n";
+                out << no << ":\n  MOV R0, #0\n";
+                out << done << ":\n";
+                return;
+            }
+            if (op == "+" || op == "-") {
+                if (op == "+") {
+                    const auto no_carry = new_label("longadd");
+                    out << "  ADD R0, R2\n";
+                    out << "  ADD R1, R3\n";
+                    out << "  CMP R0, R2\n";
+                    out << "  BCS " << no_carry << "\n";
+                    out << "  INC R1\n";
+                    out << no_carry << ":\n";
+                } else {
+                    const auto no_borrow = new_label("longsub");
+                    out << "  CMP R2, R0\n";
+                    out << "  BCS " << no_borrow << "\n";
+                    out << "  DEC R3\n";
+                    out << no_borrow << ":\n";
+                    out << "  SUB R2, R0\n";
+                    out << "  SUB R3, R1\n";
+                    out << "  MOV R0, R2\n";
+                    out << "  MOV R1, R3\n";
+                }
+                return;
+            }
+            if (op == "&" || op == "|" || op == "^") {
+                const char* mnemonic = op == "&" ? "AND"
+                                       : op == "|" ? "OR" : "XOR";
+                out << "  " << mnemonic << " R2, R0\n";
+                out << "  " << mnemonic << " R3, R1\n";
+                out << "  MOV R0, R2\n";
+                out << "  MOV R1, R3\n";
+                return;
+            }
+            throw CompileError(
+                expr->line, 1,
+                "32-bit long multiply, divide, and shift are not implemented yet");
+        }
+        throw CompileError(expr->line, 1,
+                           "unsupported 32-bit long expression");
+    }
+
     void gen_expr(const Expr* expr, std::ostringstream& out) {
         if (expr == nullptr) {
             out << "  MOV R0, #0\n";
             return;
         }
-        if (expression_type(expr)->is_long()) {
-            throw CompileError(
-                expr->line, 1,
-                "32-bit long expressions are not implemented yet");
+        if (expression_type(expr)->is_long() ||
+            (expr->kind == Expr::Kind::Binary && expr->children.size() == 2 &&
+             (expression_type(expr->children[0].get())->is_long() ||
+              expression_type(expr->children[1].get())->is_long()) &&
+             (expr->op == "==" || expr->op == "!=" || expr->op == "<" ||
+              expr->op == "<=" || expr->op == ">" || expr->op == ">="))) {
+            gen_long_expr(expr, out);
+            return;
         }
         if (optimize_ && emit_simple_assignment(expr, out)) {
             return;
@@ -8013,6 +8225,11 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
+
+
+
 
 
 

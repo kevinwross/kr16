@@ -68,9 +68,10 @@ provides `putchar`, `puts`, `getchar`, buffered `fopen`/`fread`/`fwrite`/
 `abs`, a first-fit heap allocator (`malloc`, `calloc`, `realloc`, `free`),
 and `exit`.
 
-`long` and `long long` are 32-bit types with 4-byte storage and `sizeof`
-support; arithmetic, initializers, function ABI, and `printf`/`scanf`
-conversions are still being implemented and are rejected rather than silently
+`long` and `long long` are 32-bit types with 4-byte storage, `sizeof`,
+add/subtract, bitwise operations, comparisons, assignment, and constant
+initializers. Multiply/divide/shift, function ABI, and `printf`/`scanf`
+conversions remain unsupported and are rejected rather than silently
 truncated. See
 [`docs/decisions/0005-32-bit-long.md`](docs/decisions/0005-32-bit-long.md).
 `kr16 cc` uses `-O1` by default (constant folding, simple-expression codegen,
@@ -246,6 +247,7 @@ its generated program assembled, linked, and executed by CTest.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 
 

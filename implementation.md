@@ -3575,3 +3575,17 @@ Entry format:
 - Added ADR 0005, superseded ADR 0001, and updated README/deferred text.
 - Added a `sizeof`/rejection test.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 19:13:43 -08:00 — 32-bit long arithmetic core
+
+- Implemented 32-bit add, subtract, unary minus, bitwise not/and/or/xor,
+  equality, relational comparisons, assignment, and constant local/global
+  initializers.
+- Long expression results use R0 (low word) and R1 (high word).
+- Carry/borrow handling and signed high-word comparisons are explicit.
+- Integer operands are sign-extended when promoted into a long operation.
+- Unsupported long multiply/divide/modulo/shift operations still raise a
+  diagnostic.
+- Updated ADR 0005, README, and deferred documentation.
+- Added arithmetic/comparison/global/assignment tests.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

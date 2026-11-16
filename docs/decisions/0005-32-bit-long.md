@@ -20,19 +20,22 @@ teaching release.
 ## Implementation status
 
 Implemented:
-
 - type kinds and `sizeof`
 - 4-byte local/global storage
 - parser spelling for `long`, `long long`, and `long int`
+- 32-bit `+`, `-`, unary `-`, `~`, `&`, `|`, `^`
+- 32-bit equality and relational comparisons
+- assignment and constant local/global initializers
 
 Not yet implemented (explicit diagnostics, no silent truncation):
 
-- long arithmetic, comparisons, shifts, and compound assignment
-- long initializers
+- long multiply, divide, modulo, and shifts
+- compound assignment and `++`/`--` on long values
 - long function parameters and return values
 - `printf`/`scanf` length modifiers and conversions
 
-Those diagnostics read `32-bit long ... are not implemented yet` so a program
+Unsupported operations raise a diagnostic rather than silently producing a
+16-bit result.
 cannot silently receive 16-bit behavior.
 
 ## Consequences
@@ -49,3 +52,4 @@ cannot silently receive 16-bit behavior.
   semantics.
 - Make `long long` 64-bit: more faithful to ISO C, but substantially more
   arithmetic and ABI work; KR16 targets a 32-bit long pair first.
+

@@ -1638,9 +1638,28 @@ TEST_CASE("long and long long are 32-bit types") {
     CHECK(run_c_libc_exit(
               "int main(void) { long x; long long y; "
               "return sizeof(long) + sizeof(x) + sizeof(y); }") == 12);
-    const auto rejected = kr16::compile_c(
-        "int main(void) { long x = 1; return 0; }", kr16::CompileOptions{});
-    CHECK(!rejected.ok);
-    CHECK(rejected.diagnostics.front().message.find("32-bit long") !=
-          std::string::npos);
+    CHECK(run_c_libc_exit(
+              "int main(void) { long x = 1; return (int)x; }") == 1);
 }
+
+TEST_CASE("32-bit long arithmetic and comparisons") {
+    CHECK(run_c_libc_exit(
+              "long g = 70000;\n"
+              "int main(void) {\n"
+              "  long a = 70000;\n"
+              "  long b = 70001;\n"
+              "  long c = a + b;\n"
+              "  if (a != 70000) return 1;\n"
+              "  if (c != 140001) return 2;\n"
+              "  if (b - a != 1) return 3;\n"
+              "  long e = -70000;\n"
+              "  if (e >= 0) return 4;\n"
+              "  if (!(a < b)) return 5;\n"
+              "  if (g != 70000) return 6;\n"
+              "  long h = 0;\n"
+              "  h = c;\n"
+              "  if (h != 140001) return 7;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}
+
