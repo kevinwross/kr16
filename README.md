@@ -191,6 +191,9 @@ a headless build or CI job that only needs the CLI.
 
 ## Packaging
 
+The full release procedure, including the credential-gated signing and
+marketplace steps, is in [RELEASE.md](RELEASE.md).
+
 Build the Linux AppImage (x64 or ARM64, depending on the host):
 
 ```text

@@ -3784,3 +3784,13 @@ Entry format:
   changes: two runs produced
   `AC67A7737A04528474FAE2E962592C0325F2774C3A2E52F532E56E67498EC400`.
 - Tests: Windows 59/59 CTest; Linux 57/57 CTest.
+
+### 2026-11-15T21:57:00-08:00 — release runbook and VSIX verification
+
+- Added `RELEASE.md` with the full release sequence: tests, resource hashes,
+  Windows packaging and installer verification, AppImage packaging, signing
+  secrets, marketplace secrets, and release assets.
+- Packaged `vscode/kr16-debug.vsix` with `vsce` successfully (6 files,
+  6.8 KB), confirming the marketplace artifact builds locally.
+- Linked the runbook from the README packaging section.
+- No code changes; remaining release work is credential provisioning.
