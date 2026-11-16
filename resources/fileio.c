@@ -1180,6 +1180,7 @@ int fscanf(FILE *stream, const char *format, ...) {
     int width;
     int suppress;
     int negative;
+    int long_flag;
     if (stream == 0 || format == 0) {
         errno = 22;
         return KR16_EOF;
@@ -1227,6 +1228,70 @@ int fscanf(FILE *stream, const char *format, ...) {
         while (*format >= 48 && *format <= 57) {
             width = width * 10 + (*format - 48);
             ++format;
+        }
+        long_flag = 0;
+        if (*format == 'l') {
+            long_flag = 1;
+            ++format;
+            if (*format == 'l') {
+                ++format;
+            }
+        }
+        if (long_flag &&
+            (*format == 100 || *format == 117 || *format == 120)) {
+            int base = *format == 120 ? 16 : 10;
+            int count = 0;
+            long total = 0;
+            int digit;
+            negative = 0;
+            for (;;) {
+                character = fgetc(stream);
+                if (character == KR16_EOF) {
+                    break;
+                }
+                if (!scan_is_space(character)) {
+                    ungetc(character, stream);
+                    break;
+                }
+            }
+            character = fgetc(stream);
+            if (character == 43 || character == 45) {
+                negative = character == 45;
+                character = fgetc(stream);
+            }
+            if (character == KR16_EOF) {
+                va_end(args);
+                return assigned == 0 ? KR16_EOF : assigned;
+            }
+            for (;;) {
+                digit = scan_digit_value(character, base);
+                if (digit < 0) {
+                    break;
+                }
+                total = total * base + digit;
+                ++count;
+                if (width > 0 && count >= width) {
+                    character = KR16_EOF;
+                    break;
+                }
+                character = fgetc(stream);
+            }
+            if (character != KR16_EOF) {
+                ungetc(character, stream);
+            }
+            if (count == 0) {
+                break;
+            }
+            if (negative) {
+                total = -total;
+            }
+            if (!suppress) {
+                int *target = va_arg(args, int *);
+                *((long *)target) = total;
+                ++assigned;
+            }
+            ++format;
+            continue;
         }
         if (*format == 100 || *format == 117 || *format == 120) {
             int base = *format == 120 ? 16 : 10;

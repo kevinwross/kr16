@@ -7331,7 +7331,7 @@ private:
             out << "  NEG R0\n";
             out << "  NOT R1\n";
             out << "  CMP R2, #0\n";
-            out << "  BEQ " << no_carry << "\n";
+            out << "  BNE " << no_carry << "\n";
             out << "  INC R1\n";
             out << no_carry << ":\n";
             return;

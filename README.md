@@ -71,8 +71,7 @@ and `exit`.
 `long` and `long long` are 32-bit types with 4-byte storage, `sizeof`,
 add/subtract/multiply/divide, shifts, bitwise operations, comparisons, assignment, compound assignment, `++`/`--`, and constant
 initializers. Two-word long parameters/returns and `printf` `%ld`/`%lu`/`%lx`
-formatting are supported; long `scanf` conversions remain unsupported and are
-rejected rather than silently truncated. See
+formatting and long `scanf` conversions are supported. See
 [`docs/decisions/0005-32-bit-long.md`](docs/decisions/0005-32-bit-long.md).
 `kr16 cc` uses `-O1` by default (constant folding, simple-expression codegen,
 and a scalar IR/graph-coloring backend where supported); `-O0` keeps the

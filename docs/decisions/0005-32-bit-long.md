@@ -28,11 +28,9 @@ Implemented:
 - assignment, `++`/`--`, and compound assignment
 - two-word stack ABI for long parameters and returns
 - `printf` `%ld`, `%lu`, `%lx`, and `%lo` formatting
-
-Not yet implemented (explicit diagnostics, no silent truncation):
-
 - long `scanf` conversions (`%ld`, `%lu`, `%lx`)
 
+The long implementation is complete for the supported C subset.
 Unsupported operations raise a diagnostic rather than silently producing a
 16-bit result.
 

@@ -3677,3 +3677,14 @@ Entry format:
 - Added a printf output test for `70000`, `-140000`, and hex.
 - Long `scanf` conversions remain unsupported.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 20:33:59 -08:00 — long scanf and negation fix
+
+- `fscanf` recognizes `l`/`ll` for numeric conversions and stores a parsed
+  32-bit value through a long pointer.
+- Fixed long unary negation: the high word is incremented only when the low
+  word is zero, correcting `-140000` and other negative long values.
+- Added a long `fscanf("%ld %ld")` test covering positive and negative values.
+- Marked the long implementation complete in ADR 0005, removed the deferred
+  long item, and updated README.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

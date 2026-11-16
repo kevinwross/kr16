@@ -1771,3 +1771,25 @@ TEST_CASE("32-bit long printf") {
               "  return 0;\n"
               "}\n") == "70000 -140000 11170\n");
 }
+
+TEST_CASE("32-bit long fscanf") {
+    CHECK(run_c_libc_exit(
+              "#include <stdio.h>\n"
+              "int main(void) {\n"
+              "  FILE *f = fopen(\"kr16_scan_long.txt\", \"w\");\n"
+              "  if (f == 0) return 1;\n"
+              "  fputs(\"70000 -140000\\n\", f);\n"
+              "  fclose(f);\n"
+              "  f = fopen(\"kr16_scan_long.txt\", \"r\");\n"
+              "  if (f == 0) return 2;\n"
+              "  long a = 0;\n"
+              "  long b = 0;\n"
+              "  int got = fscanf(f, \"%ld %ld\", &a, &b);\n"
+              "  fclose(f);\n"
+              "  remove(\"kr16_scan_long.txt\");\n"
+              "  if (got != 2) return 3;\n"
+              "  if (a != 70000) return 4;\n"
+              "  if (b != -140000) return 5;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}

@@ -24,10 +24,6 @@ release.
 
 - Pragma semantics beyond accepting and ignoring directives.
 - Function-pointer arithmetic (equality/null and calls with stack arguments are supported).
-- 32-bit `long`/`long long` scanf conversions. Add,
-  subtract, multiply, divide, compare, assign, and constant
-  initializers, compound assignment, two-word ABI, and printf formatting are
-  implemented (ADR 0005).
 - Full libc: the complete `printf` family, broader `errno` coverage, and
   broader string/stdio coverage.
 - Floating point is explicitly out of scope; see [ADR 0004](decisions/0004-no-floating-point.md).
