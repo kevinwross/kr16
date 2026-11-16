@@ -1664,3 +1664,17 @@ TEST_CASE("32-bit long arithmetic and comparisons") {
 }
 
 
+
+TEST_CASE("32-bit long shifts") {
+    CHECK(run_c_libc_exit(
+              "int main(void) {\n"
+              "  long a = 1;\n"
+              "  if ((a << 16) != 65536) return 1;\n"
+              "  long c = 0x12340000;\n"
+              "  if ((c >> 16) != 0x1234) return 2;\n"
+              "  long e = -65536;\n"
+              "  if ((e >> 4) != -4096) return 3;\n"
+              "  if ((a << 4) != 16) return 4;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}

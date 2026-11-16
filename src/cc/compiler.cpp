@@ -7270,6 +7270,61 @@ private:
             const auto left = expr->children[0].get();
             const auto right = expr->children[1].get();
             gen_long_operand(left, out);
+            if (op == "<<" || op == ">>") {
+                gen_long_operand(left, out);
+                out << "  PUSH R1\n";
+                out << "  PUSH R0\n";
+                gen_expr(right, out);
+                out << "  MOV R2, R0\n";
+                out << "  POP R0\n";
+                out << "  POP R1\n";
+                const auto zero = new_label("longshift0");
+                const auto wide = new_label("longshiftwide");
+                const auto done = new_label("longshiftend");
+                out << "  CMP R2, #0\n";
+                out << "  BEQ " << zero << "\n";
+                out << "  CMP R2, #16\n";
+                out << "  BGE " << wide << "\n";
+                if (op == "<<") {
+                    out << "  PUSH R0\n";
+                    out << "  MOV R3, #16\n";
+                    out << "  SUB R3, R2\n";
+                    out << "  SHR R0, R3\n";
+                    out << "  SHL R1, R2\n";
+                    out << "  OR R1, R0\n";
+                    out << "  POP R0\n";
+                    out << "  SHL R0, R2\n";
+                } else {
+                    out << "  PUSH R0\n";
+                    out << "  PUSH R1\n";
+                    out << "  MOV R3, #16\n";
+                    out << "  SUB R3, R2\n";
+                    out << "  SHL R1, R3\n";
+                    out << "  POP R3\n";
+                    out << "  POP R0\n";
+                    out << "  SHR R0, R2\n";
+                    out << "  OR R0, R1\n";
+                    out << "  MOV R1, R3\n";
+                    out << "  SAR R1, R2\n";
+                }
+                out << "  BRA " << done << "\n";
+                out << wide << ":\n";
+                out << "  SUB R2, #16\n";
+                if (op == "<<") {
+                    out << "  MOV R1, R0\n";
+                    out << "  SHL R1, R2\n";
+                    out << "  MOV R0, #0\n";
+                } else {
+                    out << "  MOV R0, R1\n";
+                    out << "  SAR R0, R2\n";
+                    out << "  MOV R3, #15\n";
+                    out << "  SAR R1, R3\n";
+                }
+                out << "  BRA " << done << "\n";
+                out << zero << ":\n";
+                out << done << ":\n";
+                return;
+            }
             out << "  PUSH R1\n";
             out << "  PUSH R0\n";
             gen_long_operand(right, out);
@@ -8238,6 +8293,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

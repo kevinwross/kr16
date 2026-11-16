@@ -3597,3 +3597,13 @@ Entry format:
   32-bit value instead of a folded 16-bit result.
 - Added the folded-subtraction case to the long arithmetic test.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 19:27:36 -08:00 — 32-bit long shifts
+
+- Implemented `<<` and signed `>>` for 32-bit long values.
+- Shift counts below 16 combine the two words; counts of 16 or more shift the
+  remaining word and sign-fill the high word for right shifts.
+- Added tests for left shift across the word boundary, unsigned-looking right
+  shift, arithmetic right shift of a negative value, and small left shift.
+- Updated ADR 0005, README, and deferred documentation.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

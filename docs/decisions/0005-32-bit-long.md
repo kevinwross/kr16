@@ -23,13 +23,13 @@ Implemented:
 - type kinds and `sizeof`
 - 4-byte local/global storage
 - parser spelling for `long`, `long long`, and `long int`
-- 32-bit `+`, `-`, unary `-`, `~`, `&`, `|`, `^`
+- 32-bit `+`, `-`, unary `-`, `~`, `&`, `|`, `^`, `<<`, `>>`
 - 32-bit equality and relational comparisons
 - assignment and constant local/global initializers
 
 Not yet implemented (explicit diagnostics, no silent truncation):
 
-- long multiply, divide, modulo, and shifts
+- long multiply, divide, and modulo
 - compound assignment and `++`/`--` on long values
 - long function parameters and return values
 - `printf`/`scanf` length modifiers and conversions
@@ -52,4 +52,5 @@ cannot silently receive 16-bit behavior.
   semantics.
 - Make `long long` 64-bit: more faithful to ISO C, but substantially more
   arithmetic and ABI work; KR16 targets a 32-bit long pair first.
+
 

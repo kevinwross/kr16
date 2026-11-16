@@ -24,7 +24,7 @@ release.
 
 - Pragma semantics beyond accepting and ignoring directives.
 - Function-pointer arithmetic (equality/null and calls with stack arguments are supported).
-- 32-bit `long`/`long long` multiply, divide, modulo, shifts, ABI, and
+- 32-bit `long`/`long long` multiply, divide, modulo, ABI, and
   printf/scanf conversions. Add, subtract, compare, assign, and constant
   initializers are implemented (ADR 0005).
 - Full libc: the complete `printf` family, broader `errno` coverage, and
@@ -39,6 +39,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 
