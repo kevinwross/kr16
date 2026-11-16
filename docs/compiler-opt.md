@@ -423,11 +423,17 @@ regressions that the loop benchmarks would miss.
 A separate integration test runs the C-for-U image under `--stats` and
 requires fewer than 1,200,000 cycles; current baseline is 1,137,413 cycles.
 
+## Function sections and --gc-sections
 
-
-
-
-
-
+Decision: keep object-level GC and defer per-function sections for the C
+toolchain. Measurement: the C-for-U image contains 93 global functions and
+94,384 bytes of assembly; 93 section headers at 32 bytes would add 2,976 bytes
+before section names and alignment, about 3.2% of the image. The compiler
+already removes unreferenced static functions, and object-level `--gc-all`
+drops whole unused units. The C subset has no templates or inline definitions
+that produce many unused functions inside one used unit, so function-level GC
+has no measured benefit here and would add a new section-order determinism
+surface. Revisit if kr16 starts emitting many inline/static functions per unit
+or gains C++ input.
 
 

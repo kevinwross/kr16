@@ -3485,3 +3485,15 @@ Entry format:
   GCC-style diagnostic pragmas.
 - Added variadic, zero-parameter, and pragma tests.
 - Tests: Windows 57/57 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 17:01:55 -08:00 — Function-section decision
+
+- Measured the C-for-U corpus: 93 global functions, 94,384 assembly bytes.
+  Per-function sections would add 2,976 bytes of 32-byte headers before names
+  and alignment, about 3.2% of the image.
+- Decision recorded in `docs/compiler-opt.md`: keep object-level `--gc-all` and
+  compiler-side static removal; defer `--gc-sections`/function sections for the
+  C toolchain because there is no measured C-corpus benefit and section order
+  would add a determinism surface. Revisit if many inline/static functions per
+  unit or C++ input appear.
+- Tests unchanged: Windows 57/57 CTest; Linux 57/57 CTest.
