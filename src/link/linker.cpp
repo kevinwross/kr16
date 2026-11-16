@@ -121,10 +121,113 @@ std::vector<Container> select_live_objects(
     }
     return selected;
 }
+LinkResult link_relocatable(const std::vector<Container>& objects) {
+    LinkResult result;
+    Container output;
+    output.kind = ContainerKind::Rel;
+    output.flags = ContainerHasSymbols | ContainerHasObjects;
+    std::unordered_map<std::string, std::size_t> section_index;
+    std::vector<std::vector<std::uint32_t>> section_map(objects.size());
+    std::vector<std::vector<std::uint32_t>> offset_map(objects.size());
+    for (std::size_t object_index = 0; object_index < objects.size();
+         ++object_index) {
+        const auto& object = objects[object_index];
+        section_map[object_index].resize(object.sections.size(), 0);
+        offset_map[object_index].resize(object.sections.size(), 0);
+        for (std::size_t section = 0; section < object.sections.size();
+             ++section) {
+            const auto& input = object.sections[section];
+            auto found = section_index.find(input.name);
+            std::size_t index = 0;
+            if (found == section_index.end()) {
+                Section merged;
+                merged.name = input.name;
+                merged.type = input.type;
+                merged.flags = input.flags;
+                merged.alignment = input.alignment;
+                output.sections.push_back(std::move(merged));
+                index = output.sections.size() - 1;
+                section_index.emplace(input.name, index);
+            } else {
+                index = found->second;
+            }
+            auto& merged = output.sections[index];
+            if (merged.type != input.type) {
+                throw std::runtime_error("inconsistent section type for " +
+                                         input.name);
+            }
+            merged.flags |= input.flags;
+            merged.alignment = std::max(merged.alignment, input.alignment);
+            const std::uint32_t begin = align_up(
+                input.type == SectionType::Nobits ? merged.nobits_size
+                                                  : static_cast<std::uint32_t>(
+                                                        merged.data.size()),
+                input.alignment);
+            section_map[object_index][section] =
+                static_cast<std::uint32_t>(index + 1);
+            offset_map[object_index][section] = begin;
+            if (input.type == SectionType::Nobits) {
+                merged.nobits_size =
+                    begin + static_cast<std::uint32_t>(input.nobits_size);
+            } else {
+                merged.data.resize(begin);
+                merged.data.insert(merged.data.end(), input.data.begin(),
+                                   input.data.end());
+            }
+            if (input.is_debug()) {
+                output.flags |= ContainerHasDebug;
+            }
+        }
+    }
+    for (std::size_t object_index = 0; object_index < objects.size();
+         ++object_index) {
+        const auto& object = objects[object_index];
+        const std::uint32_t symbol_base =
+            static_cast<std::uint32_t>(output.symbols.size());
+        for (const auto& input : object.symbols) {
+            Symbol symbol = input;
+            symbol.object_index = 0;
+            if (symbol.section != 0 &&
+                symbol.section <= object.sections.size()) {
+                const std::size_t section = symbol.section - 1;
+                symbol.value = static_cast<std::uint16_t>(
+                    symbol.value + offset_map[object_index][section]);
+                symbol.section =
+                    static_cast<std::uint16_t>(section_map[object_index][section]);
+                if (symbol.name == "_start" || symbol.name == "__start" ||
+                    symbol.name == "start") {
+                    output.entry = symbol.value;
+                }
+            }
+            output.symbols.push_back(std::move(symbol));
+        }
+        for (const auto& input : object.relocations) {
+            if (input.section == 0 ||
+                input.section > object.sections.size()) {
+                throw std::runtime_error("bad relocation section");
+            }
+            Relocation relocation = input;
+            relocation.section =
+                static_cast<std::uint16_t>(section_map[object_index]
+                                                       [input.section - 1]);
+            relocation.offset += offset_map[object_index][input.section - 1];
+            relocation.symbol += symbol_base;
+            output.relocations.push_back(relocation);
+        }
+    }
+    output.flags |= ContainerHasSymbols;
+    result.image = std::move(output);
+    result.ok = true;
+    return result;
+}
+
 LinkResult link_objects(const std::vector<Container>& input_objects,
                         const LinkOptions& options) {
     LinkResult result;
     try {
+        if (options.relocatable) {
+            return link_relocatable(input_objects);
+        }
         if (input_objects.empty()) {
             throw std::runtime_error("no input objects");
         }

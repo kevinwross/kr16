@@ -149,6 +149,7 @@ Options:
   --map <path>         write a map of sections and symbols
   --strip-debug        remove debug sections
   --strip              remove debug sections and all but required symbols
+  -r                   produce a relocatable object
   --gc-all             drop input objects unreachable from _start/start
   -h, --help           show this help
 
@@ -668,6 +669,8 @@ int run_ld_command(int argc, char** argv) {
         } else if (argument == "--strip") {
             options.strip_debug = true;
             options.strip_symbols = true;
+        } else if (argument == "-r") {
+            options.relocatable = true;
         } else if (argument == "--gc-all") {
             options.gc_all = true;
         } else if (argument == "--help" || argument == "-h") {
@@ -1244,6 +1247,7 @@ int run(int argc, char** argv) {
 }
 
 }  // namespace kr16::cli
+
 
 
 

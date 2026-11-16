@@ -3688,3 +3688,14 @@ Entry format:
 - Marked the long implementation complete in ADR 0005, removed the deferred
   long item, and updated README.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 20:46:15 -08:00 — relocatable -r links
+
+- Added `LinkOptions::relocatable` and `kr16 ld -r`.
+- Relocatable output merges same-named sections, remaps section/symbol
+  indices, adjusts symbol values and relocation offsets, and preserves
+  unresolved relocations for the final link.
+- Added a test that combines two objects with `-r`, verifies the merged text
+  and symbols, then links the partial object with a start object.
+- Weak/common symbols remain deferred.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

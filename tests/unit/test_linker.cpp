@@ -150,3 +150,46 @@ TEST_CASE("linker strip options remove debug and symbols") {
 }
 
 
+
+TEST_CASE("relocatable link merges objects and preserves relocations") {
+    const auto a = assemble(
+        ".extern bar\n"
+        ".text\n"
+        ".global foo\n"
+        "foo:\n"
+        "  CALL bar\n"
+        "  RET\n");
+    const auto b = assemble(
+        ".text\n"
+        ".global bar\n"
+        "bar:\n"
+        "  RET\n");
+    kr16::LinkOptions options;
+    options.relocatable = true;
+    const auto partial = kr16::link_objects({a, b}, options);
+    REQUIRE(partial.ok);
+    CHECK(partial.image.kind == kr16::ContainerKind::Rel);
+    const auto* text = partial.image.find_section(".text");
+    REQUIRE(text != nullptr);
+    CHECK(text->data.size() == 8);
+    CHECK_FALSE(partial.image.relocations.empty());
+    bool foo = false;
+    bool bar = false;
+    for (const auto& symbol : partial.image.symbols) {
+        foo = foo || symbol.name == "foo";
+        bar = bar || symbol.name == "bar";
+    }
+    CHECK(foo);
+    CHECK(bar);
+
+    const auto start = assemble(
+        ".extern foo\n"
+        ".text\n"
+        ".global _start\n"
+        "_start:\n"
+        "  CALL foo\n"
+        "  HLT\n");
+    const auto linked = kr16::link_objects({partial.image, start});
+    CHECK(linked.ok);
+}
+

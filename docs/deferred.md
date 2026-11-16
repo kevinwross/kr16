@@ -14,7 +14,7 @@ release.
   formatting, `fscanf`, `freopen` on ordinary streams, `tmpfile`, buffered
   stdin, `setvbuf`, and `ungetc` are implemented.
 - BIOS RAM loading, embedded release BIOS selection, and linker scripts.
-- Relocatable `-r` links, weak/common symbols, and arm64 hosts.
+- Weak/common symbols and arm64 hosts.
 - Real-time pacing accuracy and the full interactive monitor.
 - DAP memory/disassembly/evaluate views, function-entry breakpoints, threaded
   console/DAP coordination, and live VSIX marketplace publishing. The minimal
@@ -36,6 +36,7 @@ release.
 
 These items remain tracked in [implementation.md](../implementation.md) and the
 design specification [kr16-plan.md](../kr16-plan.md).
+
 
 
 

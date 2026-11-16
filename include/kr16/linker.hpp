@@ -14,6 +14,7 @@ struct LinkOptions {
     bool strip_debug = false;
     bool strip_symbols = false;
     bool gc_all = false;
+    bool relocatable = false;
 };
 
 struct LinkResult {
@@ -29,4 +30,5 @@ LinkResult link_files(const std::vector<std::string>& paths,
                       const LinkOptions& options = {});
 
 }  // namespace kr16
+
 
