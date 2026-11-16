@@ -3699,3 +3699,14 @@ Entry format:
   and symbols, then links the partial object with a start object.
 - Weak/common symbols remain deferred.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 20:59:32 -08:00 — weak symbols
+
+- Added `SymbolBinding::Weak`, container validation for it, and assembler
+  `.weak name`.
+- A weak definition can be overridden by a strong global definition; multiple
+  weak definitions do not trigger the duplicate-global error.
+- Undefined weak references resolve to address zero.
+- Added tests for strong-over-weak and undefined weak behavior.
+- Common symbols remain deferred.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

@@ -193,3 +193,51 @@ TEST_CASE("relocatable link merges objects and preserves relocations") {
     CHECK(linked.ok);
 }
 
+
+TEST_CASE("weak definitions yield to strong definitions") {
+    const auto weak = assemble(
+        ".weak foo\n"
+        ".text\n"
+        ".global foo\n"
+        "foo:\n"
+        "  MOV R0, #1\n"
+        "  RET\n");
+    const auto strong = assemble(
+        ".text\n"
+        ".global foo\n"
+        "foo:\n"
+        "  MOV R0, #2\n"
+        "  RET\n");
+    const auto start = assemble(
+        ".extern foo\n"
+        ".text\n"
+        ".global _start\n"
+        "_start:\n"
+        "  CALL foo\n"
+        "  HLT\n");
+    const auto linked = kr16::link_objects({weak, strong, start});
+    REQUIRE(linked.ok);
+    const auto* text = linked.image.find_section(".text");
+    REQUIRE(text != nullptr);
+    CHECK(text->data.size() == 14);
+}
+
+TEST_CASE("undefined weak symbols resolve to zero") {
+    const auto object = assemble(
+        ".weak missing\n"
+        ".text\n"
+        ".global _start\n"
+        "_start:\n"
+        "  CALL missing\n"
+        "  HLT\n");
+    const auto linked = kr16::link_objects({object});
+    REQUIRE(linked.ok);
+    const auto* text = linked.image.find_section(".text");
+    REQUIRE(text != nullptr);
+    REQUIRE(text->data.size() >= 6);
+    CHECK(text->data[2] == 0x7E);
+    CHECK(text->data[3] == 0xFF);
+}
+
+
+

@@ -454,6 +454,7 @@ LinkResult link_objects(const std::vector<Container>& input_objects,
         }
 
         std::unordered_map<std::string, std::uint16_t> globals;
+        std::unordered_map<std::string, SymbolBinding> global_bindings;
         for (std::size_t object_index = 0; object_index < objects.size();
              ++object_index) {
             for (const auto& symbol : objects[object_index].symbols) {
@@ -468,10 +469,23 @@ LinkResult link_objects(const std::vector<Container>& input_objects,
                 const auto value = static_cast<std::uint16_t>(
                     placement.address + symbol.value);
                 const auto [it, inserted] = globals.emplace(symbol.name, value);
-                if (!inserted) {
-                    throw std::runtime_error("duplicate global symbol " +
-                                             symbol.name);
+                if (inserted) {
+                    global_bindings.emplace(symbol.name, symbol.binding);
+                    continue;
                 }
+                const auto existing = global_bindings.find(symbol.name);
+                if (existing != global_bindings.end() &&
+                    existing->second == SymbolBinding::Weak &&
+                    symbol.binding == SymbolBinding::Global) {
+                    it->second = value;
+                    existing->second = SymbolBinding::Global;
+                    continue;
+                }
+                if (symbol.binding == SymbolBinding::Weak) {
+                    continue;
+                }
+                throw std::runtime_error("duplicate global symbol " +
+                                         symbol.name);
             }
         }
 
@@ -502,6 +516,9 @@ LinkResult link_objects(const std::vector<Container>& input_objects,
             const auto provided = linker_symbols.find(symbol.name);
             if (provided != linker_symbols.end()) {
                 return provided->second;
+            }
+            if (symbol.binding == SymbolBinding::Weak) {
+                return 0;
             }
             throw std::runtime_error("undefined symbol " + symbol.name);
         };
@@ -667,6 +684,7 @@ LinkResult link_files(const std::vector<std::string>& paths,
 }
 
 }  // namespace kr16
+
 
 
 

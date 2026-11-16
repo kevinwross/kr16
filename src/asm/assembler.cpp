@@ -498,6 +498,7 @@ struct AsmSymbol {
     bool defined = false;
     bool global = false;
     bool external = false;
+    bool weak = false;
     SymbolType type = SymbolType::NoType;
 };
 
@@ -606,6 +607,7 @@ private:
     void handle_equ(const std::vector<std::string>& operands, int line);
     void handle_global(const std::vector<std::string>& operands);
     void handle_extern(const std::vector<std::string>& operands);
+    void handle_weak(const std::vector<std::string>& operands);
     void handle_section(const std::string& name);
     std::optional<std::pair<bool, int>> parse_memory(std::string_view text,
                                                      int line,
@@ -982,10 +984,13 @@ AsmResult Assembler::run() {
                     : section_numbers.at(
                           sections_[static_cast<std::size_t>(symbol.section)]
                               .name);
-            output.binding = symbol.external
-                                 ? SymbolBinding::Extern
-                                 : (symbol.global ? SymbolBinding::Global
-                                                  : SymbolBinding::Local);
+            output.binding = symbol.weak
+                                 ? SymbolBinding::Weak
+                                 : (symbol.external
+                                        ? SymbolBinding::Extern
+                                        : (symbol.global
+                                               ? SymbolBinding::Global
+                                               : SymbolBinding::Local));
             output.type = symbol.type;
             object.symbols.push_back(std::move(output));
         }
@@ -1125,7 +1130,16 @@ void Assembler::emit_instruction(
 
 void Assembler::define_label(const std::string& name, int line) {
     if (first_pass_) {
-        if (symbol_index_.count(name) != 0) {
+        const auto existing = symbol_index_.find(name);
+        if (existing != symbol_index_.end()) {
+            auto& symbol = symbols_[existing->second];
+            if (!symbol.defined && (symbol.weak || symbol.external)) {
+                symbol.defined = true;
+                symbol.external = false;
+                symbol.section = static_cast<int>(current_section_);
+                symbol.value = current_address();
+                return;
+            }
             throw AsmError(line, 1, "duplicate label " + name);
         }
         AsmSymbol symbol;
@@ -1506,6 +1520,8 @@ void Assembler::handle_directive(const std::string& mnemonic,
         handle_global(operands);
     } else if (mnemonic == ".extern") {
         handle_extern(operands);
+    } else if (mnemonic == ".weak") {
+        handle_weak(operands);
     } else if (mnemonic == ".type" || mnemonic == ".size") {
         if (operands.size() < 2) {
             throw AsmError(line, 1, mnemonic + " needs two operands");
@@ -1624,6 +1640,20 @@ void Assembler::handle_extern(const std::vector<std::string>& operands) {
             symbols_.push_back(std::move(symbol));
             symbol_index_[name] = symbols_.size() - 1;
         }
+    }
+}
+
+void Assembler::handle_weak(const std::vector<std::string>& operands) {
+    for (const auto& operand : operands) {
+        const std::string name = trim(operand);
+        if (symbol_index_.count(name) == 0) {
+            AsmSymbol symbol;
+            symbol.name = name;
+            symbol.external = true;
+            symbols_.push_back(std::move(symbol));
+            symbol_index_[name] = symbols_.size() - 1;
+        }
+        symbols_[symbol_index_[name]].weak = true;
     }
 }
 
@@ -2183,6 +2213,11 @@ AsmResult assemble_file(const std::string& path, AsmOptions options) {
 }
 
 }  // namespace kr16
+
+
+
+
+
 
 
 
