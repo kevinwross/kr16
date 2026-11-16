@@ -1678,3 +1678,16 @@ TEST_CASE("32-bit long shifts") {
               "  return 0;\n"
               "}\n") == 0);
 }
+
+TEST_CASE("32-bit long multiply") {
+    CHECK(run_c_libc_exit(
+              "int main(void) {\n"
+              "  long a = 70000;\n"
+              "  if ((a * 2) != 140000) return 1;\n"
+              "  long b = -1;\n"
+              "  if ((b * 1) != -1) return 2;\n"
+              "  long c = 0x10000;\n"
+              "  if ((c * c) != 0) return 3;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}

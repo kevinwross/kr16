@@ -7392,9 +7392,33 @@ private:
                 out << "  MOV R1, R3\n";
                 return;
             }
+            if (op == "*") {
+                out << "  PUSH R0\n";
+                out << "  PUSH R1\n";
+                out << "  PUSH R2\n";
+                out << "  PUSH R3\n";
+                out << "  LD R0, [SP+6]\n";
+                out << "  LD R2, [SP+2]\n";
+                out << "  MULU R0, R2\n";
+                out << "  PUSH R0\n";
+                out << "  PUSH R1\n";
+                out << "  LD R0, [SP+8]\n";
+                out << "  LD R2, [SP+6]\n";
+                out << "  MULU R0, R2\n";
+                out << "  LD R3, [SP]\n";
+                out << "  ADD R3, R0\n";
+                out << "  LD R0, [SP+10]\n";
+                out << "  LD R2, [SP+4]\n";
+                out << "  MULU R0, R2\n";
+                out << "  ADD R3, R0\n";
+                out << "  LD R0, [SP+2]\n";
+                out << "  MOV R1, R3\n";
+                out << "  ADD SP, #12\n";
+                return;
+            }
             throw CompileError(
                 expr->line, 1,
-                "32-bit long multiply, divide, and shift are not implemented yet");
+                "32-bit long divide and modulo are not implemented yet");
         }
         throw CompileError(expr->line, 1,
                            "unsupported 32-bit long expression");
@@ -8293,6 +8317,7 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
 
 
 

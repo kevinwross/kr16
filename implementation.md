@@ -3607,3 +3607,12 @@ Entry format:
   shift, arithmetic right shift of a negative value, and small left shift.
 - Updated ADR 0005, README, and deferred documentation.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 19:34:39 -08:00 — 32-bit long multiply
+
+- Implemented 32-bit multiplication using `MULU` 16x16 partial products:
+  `a0*b0`, `a0*b1`, and `a1*b0`, with the low word of the cross terms added
+  into the high word.
+- Added tests for `70000 * 2`, `-1 * 1`, and `0x10000 * 0x10000` wrapping to 0.
+- Divide and modulo remain explicitly rejected.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.
