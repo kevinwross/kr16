@@ -1723,3 +1723,18 @@ TEST_CASE("32-bit long function ABI") {
 }
 
 
+
+TEST_CASE("32-bit long increment and decrement") {
+    CHECK(run_c_libc_exit(
+              "int main(void) {\n"
+              "  long a = 70000;\n"
+              "  a++;\n"
+              "  if (a != 70001) return 1;\n"
+              "  a--;\n"
+              "  if (a != 70000) return 2;\n"
+              "  long b = 0xFFFF;\n"
+              "  b++;\n"
+              "  if (b != 65536) return 3;\n"
+              "  return 0;\n"
+              "}\n") == 0);
+}

@@ -3643,3 +3643,15 @@ Entry format:
   be clobbered by the high-word load.
 - Added an ABI test with `long add(long,long)` and `long mix(int,long)`.
 - Tests: Windows 58/58 CTest; Linux 57/57 CTest.
+
+### 2026-11-15 20:11:20 -08:00 — long increment/decrement
+
+- Implemented `++` and `--` on 32-bit long lvalues with low-word carry and
+  borrow into the high word.
+- Extended `expression_type` so increment/decrement expressions on long
+  values are typed as long and reach the long codegen path.
+- Added tests for `a++`, `a--`, and the low-word overflow case
+  `0xFFFF -> 0x10000`.
+- `%ld` formatting was investigated but not completed; it remains explicitly
+  unsupported for now.
+- Tests: Windows 58/58 CTest; Linux 57/57 CTest.

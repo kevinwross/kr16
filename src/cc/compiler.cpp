@@ -5132,7 +5132,8 @@ private:
         }
         if (expr->kind == Expr::Kind::Unary &&
             expr->children.size() == 1 &&
-            (expr->op == "-" || expr->op == "+" || expr->op == "~")) {
+            (expr->op == "-" || expr->op == "+" || expr->op == "~" ||
+             expr->op == "++" || expr->op == "--")) {
             return expression_type(expr->children[0].get());
         }
         if (expr->kind == Expr::Kind::Binary &&
@@ -7277,6 +7278,29 @@ private:
             return;
         }
         if (expr->kind == Expr::Kind::Unary && expr->children.size() == 1 &&
+            (expr->op == "++" || expr->op == "--")) {
+            gen_addr(expr->children[0].get(), out);
+            out << "  MOV R2, R0\n";
+            out << "  LD R0, [R2]\n";
+            out << "  LD R1, [R2+2]\n";
+            const auto done = new_label("longinc");
+            if (expr->op == "++") {
+                out << "  ADD R0, #1\n";
+                out << "  CMP R0, #0\n";
+                out << "  BNE " << done << "\n";
+                out << "  INC R1\n";
+            } else {
+                out << "  SUB R0, #1\n";
+                out << "  CMP R0, #65535\n";
+                out << "  BNE " << done << "\n";
+                out << "  DEC R1\n";
+            }
+            out << done << ":\n";
+            out << "  ST [R2], R0\n";
+            out << "  ST [R2+2], R1\n";
+            return;
+        }
+        if (expr->kind == Expr::Kind::Unary && expr->children.size() == 1 &&
             (expr->op == "-" || expr->op == "~")) {
             gen_long_operand(expr->children[0].get(), out);
             if (expr->op == "~") {
@@ -8395,6 +8419,8 @@ CompileResult compile_c(const std::string& source, const CompileOptions& options
 }
 
 }  // namespace kr16
+
+
 
 
 
