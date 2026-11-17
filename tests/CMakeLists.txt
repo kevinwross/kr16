@@ -199,7 +199,7 @@ add_test(NAME kr16.cc.cforu
     "${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
     -o "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
 )
-set_tests_properties(kr16.cc.cforu PROPERTIES LABELS "integration")
+set_tests_properties(kr16.cc.cforu PROPERTIES LABELS "integration" RESOURCE_LOCK cforu)
 
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U-input.c"
@@ -212,6 +212,7 @@ add_test(NAME kr16.vm.cforu
     "C-for-U-input.c"
 )
 set_tests_properties(kr16.vm.cforu PROPERTIES LABELS "integration"
+  RESOURCE_LOCK cforu
   DEPENDS kr16.cc.cforu
   FAIL_REGULAR_EXPRESSION "C-for-U error")
 
@@ -225,6 +226,7 @@ add_test(NAME kr16.cforu.explicit_output
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_output_check.cmake"
 )
 set_tests_properties(kr16.cforu.explicit_output PROPERTIES LABELS "integration"
+  RESOURCE_LOCK cforu
   DEPENDS kr16.cc.cforu)
 
 add_test(NAME kr16.cforu.generated
@@ -237,6 +239,7 @@ add_test(NAME kr16.cforu.generated
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_check.cmake"
 )
 set_tests_properties(kr16.cforu.generated PROPERTIES LABELS "integration"
+  RESOURCE_LOCK cforu
   DEPENDS kr16.cc.cforu)
 
 
@@ -250,6 +253,7 @@ add_test(NAME kr16.cforu.cycles
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_cycles.cmake"
 )
 set_tests_properties(kr16.cforu.cycles PROPERTIES LABELS "integration"
+  RESOURCE_LOCK cforu
   DEPENDS kr16.cc.cforu)
 # Heap allocator: the checker is a test-only object, linked explicitly so the
 # runtime itself stays small.
@@ -476,6 +480,9 @@ add_test(NAME kr16.example.putchar.run
   COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/putchar.kex")
 set_tests_properties(kr16.example.putchar.run PROPERTIES LABELS "integration"
   DEPENDS kr16.example.putchar.build PASS_REGULAR_EXPRESSION "KR16")
+
+
+
 
 
 

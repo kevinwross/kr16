@@ -153,7 +153,8 @@
       "configuration": "Debug",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     },
     {
       "name": "windows-vs2026-release",
@@ -161,56 +162,65 @@
       "configuration": "Release",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     },
     {
       "name": "windows-ninja-debug",
       "configurePreset": "windows-ninja",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     },
     {
       "name": "windows-ninja-release",
       "configurePreset": "windows-ninja-release",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     },
     {
       "name": "linux-gcc-debug",
       "configurePreset": "linux-gcc",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     },
     {
       "name": "linux-gcc-release",
       "configurePreset": "linux-gcc-release",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     },
     {
       "name": "linux-gcc-sanitize",
       "configurePreset": "linux-gcc-sanitize",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     },
     {
       "name": "linux-clang-debug",
       "configurePreset": "linux-clang",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     },
     {
       "name": "linux-clang-release",
       "configurePreset": "linux-clang-release",
       "output": {
         "outputOnFailure": true
-      }
+      },
+      "execution": { "jobs": 4 }
     }
   ]
 }
+

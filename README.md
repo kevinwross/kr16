@@ -265,6 +265,9 @@ host-call tests, compiled-C end-to-end execution tests, and the
 [C-for-U compiler test](tests/kevin/C-for-U.c), which emits assembler and has
 its generated program assembled, linked, and executed by CTest.
 
+The test presets run four CTest jobs. The C-for-U tests share a resource lock
+because they write the same generated assembler file.
+
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

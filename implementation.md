@@ -3794,3 +3794,15 @@ Entry format:
   6.8 KB), confirming the marketplace artifact builds locally.
 - Linked the runbook from the README packaging section.
 - No code changes; remaining release work is credential provisioning.
+
+### 2026-11-17T12:58:04-08:00 — four-job test presets
+
+- Added `execution: { jobs: 4 }` to every CTest preset.
+- Clean Windows debug measurements: serial 101.1 s wall / 99.2 s CTest,
+  `-j4` 87.4 s / 85.6 s, preset 90.0 s / 87.5 s. `kr16.unit` remains the long
+  pole, but the integration tail overlaps with it.
+- The first parallel preset run exposed a collision: several C-for-U tests
+  write the same `C-for-U-input.s`. Added `RESOURCE_LOCK cforu` to all five
+  C-for-U tests; the preset then passed 59/59.
+- Linux debug dropped from about 32 s serial to 22.3 s with the preset.
+- Windows release preset passes 59/59 in 6.6 s.
