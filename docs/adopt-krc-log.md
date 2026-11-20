@@ -667,3 +667,45 @@ C-for-U, plus a KRCompiler item for the line table and a decision on `stdout`/`s
 **Commit:** the pin, the stdio marker and this entry on `adopt-krc`.
 
 **Blocker:** the 64 KiB wall for C-for-U (5 tests) and krc's line table (1 test).
+
+## 2026-11-20T14:15:26-08:00
+
+**Changed:** nothing. The work this pass depends on is not published.
+
+**4.15 and 4.16 are not on `adopt-krc` yet.** `origin/adopt-krc` is `937b2f4`
+(`Record the 4.14 gate`); the two items are 4.15 (KR16 line-table attribution) and 4.16
+(function sections and GC). No re-pin, so the suite has not been re-run and `kr16.unit`'s
+line assertion is untouched and still failing under krc as recorded at
+`2026-11-20T14:02:03-08:00`.
+
+**Two things checked while waiting, so the sectioning is not started blind.**
+
+1. **The KR16 assembler at `937b2f4` has no `.section` directive** (`git grep '"\.section"'
+   src/asm/` returns nothing), so `resources/libc.s` cannot be split into
+   `.section .text.<name>` for the krc path at the current pin.
+2. **GC in the pin is object-level, not section-level**: `src/linker/linker.cpp:225` keeps
+   `reachable(objects.size())` and walks object-to-object through relocations. With
+   `resources/libc.s` as one object, `gc_sections` can drop all of it or none of it; no
+   function inside it can be collected. That is exactly what 4.16 changes.
+
+**A third finding, which is kr16's own work and not KRCompiler's.** kr16's linker does not
+merge `.text.<name>` into `.text`. Probe: `_start` in `.text` plus `extra` in
+`.section .text.extra` assembles (`kr16 as`, exit 0) and links (`kr16 ld`, exit 0), but
+`kr16 size` reports `.text` 8 and data 4 — `extra`'s four bytes are not in `.text`, so a
+sectioned `libc.s` would misplace every libc function in a builtin image. Splitting the
+file therefore needs a small change in `src/link/linker.cpp` to fold `.text.*`, `.data.*`
+and `.bss.*` into their base sections, so both toolchains keep accepting the same shipped
+file. Not started: it is only needed together with the split.
+
+**Plan when the SHAs publish:** re-pin and rebuild the package; re-run 2.5 and confirm
+`kr16.unit` passes with the line assertion untouched; split `libc.s` at its `.global`
+boundaries and teach the builtin linker the base-section merge; build with `gc_sections`
+on; re-measure C-for-U and report the size. If it is still over 64 KiB, stop — whether
+C-for-U is over budget for stage A is the owner's decision, 4.17 is tracked and not
+started, `fileio.c` is not trimmed and the five `cforu` tests are not relaxed.
+
+**Next step:** wait for 4.15 and 4.16.
+
+**Commit:** this entry only.
+
+**Blocker:** 4.15 and 4.16 unpublished.
