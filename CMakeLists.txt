@@ -45,13 +45,14 @@ endif()
 # The KRCompiler revision this tree is pinned to. Recorded here because the
 # consumer knows what it was built and gated against; the package itself does
 # not export a revision.
-set(KR16_KRC_PIN "0defcce" CACHE STRING
+set(KR16_KRC_PIN "7d005d5" CACHE STRING
     "KRCompiler adopt-krc revision the krc toolchain package is pinned to")
 # Install prefix of the pinned package, passed on to find_package.
 set(KR16_KRC_PREFIX "" CACHE PATH
     "Install prefix of the pinned krc-toolchain package")
-# Target sysroot of the pin. At 0defcce the package does not install one, so a
-# program that includes a system header (`fileio.c` needs <stdarg.h>) needs this.
+# Target sysroot of the pin. From 4.12 the package installs one under
+# share/krc/sysroot; this variable is how the krc path finds it until the
+# follow-up that reads KRC_SYSROOT instead.
 set(KR16_KRC_SYSROOT "" CACHE PATH
     "KRCompiler target sysroot directory for krc-built programs")
 

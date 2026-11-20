@@ -28,6 +28,9 @@ int main(void) {
     if (fclose(file) != 0) return 14;
     if (remove("stdio.tmp") != 0) return 15;
 
-    fprintf(stdout, "stdio ok\n");
+    /* `stdout` is a built-in identifier for the built-in compiler and a macro
+     * over a krc-runtime function in krc's sysroot, so print the marker with
+     * the routine both toolchains resolve from the shipped runtime. */
+    printf("stdio ok\n");
     return 0;
 }

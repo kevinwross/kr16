@@ -574,3 +574,96 @@ change for C-for-U.
 **Commit:** this entry only.
 
 **Blocker:** none new.
+
+## 2026-11-20T14:02:03-08:00
+
+**Changed:** re-pinned to 4.13, the krc path now builds and runs with the shipped
+runtime, and the suite is gated twice on Windows and WSL. 2.4 is green for every program
+that fits; 2.5 is not green — 6 tests fail under krc from two causes, both outside kr16.
+
+**Pin.** KRCompiler `adopt-krc` @ `7d005d5`
+(`7d005d5d424475f5bcc50fd7f760243bba8d26e9`), whose parent `7dc7477` teaches krc the
+`__host_call` intrinsic: the KR16 backend recognises a direct call with a constant
+service in 0..255 and lowers it to `SYS #n`. `KR16_KRC_PIN` in `CMakeLists.txt` is now
+`7d005d5`. The package was built from a `git archive` of that revision with
+`-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDebug` on Windows and with GCC in WSL, both
+into scratch prefixes.
+
+**4.13 does what it promised.** `kr16 build hello.c -l` under krc now compiles the input,
+assembles the stub, assembles `resources/libc.s`, compiles and assembles
+`resources/fileio.c`, links and runs — the whole recipe with the shipped runtime and no
+substitution.
+
+**Image sizes after 4.13, and whether they run.**
+
+| image | `.text` | `.data` | `.bss` | total | runs |
+|---|---|---|---|---|---|
+| `hello.c` | 36,912 | 6 | 74 | 36,992 | yes — prints `Hello, KR16!`, exit 0 |
+| `C-for-U.c` | 85,836 (computed) | 6 | 74 | 86,172 span | **no image is produced** |
+
+`C-for-U.c` still reports `build: ld failed: link relocation overflows its width`. Its
+budget, exact at `-O1` from the four objects: stub 8 + `libc.s` 1,698 + `fileio.c` 35,158
++ `C-for-U.c` 48,972 = 85,836 B of `.text`, plus 6 B `.data`, 74 B `.bss` and the 0x100
+base — 86,172 B against 65,536 B, **over by 20,636 B**. No image, so nothing to run.
+
+**Correction to the `2026-11-20T13:14:35-08:00` entry, and to the premise behind this
+task.** That measurement did **not** use krc's runtime; it used the shipped
+`resources/libc.s` and `resources/fileio.c` compiled by krc, with a two-byte placeholder
+standing in for `__host_call` because 4.13 did not exist yet. The figure it reported,
+86,536 B, also added the 0x100 base twice: the correct figure for the same objects is
+86,280 B. With 4.13 the same set measures 86,172 B — the intrinsic lowering saved 56 B
+in `fileio.c` (35,214 → 35,158) and the placeholder is gone. The number moves by about
+100 B, not by kilobytes, so the wall stands and the measurement the next step depends on
+is: **the shipped runtime is dense, but krc's codegen of it is 36,912 B, and the program
+alone is 48,972 B, which is already 75% of the 64 KiB space before the runtime is added.**
+
+**Two test-level findings.**
+
+1. **krc's sysroot maps `stdout` to a symbol the shipped runtime does not define.**
+   `tests/integration/stdio_buffered.c` used `fprintf(stdout, "stdio ok\n")`, and krc's
+   `sysroot/include/stdio.h` has `#define stdout (__krc16_stdout())`; the link fails with
+   `build: ld failed: undefined symbol '__krc16_stdout'`. The built-in compiler treats
+   `stdout` as a built-in identifier, so the fixture only ever worked on that path. The
+   marker is now `printf("stdio ok\n")` — `fprintf` on a real `FILE` is still exercised at
+   line 12 — which is the spelling both toolchains resolve from the shipped runtime. The
+   mismatch itself is recorded, not fixed: any kr16 program that uses `stdout` or
+   `stderr` under krc will hit it, and the fix is either krc's sysroot mapping them to
+   `(FILE *)1`/`(FILE *)2` for this target or the shipped runtime growing the two
+   accessors.
+2. **krc attributes an assignment to its declaration's line.** The unit case
+   `debug session builds and loads a C source file` builds
+   `int main(void) { int local; local = 42; return local; }` and requires the session to
+   land on line 3; under krc it lands on line 2. The payload has executable lines {2, 4}
+   only, with 0x106-0x10A (`local = 42`) mapped to line 2 and 0x10C-0x110
+   (`return local`) to line 4. With an initializer (`int local = 42;`) the same probe maps
+   2 → 3 → 4 correctly, so the row for a plain declaration is swallowing the following
+   assignment. This is a krc line-table defect; the test was left asserting line 3 rather
+   than being gated to accept line 2.
+
+**Gates. Four runs, each from a deleted build directory.**
+
+| | builtin | krc |
+|---|---|---|
+| Windows (`windows-ninja`) | **100% — 0 failed of 59** | **90% — 6 failed of 60** |
+| WSL (`linux-gcc`) | **100% — 0 failed of 56** | **89% — 6 failed of 56** |
+
+The krc failures are identical on both platforms: `kr16.unit` (the line-table assertion
+above) and the five `cforu` checks (`kr16.cc.cforu`, `vm.cforu`, `cforu.explicit_output`,
+`cforu.generated`, `cforu.cycles`) from the size wall. Everything else passes under krc,
+including the items this stage is graded on: `kr16.dap.smoke.krc` (the existing DAP check
+over a krc-built, symbol-less `.kex`, so the `main` function breakpoint comes from
+`.kdbg`) and the `a krc-built image debugs through .kdbg` unit case.
+
+**Verdict.** 2.4: green — `build_program` under `KR16_TOOLCHAIN=krc` compiles, assembles
+the stub and `libc.s`, compiles and assembles `fileio.c`, links and runs for the fixtures
+that fit. 2.5: **not green**, by 6 of 60 on Windows and 6 of 56 on WSL, for the two
+causes above. The size measurement is the one that decides the next step — function
+sections with GC, or a runtime diet — and it is recorded rather than acted on: no runtime
+change and no GC in this pass.
+
+**Next step:** the owner's call between function sections with GC and a runtime diet for
+C-for-U, plus a KRCompiler item for the line table and a decision on `stdout`/`stderr`.
+
+**Commit:** the pin, the stdio marker and this entry on `adopt-krc`.
+
+**Blocker:** the 64 KiB wall for C-for-U (5 tests) and krc's line table (1 test).
