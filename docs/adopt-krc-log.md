@@ -526,3 +526,51 @@ shipped runtime; report C-for-U as a separate, measured blocker.
 **Commit:** the fixture and this entry on `adopt-krc`.
 
 **Blocker:** 4.13 for `__host_call`; the measured size wall for C-for-U.
+
+## 2026-11-20T13:17:06-08:00
+
+**Changed:** nothing. Measurement only, so the runtime diet named in the previous entry
+has numbers to plan from.
+
+**Where the runtime's bytes are.** Of the 37,308 B address span, `fileio.c` compiled by
+krc is 35,214 B of `.text` (95%) and `libc.s` 1,698 B (5%); the rest is the 8-byte stub
+and the 48-byte hello program. Per-function sizes come from a debug image's `.kdbg`
+ranges (`end - start`), so they include the padding between functions; the 56 `fileio.c`
+functions plus `main` total 33,804 B, leaving about 1,410 B of `.text` for the string data
+krc emits inline.
+
+| # | function | bytes | share | cumulative |
+|---|---|---|---|---|
+| 1 | `fscanf` | 5,342 | 15.8% | 15.8% |
+| 2 | `format_stream` | 3,896 | 11.5% | 27.3% |
+| 3 | `print_number` | 1,922 | 5.7% | 33.0% |
+| 4 | `fwrite` | 1,588 | 4.7% | 37.7% |
+| 5 | `print_long_words` | 1,374 | 4.1% | 41.8% |
+| 6 | `freopen` | 1,282 | 3.8% | 45.6% |
+| 7 | `fread` | 1,026 | 3.0% | 48.6% |
+| 8 | `tmpfile` | 868 | 2.6% | 51.2% |
+| 9 | `ftell` | 850 | 2.5% | 53.7% |
+| 10 | `fseek` | 830 | 2.5% | 56.1% |
+| 11 | `mode_flags` | 822 | 2.4% | 58.6% |
+| 12 | `flush_stream` | 690 | 2.0% | 60.6% |
+
+The tail is small: `print_char` 94, `scan_is_space` 92, `fprintf` 66, `printf` 58,
+`set_errno_status` 48, `rewind` 30, `main` 28, `__errno_location` 10.
+
+`libc.s` is hand-written assembly and carries no `.kdbg` functions; label-to-label deltas
+from its listing put `realloc` at 418 B, `__long_divmod` 344, `malloc` 254,
+`__kr16_block_free` 206, `calloc` 70, `free` 50, `atoi` 36.
+
+**What the call sites say.** Nothing in the repository calls `fscanf` (0 call sites
+outside its own definition), `freopen` or `tmpfile` (1 each, both inside `fileio.c`
+itself). Those three are 7,492 B, 22% of `fileio.c`, and 20% of the runtime. Dropping
+them would move the C-for-U budget from 86,536 B to about 79,044 B — still 13,508 B over
+the 65,536 B space, so the dead entry points alone do not clear the wall. `fread` has one
+caller (`C-for-U.c`); `fwrite`, `ftell` and `fseek` are used by `stdio_buffered.c`.
+
+**Next step:** unchanged — 4.13 for `__host_call`, then the diet or a codegen-density
+change for C-for-U.
+
+**Commit:** this entry only.
+
+**Blocker:** none new.
