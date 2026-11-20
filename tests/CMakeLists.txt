@@ -445,6 +445,18 @@ if(KR16_NODE_EXECUTABLE)
   )
   set_tests_properties(kr16.dap.smoke PROPERTIES LABELS "integration"
     DEPENDS kr16.ld.hello)
+  if(KR16_TOOLCHAIN STREQUAL "krc")
+    # The same check over an image the krc path built: no symbol table, so the
+    # function breakpoint has to come from `.kdbg`.
+    add_test(NAME kr16.dap.smoke.krc
+      COMMAND "${KR16_NODE_EXECUTABLE}"
+        "${CMAKE_SOURCE_DIR}/scripts/dap-smoke.js"
+        "$<TARGET_FILE:kr16>"
+        "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kex"
+    )
+    set_tests_properties(kr16.dap.smoke.krc PROPERTIES LABELS "integration"
+      DEPENDS kr16.build.hello)
+  endif()
 endif()
 
 

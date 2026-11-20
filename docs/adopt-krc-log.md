@@ -302,3 +302,129 @@ stage may do unilaterally, so the work stops here.
 `builtin` and `src/cc`, `src/asm`, `src/link` are untouched.
 
 **Blocker:** yes — `resources/fileio.c` under the pinned krc.
+
+## 2026-11-20T12:47:38-08:00
+
+**Changed:** the shipped `resources/fileio.c` gets the two conformance fixes the owner
+recorded, the embedded copies are regenerated, and both toolchains are gated on Windows
+and WSL. Both `builtin` gates are now green; the `krc` gates are red for three reasons
+that are not the fileio compile.
+
+**The two edits.**
+
+| file | line | change |
+|---|---|---|
+| `resources/fileio.c` | 51 | `int fgetc(FILE *stream);` added to the prototype block, before its first use at line 577, so the definition at 655 is not a redefinition |
+| `resources/fileio.c` | 833 | `(high & 32768)` → `(high & 0x8000)`, a hexadecimal constant whose type is `unsigned int` on the IP16 profile, which is what a bit-15 mask needs |
+
+`resources/embed_libc.py` regenerated `src/resources/embedded_libc.cpp`: `kLibc` 19663
+bytes, `kFileio` 40154, `kSystemServices` 4636. The regeneration also carries the CR
+strip that was stashed before this work started, so `test_resources.cpp` now passes and
+`stash@{0}` (the pre-work regeneration) is superseded — popping it would revert the
+fileio change in the embedded copy.
+
+`resources/manifest.json` refreshed with `scripts/bootstrap-check.ps1 -Update`; the
+`fileio` hash is now `9FAB3033DCA0B355896B7B4DC5C7D8875416CE462A7485354C4D18BA5BED100F`
+and the check then prints `resource hashes match the manifest`.
+
+**Both compilers accept the fixed file.**
+
+```pwsh
+kr16 cc resources/fileio.c -c -I include -o build/fileio-check/fileio-builtin.o
+# exit 0, 37266-byte object
+krc --target=kr16 -c --emit-object resources/fileio.c -I include `
+    -I <pin>/sysroot/include -I <pin>/sysroot/kr16/include -o build/fileio-check/fileio.kro
+# exit 0, 606680-byte object
+```
+
+**Gates. Four runs, each from a deleted build directory so no stale artefact can pass a
+test.** Windows:
+
+```pwsh
+cmake --preset windows-ninja
+cmake --build --preset windows-ninja-debug
+ctest --preset windows-ninja-debug --output-on-failure
+```
+
+- `builtin`: `-- kr16 toolchain: builtin (krc pin 0defcce); kdbg reader: OFF` →
+  **`100% tests passed, 0 tests failed out of 59`** (43.39 s). The pre-existing
+  `test_resources` failure is gone with the regeneration.
+- `krc` (`-DKR16_TOOLCHAIN=krc -DKR16_KRC_PREFIX=… -DKR16_KRC_SYSROOT=…`):
+  `-- kr16 toolchain: krc (krc pin 0defcce); kdbg reader: ON` →
+  **`68% tests passed, 19 tests failed out of 60`**.
+
+WSL (`linux-gcc` preset, SDL3 fetched as CI does; the pinned package built there from a
+`git archive` of `0defcce` and installed under `$HOME/krc-pin`):
+
+- `builtin`: **`100% tests passed, 0 tests failed out of 56`** (9.15 s).
+- `krc`: **`68% tests passed, 18 tests failed out of 56`**.
+- WSL has no `node`, so `kr16.dap.smoke` is not registered there; Windows has the
+  installer and manifest tests WSL does not. That is the 56/60 difference.
+
+**Why the krc gates are red — three causes, all reproduced directly.** `fileio.c` now
+compiles and assembles; the failures are past it:
+
+1. **`__host_call` is a kr16-compiler intrinsic, and krc emits a call to it.**
+   `kr16 build tests/integration/hello.c` under krc →
+   `build: ld failed: undefined symbol '__host_call'`. The builtin compiler folds
+   `__host_call(n, block)` into `SYS #n` (`src/cc/compiler.cpp:8094-8100`), and `SYS`
+   carries the service number as an 8-bit immediate (`docs/isa.md:292`), so no ordinary
+   function can stand in for it. Nothing in the tree defines the symbol; the builtin
+   image never needs one. `fileio.c` calls it at lines 100, 120, 132, 144, 145, 162,
+   163, 180, 198, 199, 209, 219 and 220.
+2. **An implicit variadic declaration is rejected by krc's IR verifier.**
+   `krc --target=kr16 -c --emit-object tests/integration/stdio_buffered.c …` →
+   `warning: implicit declaration of function 'fprintf'` then
+   `error: IR verifier: function 'main': call has the wrong argument count`, exit 1. The
+   call at `tests/integration/stdio_buffered.c:12` passes four arguments to an
+   implicitly declared function; the builtin compiler accepts it.
+3. **`C-for-U.c` does not fit in the 16-bit address space under krc's codegen.**
+   `kr16 build --no-debug tests/kevin/C-for-U.c` →
+   `build: ld failed: link relocation overflows its width`. Measured with a probe over
+   the facade's listing rows: `C-for-U.c` `.text` 48,972 B, `libc.s` 1,698 B + 6 B
+   `.data`, `fileio.c` `.text` 35,214 B, stub 8 B, base 0x100 → about 86 KiB against
+   64 KiB. The builtin image of the same set is 27,626 B of `.text`.
+
+The krc failures are exactly these: `kr16.unit` (the `build` tests plus the `.kdbg`
+smoke), the `cforu` group (cause 3), the build/run pairs for hello, printf_hex, fileio,
+stdio, sysfile and args (cause 1, and cause 2 for stdio), and `kr16.dap.smoke.krc`
+(cause 1: its dependency cannot produce an image).
+
+**What the krc path does prove on an image it built.** With a runtime directory holding
+`libc.s` but no `fileio.c` — the same optional-file rule the builtin path uses — the krc
+branch builds and the checks pass:
+
+- `kr16 build hello.c -l` → `build: wrote hello.kex and hello.lst`; `kr16 vm hello.kex`
+  → `Hello, KR16!`, exit 0; the listing has the builtin's shape.
+- `node scripts/dap-smoke.js build/windows-ninja/kr16.exe build/smoke-krc4/hello.kex` →
+  `DAP smoke passed` — on a `.kex` with no symbol table, so the `main` function
+  breakpoint came from `.kdbg`.
+- `kr16_tests --test-case="a krc-built image debugs through .kdbg"` →
+  `test cases: 1 | 1 passed`, `assertions: 17 | 17 passed`.
+
+That is the state: the reader and the producer work on a krc-built image, and the
+shipped-runtime link is what blocks 2.4/2.5.
+
+**Follow-up, not this pass (same shape as KR32's 3.9).** KRCompiler 4.12 installs the
+target sysroot and exports `KRC_SYSROOT`. When the pin moves past `0defcce`, kr16
+consumes the installed package — configure, build and test with an installed KRCompiler
+prefix and no build tree on the path — and `KRC_SYSROOT` replaces
+`KR16_KRC_SYSROOT` pointing into `build/krc-pin-0defcce/src/sysroot`. Stage B waits on
+it so the flip does not depend on a directory a clean can delete. Not started here.
+
+**Decision needed:** cause 1 is the one that blocks everything (it is what makes
+`fileio.c` unlinkable under krc). Either krc learns the `__host_call` intrinsic
+(a KRCompiler item, out of scope here), or the shipped runtime grows a real
+`__host_call` — a dispatcher over the constant service numbers in `libc.s` — so the
+wrappers stop depending on a compiler intrinsic. Cause 2 is a one-line declaration in
+`tests/integration/stdio_buffered.c` if the owner wants it. Cause 3 is a codegen-density
+wall: the builtin compiler's whole image for `C-for-U.c` is 27,626 B, krc's runtime
+alone is 36,912 B.
+
+**Next step:** on that decision; then 2.5.
+
+**Commit:** the fileio fix, the regenerated resources, the manifest and this entry on
+`adopt-krc`. Default stays `builtin`; nothing deleted.
+
+**Blocker:** yes — `__host_call` (and, behind it, the variadic declaration and the
+address-space wall).
