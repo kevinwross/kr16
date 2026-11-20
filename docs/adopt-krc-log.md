@@ -1,0 +1,148 @@
+# kr16 — adopting the krc toolchain (stage A log)
+
+Append-only. Every entry starts with the exact `iso` string from `local-datetime`,
+called immediately before the entry was written. Earlier entries are never rewritten;
+a correction is a new entry.
+
+## 2026-11-20T09:50:34-08:00
+
+**Changed:** nothing in source. Stage A is held at item 2.1. This entry records the
+spike, the directive gap that blocks decision 1, and the state of the gate.
+
+**Dependency pin.** KRCompiler `adopt-krc` @ `0f61260`
+(`0f61260822d7843f0df2f94879c3db098c242e8f`). The branch tip `797dfac` is documentation
+only over that commit (`docs/adopt-krc-log.md`, 25 lines), so building the tree at the
+tip is building the pin. The package was built from that tree into
+`build/krc-pin-0f61260/`:
+
+```pwsh
+cmake -S C:\Users\kevin\source\repos\KRCompiler -B build/krc-pin-0f61260/build -G Ninja `
+      -DCMAKE_BUILD_TYPE=Debug -DKRC_BUILD_TESTS=OFF -DKRC_BUILD_TOOLS=ON `
+      -DCMAKE_INSTALL_PREFIX=build/krc-pin-0f61260/install
+cmake --build build/krc-pin-0f61260/build --parallel
+cmake --install build/krc-pin-0f61260/build
+```
+
+Result: `krc.exe` and `krld.exe` under `build/krc-pin-0f61260/build/host/bin/Debug/`,
+`krc-toolchain.lib`, `krc-debug.lib`, `include/krc/**`, and both
+`krc-toolchain-config.cmake` and `krc-debug-config.cmake`. Environment note: Ninja is
+unusable under the session's `workspace-write` sandbox — every invocation hangs, even
+a one-command trivial build — and runs normally under full file access. `cl`/`link`
+run either way.
+
+**2.1 spike — the image runs; output parity is conditional, not unconditional.**
+
+- `krc --version` → `krc 0.1.0`; `krc --list-targets` →
+  `kr16  register  pointer=16  data=ip16  backend=yes`.
+- `krc --target=kr16 -c tests/integration/hello.c -o hello.kex` → exit 0, 871 bytes.
+- `kr16 vm hello.kex --headless` → exit 0. The image runs.
+- Output captured through `cmd /c … > file` so no shell text layer is involved:
+  - builtin `hello.kex`: 14 bytes, `48 65 6c 6c 6f 2c 20 4b 52 31 36 21 0d 0a`
+    (SHA-256 `116C8E01530C6F162D7676CEBD40D3FD41DFFF376BAB24C3D5D9AFCF5B7235F0`);
+  - krc CLI single image: 12 bytes, `48 65 6c 6c 6f 2c 20 4b 52 31 36 21` — **no
+    trailing newline**, so the console output does not match.
+    The `-c` form prepends `kKr16EntryStub` (`src/tools/krc/main.cpp:144` at the pin)
+    whose `puts` writes no newline.
+  - krc image linked against a runtime that defines `puts` (`targets/kr16/runtime/crt0.s`
+    assembled through the facade + staged `libkrcrt.kro` + the compiled fixture,
+    95856-byte `.kex`): 14 bytes, the same SHA-256 as the builtin image's output.
+- The literal `krc` + `krld` two-step does not link:
+  `krc --target=kr16 -c --emit-object hello.c -o hello.kro` (exit 0), then
+  `krld hello.kro -o hello.kex` → exit 1, `krld: undefined symbol 'puts'`.
+- `--emit-object` alone is a no-op in the pinned CLI: the driver reaches
+  `if (!emit_assembly && !emit_object) continue;` (`src/tools/krc/main.cpp:483`),
+  prints `krc: the kr16 front end parsed the input and built IR; code generation is not
+  implemented yet` and exits 2. `-c --emit-object` together write the `.kro`.
+
+**Blocker — decision 1 is not reachable at `0f61260`.** krc's KR16 assembler
+(`src/asm/kr16_assembler.cpp`, directive table at lines 581-650) accepts exactly
+`.text .data .global .weak .extern .short .byte`. `resources/libc.s` needs four more:
+
+| file | directive | lines |
+|---|---|---|
+| `resources/libc.s` | `.bss` | 257, 443 |
+| `resources/libc.s` | `.align` | 258, 431, 444 |
+| `resources/libc.s` | `.space` | 260, 262, 264, 447, 449, 451 |
+| `resources/libc.s` | `.word` | 434, 436, 439 |
+
+Probe: `krc::toolchain::assemble(<file text>, {target=Kr16})` over every file below.
+`resources/libc.s` → `KR16 assembler: unknown directive '.bss' on line 257`.
+`.text`, `.data`, `.global` and `.extern` are the only directives in that file that the
+assembler already accepts.
+
+**`.bss`, `.space`, `.align` and `.word` are not the complete gap.** The other files
+the krc path must assemble:
+
+- **The entry stub.** The builtin compiler emits the section directive `.crt0` at
+  `src/cc/compiler.cpp:2471` (`out << ".crt0\n";`, inside the block at lines 2471-2476
+  that also emits `.global _start`, `_start:`, `CALL main`, `HLT`, `.text`).
+  That directive is the source of the `.crt0` error in the spike: the stub literal at
+  `build/spike-21/host/spike.cpp:54` copies those five lines, and
+  `krc::toolchain::assemble` rejects the first line with
+  `KR16 assembler: unknown directive '.crt0' on line 1`.
+  It also appears in the checked-in generated assembly: `examples/sum.s:87`,
+  `tests/kevin/smalltest.s:94`, `tests/kevin/bigtest.s:78`,
+  `tests/kevin/C-for-U.s:5940`.
+  A krc-dialect stub could stay in `.text`, but the section is load-order significant
+  (`src/link/linker.cpp:383` places `.crt0` first) and the debug model only looks for
+  functions in `.text` or `.crt0` (`src/debug/debug_session.cpp:673`), so dropping the
+  section is a behavioural change, not just a spelling change.
+- **`.s`/`.asm` input that `kr16 build` accepts** (only if the krc branch assembles it):
+  `tests/support/heap_stress.s` → `.bss` (15), `.align` (16), `.space` (18, 20, 22),
+  first error `unknown directive '.bss' on line 15`.
+  `resources/bios.s` (used by `kr16 as`, not `build`) → `.org` (2, 5), `.word` (6),
+  first error `unknown directive '.org' on line 2`.
+- **Files whose directives are all supported but which the krc assembler still
+  rejects.** A directive-only 4.11 will not make these assemblable:
+  - `examples/putchar.s:5` — `unknown label ''K''`: character-literal immediates
+    (`MOV R1, #'K'`) are not parsed.
+  - `tests/integration/link_main.s:5` — `undefined label 'put'`: a direct
+    `CALL <extern>` is rejected. krc's own codegen only calls through a register
+    (`LEA R0, [puts]` then `CALL R0`), so this is an assembly-model gap, not a
+    directive one.
+  - `tests/support/heapcheck.s:39` — `unknown KR16 mnemonic 'BHS'`.
+- **Already assemblable:** `examples/sum_loop.s`, `tests/integration/asm_min.s`,
+  `tests/integration/link_lib.s`, `tests/integration/vm_hello.s`.
+- **Not krc-path inputs** (checked-in compiler output, listed for completeness):
+  `examples/sum.s`, `tests/kevin/smalltest.s`, `tests/kevin/bigtest.s`,
+  `tests/kevin/C-for-U.s` need `.file`, `.loc`, `.section`, `.asciz`, `.rodata`,
+  `.crt0`.
+
+So the full directive gap over every file above is `.bss`, `.space`, `.align`, `.word`,
+`.crt0`, `.file`, `.loc`, `.section`, `.rodata`, `.asciz`, `.org`; only the first four
+sit in `resources/libc.s`, and item 4.11 as described closes decision 1 but not the
+`kr16 build <file.s>` cases.
+
+**Second gap, independent of 4.11 — MSVC runtime.** kr16 builds with the static MSVC
+runtime (`CMakeLists.txt:21`). A package built with MSVC's default dynamic runtime does
+not link into it: `spike.exe` at `/MTd` against the `/MDd` package fails with
+`LNK2001: unresolved external symbol __imp_ceilf` (`spike.exe : fatal error LNK1120: 2
+unresolved externals`). The package has to be configured with the consumer's runtime
+library; not yet verified.
+
+**Gate — the branch tip is red for a pre-existing reason.**
+`cmake --preset windows-ninja` → `cmake --build --preset windows-ninja-debug` →
+`ctest --preset windows-ninja-debug --output-on-failure` at `52b0969` with no change:
+`98% tests passed, 1 tests failed out of 59`; `kr16.unit` fails at
+`tests/unit/test_resources.cpp:41` — the embedded host-service header carries CR bytes
+that the checked-in `resources/systemservices.h` does not.
+Applying the one uncommitted worktree file (`src/resources/embedded_libc.cpp`, the
+regeneration with CR stripped) and rerunning the same build and ctest:
+`100% tests passed, 0 tests failed out of 59`.
+That file is stashed here as `stash@{0}`
+(`pre-adopt-krc: embedded_libc regeneration with CR bytes stripped`), neither committed
+nor carried into stage A; `git stash pop` restores it.
+
+**Decision:** the programme owner is adding KRCompiler item 4.11 to extend the KR16
+assembler with `.bss`, `.space`, `.align` and `.word`. Decision 1 stands; no runtime
+substitution is taken (`targets/kr16/runtime/` was used only as a probe, never as the
+plan's runtime). Stage A stays at 2.1 until 4.11 is published.
+
+**Next step:** re-pin when 4.11 lands, re-run the probe over every file above, then start
+2.2. The three non-directive rejections (character literals, direct extern `CALL`,
+`BHS`) and the MSVC runtime match still need an owner decision.
+
+**Commit:** this entry only, a docs-only commit on `adopt-krc`; the tree it describes is
+`52b0969` with no source change.
+
+**Blocker:** yes — decision 1 needs KRCompiler 4.11.
