@@ -428,3 +428,101 @@ alone is 36,912 B.
 
 **Blocker:** yes — `__host_call` (and, behind it, the variadic declaration and the
 address-space wall).
+
+## 2026-11-20T13:14:35-08:00
+
+**Changed:** the stdio fixture's prototype, and the C-for-U size wall measured. `-O1`
+verified as in effect, because the measurement is only meaningful at the level the gate
+uses.
+
+**The prototype.** `tests/integration/stdio_buffered.c` declares `fprintf` itself now,
+because the kr16 profile of `<stdio.h>` stops at `printf` while `fileio.c` also defines a
+formatted stream writer:
+
+```c
+/* The kr16 profile of <stdio.h> stops at printf; fileio.c also defines a
+ * formatted stream writer, so declare it here rather than call it implicitly. */
+int fprintf(FILE *stream, const char *format, ...);
+```
+
+Both compilers accept the file: `kr16 cc … -c` → exit 0 (3108-byte object);
+`krc --target=kr16 -c --emit-object …` → exit 0 (15777-byte object), with no
+`implicit declaration` warning and no IR-verifier error. With the prototype the stdio
+test now fails at the same place every other krc build does — `undefined symbol
+'__host_call'` — and no longer in the front end. Windows `builtin` gate re-run from a
+deleted build directory: **`100% tests passed, 0 tests failed out of 59`**.
+
+**The size wall, measured.** The literal 2.1 recipe — the startup stub, the shipped
+`resources/libc.s`, and the program, entry `_start` — cannot produce an image for
+`C-for-U.c`:
+
+```text
+link failed: undefined symbol 'fputc'
+```
+
+`C-for-U.c` uses the fileio layer, so it needs the runtime object that cannot link until
+4.13 lands. The budget was therefore measured with `fileio.c`'s object included — it
+assembles, only the link is blocked — and a two-byte measurement-only `__host_call`
+stub, which is not a product path and is not used by `build_program`:
+
+```text
+linked 37198 bytes, entry 0x100          <- stub + libc.s + hello.c + fileio.c + stub
+  .text addr=0x100 size=36972
+  .data addr=0x916c size=6
+  .bss  addr=0x9172 size=74
+address span ends at 0x91bc (37308), space is 65536
+```
+
+The runtime's address span is 37,308 B, of which 36,972 B is `.text` — the owner's
+36,912 B figure for the runtime alone, plus the 48-byte hello program and the 8-byte
+stub. `C-for-U.c`'s own `.text` is 48,972 B (assembler listing, exact; krc emits no
+`.data` or `.bss` rows for it). The full set:
+
+```text
+C-for-U.c          48972
+libc.s + fileio.c  37308   (36,972 .text, 6 .data, 74 .bss)
+base 0x100           256
+                   -----
+                   86536   against 65536  -> over by 21,000 B, before C-for-U's data
+```
+
+Linking the full set reports `link failed: link relocation overflows its width`. **No
+image is produced and nothing can run: it does not fit.** 2.1's own `hello.kex` remains
+the running proof; C-for-U is the one that exceeds the space.
+
+The cause is codegen density, not the runtime's feature set: the builtin compiler
+produces ~11,904 B of `.text` for `fileio.c` (the builtin `hello.kex` is 13,632 B of
+`.text` for libc+fileio+hello, and libc+hello without fileio is 1,728 B), while krc
+produces 35,214 B for the same file — 2.96×. For the current codegen to fit, the runtime
+would have to come down to about 16,308 B, or krc's `fileio.c` output to about a third
+of its size. That is a diet task, not a `build_program` task.
+
+**`-O1` verified, and it was the measurement's setting.** The path is plumbed end to
+end: `BuildOptions::optimize` defaults true (`include/kr16/build.hpp:23`), the krc branch
+maps it to `settings.optimize = 1` (`src/cli/build.cpp:334`), and krc turns
+`optimize > 0` into `OptimizationLevel::O1` (`src/toolchain/toolchain.cpp:140`) and runs
+its optimiser for every target, KR16 included, at `src/toolchain/toolchain.cpp:446-478`.
+The probe used `optimize = 1`. Measured at both levels to prove it is not a no-op:
+
+| file | `-O0` | `-O1` | recovered |
+|---|---|---|---|
+| `fileio.c` | 37,442 | 35,214 | 2,228 B (6.0%) |
+| `C-for-U.c` | 49,920 | 48,972 | 948 B (1.9%) |
+| `hello.c` | 50 | 48 | 2 B |
+
+So the 86,536 B figure already has `-O1` applied; `-O0` would make the wall 2,500 B
+worse. The optimiser is a modest IR pass set (constant folding, alloca promotion, copy
+propagation, DCE, empty-block elimination) and does not change the density that causes
+the overflow.
+
+**Decision recorded here:** the size wall blocks `kr16.cc.cforu` (and its four dependent
+checks) under krc independently of 4.13. Everything else in 2.4/2.5 can proceed once
+4.13 is published; C-for-U needs the runtime diet or a codegen-density change, both
+their own tasks.
+
+**Next step:** wait for KRCompiler 4.13's SHA, re-pin, and resume 2.4/2.5 with the
+shipped runtime; report C-for-U as a separate, measured blocker.
+
+**Commit:** the fixture and this entry on `adopt-krc`.
+
+**Blocker:** 4.13 for `__host_call`; the measured size wall for C-for-U.

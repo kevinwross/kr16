@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 
+/* The kr16 profile of <stdio.h> stops at printf; fileio.c also defines a
+ * formatted stream writer, so declare it here rather than call it implicitly. */
+int fprintf(FILE *stream, const char *format, ...);
+
 int main(void) {
     FILE *file;
     char line[32];
