@@ -29,6 +29,12 @@ target_include_directories(kr16_tests PRIVATE
 target_compile_definitions(kr16_tests PRIVATE
   KR16_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
+if(KR16_TOOLCHAIN STREQUAL "krc")
+  target_compile_definitions(kr16_tests PRIVATE KR16_TOOLCHAIN_KRC=1)
+endif()
+if(KR16_KDBG)
+  target_compile_definitions(kr16_tests PRIVATE KR16_KDBG=1)
+endif()
 
 add_executable(kr16_golden_gen EXCLUDE_FROM_ALL golden/generate.cpp)
 target_link_libraries(kr16_golden_gen PRIVATE kr16_core)

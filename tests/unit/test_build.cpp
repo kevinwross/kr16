@@ -85,6 +85,12 @@ TEST_CASE("build -l writes a listing beside the source") {
 }
 
 TEST_CASE("build records debug info unless --no-debug is given") {
+    // A krc-built image carries one `.kdbg` payload instead of `.debug_*`.
+#if defined(KR16_TOOLCHAIN_KRC)
+    constexpr const char* kDebugSection = ".kdbg";
+#else
+    constexpr const char* kDebugSection = ".debug_line";
+#endif
     const auto directory = make_workspace("kr16_build_debug");
     const auto source = directory / "program.c";
     write_file(source, "int main(void) { return 2; }\n");
@@ -93,7 +99,7 @@ TEST_CASE("build records debug info unless --no-debug is given") {
     {
         const auto bytes = read_bytes(directory / "program.kex");
         const auto image = kr16::Container::read(bytes);
-        CHECK(image.find_section(".debug_line") != nullptr);
+        CHECK(image.find_section(kDebugSection) != nullptr);
         CHECK(image.find_section(".text") != nullptr);
     }
     CHECK(run_cli({"kr16", "build", "--no-debug", "-o",
@@ -101,7 +107,7 @@ TEST_CASE("build records debug info unless --no-debug is given") {
     {
         const auto bytes = read_bytes(directory / "plain.kex");
         const auto image = kr16::Container::read(bytes);
-        CHECK(image.find_section(".debug_line") == nullptr);
+        CHECK(image.find_section(kDebugSection) == nullptr);
         CHECK(image.find_section(".text") != nullptr);
     }
 

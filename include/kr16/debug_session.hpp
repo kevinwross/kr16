@@ -81,6 +81,9 @@ struct SessionBuildOptions {
     std::string command_line;
 };
 
+/// Decoded `.kdbg` payload; defined in `src/debug/kdbg_model.hpp`.
+struct KdbgModel;
+
 /// Product debug model used by the windowed UI and by tests. It owns the
 /// machine, CPU, container and breakpoints; callers never touch those
 /// objects directly.
@@ -203,6 +206,8 @@ private:
     bool run_until_pc(std::uint16_t target);
     void decode_disassembly();
     void load_debug_info();
+    void load_kdbg_debug_info(const KdbgModel& model);
+    void load_source_text();
     void drain_console();
     void clear_image_state();
     int frame_depth();
@@ -210,6 +215,7 @@ private:
 
     bool loaded_ = false;
     std::filesystem::path image_path_;
+    std::vector<std::uint8_t> image_bytes_;
     std::vector<std::string> program_args_;
     Container container_;
     Machine machine_;

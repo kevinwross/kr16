@@ -17,6 +17,57 @@ option(KR16_BUILD_UI "Build the windowed debugger UI" ${KR16_UI_DEFAULT})
 set(KR16_SDL3_SOURCE_DIR "" CACHE PATH
     "Optional SDL3 source tree; otherwise a pinned release is fetched")
 
+# Which producer builds a program in `build_program`: the built-in compiler in
+# `src/cc`, or KRCompiler's facade through `krc::toolchain`. The default stays
+# `builtin` until stage B.
+set(KR16_TOOLCHAIN "builtin" CACHE STRING
+    "Program build path: builtin or krc")
+set_property(CACHE KR16_TOOLCHAIN PROPERTY STRINGS builtin krc)
+if(NOT KR16_TOOLCHAIN STREQUAL "builtin" AND NOT KR16_TOOLCHAIN STREQUAL "krc")
+  message(FATAL_ERROR
+    "KR16_TOOLCHAIN must be 'builtin' or 'krc', not '${KR16_TOOLCHAIN}'")
+endif()
+
+# `.kdbg` is the debug payload a krc-built `.kex` carries instead of `.debug_*`.
+# It needs `krc::debug`, so it follows the toolchain. Deliberately not a cached
+# option: a build directory reconfigured for the other toolchain must follow it,
+# and a cached value would keep whatever the first configure wrote. Pass
+# `-DKR16_KDBG=ON|OFF` to override.
+if(KR16_TOOLCHAIN STREQUAL "krc")
+  set(KR16_KDBG_DEFAULT ON)
+else()
+  set(KR16_KDBG_DEFAULT OFF)
+endif()
+if(NOT DEFINED KR16_KDBG OR KR16_KDBG STREQUAL "")
+  set(KR16_KDBG ${KR16_KDBG_DEFAULT})
+endif()
+
+# The KRCompiler revision this tree is pinned to. Recorded here because the
+# consumer knows what it was built and gated against; the package itself does
+# not export a revision.
+set(KR16_KRC_PIN "0defcce" CACHE STRING
+    "KRCompiler adopt-krc revision the krc toolchain package is pinned to")
+# Install prefix of the pinned package, passed on to find_package.
+set(KR16_KRC_PREFIX "" CACHE PATH
+    "Install prefix of the pinned krc-toolchain package")
+# Target sysroot of the pin. At 0defcce the package does not install one, so a
+# program that includes a system header (`fileio.c` needs <stdarg.h>) needs this.
+set(KR16_KRC_SYSROOT "" CACHE PATH
+    "KRCompiler target sysroot directory for krc-built programs")
+
+if(KR16_KRC_PREFIX)
+  list(PREPEND CMAKE_PREFIX_PATH "${KR16_KRC_PREFIX}")
+endif()
+
+if(KR16_TOOLCHAIN STREQUAL "krc")
+  find_package(krc-toolchain CONFIG REQUIRED)
+endif()
+if(KR16_KDBG AND NOT TARGET krc::debug)
+  find_package(krc-debug CONFIG REQUIRED)
+endif()
+message(STATUS "kr16 toolchain: ${KR16_TOOLCHAIN} (krc pin ${KR16_KRC_PIN}); "
+               "kdbg reader: ${KR16_KDBG}")
+
 if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   add_compile_options(/W4 /WX /permissive- /Zc:__cplusplus /Brepro)
@@ -49,6 +100,7 @@ add_library(kr16_core STATIC
   src/link/linker.cpp
   src/debug/debug_info.cpp
   src/debug/debug_session.cpp
+  src/debug/kdbg_model.cpp
   src/cc/compiler.cpp
   src/resources/embedded.cpp
   src/resources/embedded_libc.cpp
@@ -61,6 +113,18 @@ add_library(kr16_core STATIC
 target_include_directories(kr16_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_include_directories(kr16_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(kr16_core PUBLIC KR16_VERSION="${PROJECT_VERSION}")
+if(KR16_TOOLCHAIN STREQUAL "krc")
+  target_compile_definitions(kr16_core PRIVATE KR16_TOOLCHAIN_KRC=1)
+  target_link_libraries(kr16_core PRIVATE krc::toolchain)
+endif()
+if(KR16_KDBG)
+  target_compile_definitions(kr16_core PRIVATE KR16_KDBG=1)
+  target_link_libraries(kr16_core PRIVATE krc::debug)
+endif()
+if(KR16_KRC_SYSROOT)
+  target_compile_definitions(kr16_core PRIVATE
+    KR16_KRC_SYSROOT_DIR="${KR16_KRC_SYSROOT}")
+endif()
 if(WIN32)
   target_link_libraries(kr16_core PRIVATE ws2_32)
 endif()

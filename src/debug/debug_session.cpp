@@ -18,6 +18,7 @@
 #include "kr16/disassembler.hpp"
 #include "kr16/instruction.hpp"
 #include "kr16/process.hpp"
+#include "debug/kdbg_model.hpp"
 
 namespace kr16 {
 namespace {
@@ -143,6 +144,7 @@ bool DebugSession::load(const std::filesystem::path& image,
         if (bytes.empty() && !error.empty()) {
             return false;
         }
+        image_bytes_ = bytes;
         container_ = Container::read(bytes);
 
         machine_ = Machine{};
@@ -289,6 +291,7 @@ void DebugSession::unload() {
 void DebugSession::clear_image_state() {
     loaded_ = false;
     container_ = Container{};
+    image_bytes_.clear();
     disassembly_.clear();
     text_low_ = 0;
     text_high_ = 0;
@@ -519,6 +522,16 @@ void DebugSession::load_debug_info() {
     local_definitions_.clear();
     global_types_.clear();
     type_fields_.clear();
+
+    // A krc-built image carries one `.kdbg` payload instead of the `.debug_*`
+    // sections. Decoding it here keeps the session's model unchanged: both
+    // formats fill the same members.
+    KdbgModel kdbg;
+    if (decode_kdbg_model(image_bytes_, kdbg)) {
+        load_kdbg_debug_info(kdbg);
+        load_source_text();
+        return;
+    }
 
     std::vector<LineRow> decoded_rows;
     for (const auto& section : container_.sections) {
@@ -781,6 +794,10 @@ void DebugSession::load_debug_info() {
         }
         break;
     }
+    load_source_text();
+}
+
+void DebugSession::load_source_text() {
     if (source_path_.empty()) {
         return;
     }
@@ -803,6 +820,81 @@ void DebugSession::load_debug_info() {
             SessionSourceLine{std::move(text[i]),
                               executable_lines_.count(
                                   static_cast<int>(i) + 1) != 0});
+    }
+}
+
+void DebugSession::load_kdbg_debug_info(const KdbgModel& model) {
+    function_records_.reserve(model.functions.size());
+    for (const auto& function : model.functions) {
+        FunctionRecord record;
+        record.info.name = function.name;
+        record.info.low = function.low;
+        record.info.high = function.high;
+        function_records_.push_back(std::move(record));
+    }
+
+    // Only the primary source is shown, so only its rows belong on screen.
+    for (const auto& line : model.lines) {
+        if (line.source != model.primary_source || line.line <= 0) {
+            continue;
+        }
+        for (auto& record : function_records_) {
+            if (line.address >= record.info.low &&
+                line.address < record.info.high) {
+                record.rows.push_back(LineRow{line.address, line.line});
+                break;
+            }
+        }
+    }
+
+    for (auto& record : function_records_) {
+        std::sort(record.rows.begin(), record.rows.end(),
+                  [](const LineRow& left, const LineRow& right) {
+                      return left.address < right.address;
+                  });
+        record.rows.erase(
+            std::unique(record.rows.begin(), record.rows.end(),
+                        [](const LineRow& left, const LineRow& right) {
+                            return left.address == right.address;
+                        }),
+            record.rows.end());
+        for (const auto& row : record.rows) {
+            if (row.line > 0) {
+                executable_lines_.insert(row.line);
+            }
+        }
+    }
+
+    functions_.clear();
+    functions_.reserve(function_records_.size());
+    for (const auto& record : function_records_) {
+        functions_.push_back(record.info);
+    }
+
+    // KDBG records stack-pointer relative offsets; the session resolves a local
+    // against the frame pointer, which the decoder already converted.
+    for (const auto& local : model.locals) {
+        LocalDefinition definition;
+        definition.function = local.function;
+        definition.name = local.name;
+        definition.type = local.type;
+        definition.offset = local.offset;
+        definition.size = local.size;
+        local_definitions_.push_back(std::move(definition));
+    }
+    global_types_ = model.globals;
+    for (const auto& [name, fields] : model.types) {
+        std::vector<SessionField> converted;
+        converted.reserve(fields.size());
+        for (const auto& field : fields) {
+            converted.push_back(
+                SessionField{field.name, field.type, field.offset, field.size});
+        }
+        type_fields_[name] = std::move(converted);
+    }
+
+    if (model.primary_source < model.sources.size()) {
+        source_path_ = model.sources[model.primary_source];
     }
 }
 
