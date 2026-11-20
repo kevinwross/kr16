@@ -146,3 +146,19 @@ plan's runtime). Stage A stays at 2.1 until 4.11 is published.
 `52b0969` with no source change.
 
 **Blocker:** yes — decision 1 needs KRCompiler 4.11.
+
+## 2026-11-20T09:51:14-08:00
+
+**Changed:** nothing; correction only.
+
+**Correction to the `2026-11-20T09:50:34-08:00` entry:** the `examples/putchar.s:5`
+probe result is `KR16 assembler: undefined label `''K''`` — "undefined", not "unknown".
+The diagnosis is unchanged: the operand is a character literal (`MOV R1, #'K'`) and the
+assembler's operand parser does not accept one. Every other quotation in that entry was
+copied from the command output and stands.
+
+**Commit:** this entry only, a docs-only commit on `adopt-krc`.
+
+**Next step:** unchanged — wait for KRCompiler 4.11, then re-run the probe.
+
+**Blocker:** none beyond the one already recorded.
