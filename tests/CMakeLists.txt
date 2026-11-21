@@ -200,6 +200,10 @@ add_test(NAME kr16.vm.hello
 set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
 
+# C-for-U under the built-in compiler: it fits, so the five checks below run.
+# Under krc it does not fit; decision 6 (2026-11-21) accepts that for stage A and
+# the single negative test after this block records the wall instead.
+if(NOT KR16_TOOLCHAIN STREQUAL "krc")
 add_test(NAME kr16.cc.cforu
   COMMAND kr16 build --no-debug
     "${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
@@ -261,6 +265,22 @@ add_test(NAME kr16.cforu.cycles
 set_tests_properties(kr16.cforu.cycles PROPERTIES LABELS "integration"
   RESOURCE_LOCK cforu
   DEPENDS kr16.cc.cforu)
+endif()
+
+# The wall itself, registered under both toolchains. Under krc the build must
+# fail at the linker with the overflow diagnostic; under builtin it succeeds and
+# the case skips, with that as the printed reason.
+add_test(NAME kr16.cforu.over-budget
+  COMMAND ${CMAKE_COMMAND}
+    "-DKR16=$<TARGET_FILE:kr16>"
+    "-DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
+    "-DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_over_budget.cmake"
+)
+set_tests_properties(kr16.cforu.over-budget PROPERTIES
+  LABELS "integration"
+  RESOURCE_LOCK cforu
+  SKIP_REGULAR_EXPRESSION "skip: the build succeeded")
 # Heap allocator: the checker is a test-only object, linked explicitly so the
 # runtime itself stays small.
 add_test(NAME kr16.as.heapcheck

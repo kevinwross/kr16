@@ -787,3 +787,65 @@ density) is tracked and not started.
 and this entry on `adopt-krc`.
 
 **Blocker:** C-for-U is 18,602 B over before libc, from its own code and `fileio`.
+
+## 2026-11-21T06:45:16-08:00
+
+**Stage A is complete.** Decision 6 (`4533e5b`, 2026-11-21T06:32:35-08:00) accepts C-for-U
+as over budget for stage A; the five failing `cforu` checks under krc are now one negative
+test, both suites are green on Windows and WSL, and the limitation is recorded rather than
+left red. Stage B (2.6) is not started: it needs its second approval and the one-release
+window.
+
+**The test.** `kr16.cforu.over-budget`
+(`tests/cforu_over_budget.cmake`, registered under both toolchains) runs
+`kr16 build --no-debug tests/kevin/C-for-U.c` and:
+
+- under `krc`, requires a non-zero exit whose output contains
+  `ld failed: link relocation overflows its width` — it passes, which is decision 6
+  recorded as expected behaviour;
+- under `builtin`, the build succeeds, so the script prints
+  `skip: the build succeeded, so this toolchain fits C-for-U` and CTest marks the case
+  skipped (`SKIP_REGULAR_EXPRESSION`). The five positive checks — `kr16.cc.cforu`,
+  `kr16.vm.cforu`, `kr16.cforu.explicit_output`, `kr16.cforu.generated`,
+  `kr16.cforu.cycles` — stay exactly as they were and still run under `builtin`.
+
+The comment in the script and in `tests/CMakeLists.txt` cites decision 6 and KRCompiler
+4.17 as the tracked work that would reopen it: when krc's 16-bit output shrinks enough to
+fit, the build succeeds, the test fails and prints the build's real output, which is the
+signal to restore the five checks. `fileio.c` is not trimmed for this.
+
+**The limitation, in numbers.** `resources/libc.s` assembles to 1,698 B; the wall is krc's
+compiled output. C-for-U's image needs 48,972 B of program code, 35,158 B of `fileio.c`
+and the 8-byte startup stub — **84,138 B of `.text` against the 65,536 B address space,
+over by 18,602 B before any libc section**. 4.16's function sections and GC closed the
+rest of the suite (hello is 86 B and runs) but cannot shrink two single-section objects.
+The lever is codegen density: KRCompiler 4.17, tracked and not started.
+
+**Gates. Four runs, each from a deleted build directory, pinned at `d2be672`.**
+
+| | builtin | krc |
+|---|---|---|
+| Windows (`windows-ninja`) | **100% — 0 failed of 60**, 1 skipped | **100% — 0 failed of 56** |
+| WSL (`linux-gcc`) | **100% — 0 failed of 57**, 1 skipped | **100% — 0 failed of 52** |
+
+The one skipped case in each builtin run is `kr16.cforu.over-budget`, listed under "The
+following tests did not run". The Windows/WSL and builtin/krc count differences are the
+platform-only tests: `kr16.installer` and `kr16.resources.manifest` are Windows-only, and
+`kr16.dap.smoke` plus `kr16.dap.smoke.krc` need `node`, which WSL does not have.
+
+`kr16.unit` passes on both platforms under both toolchains with its line assertion
+untouched, and under krc the `.kdbg` debug case, `kr16.dap.smoke.krc` and
+`kr16.cforu.over-budget` all pass.
+
+**Docs.** `README.md` gains a "Toolchain selection" section under Build (the two values
+the krc path needs, the `.kdbg` reader following the toolchain, and that the default flips
+only after stage B), and its Tests section now states the per-toolchain run, the negative
+test, the 84,138 B figure and the 4.17 dependency. There is no `AGENTS.local.md` in this
+repository, so nothing to update there.
+
+**Next step:** stage B (2.6) on the second approval and the one-release window. Nothing
+else in stage A is open.
+
+**Commit:** the test, its registration, the README lines and this entry on `adopt-krc`.
+
+**Blocker:** none. C-for-U is a recorded stage A limitation, not a blocker.
