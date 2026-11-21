@@ -333,6 +333,10 @@ BuildResult build_c_with_krc(const BuildOptions& options,
     settings.debug = options.debug;
     settings.optimize = options.optimize ? 1 : 0;
     settings.entry = "_start";
+    // `resources/libc.s` puts each function in its own `.text.<name>` section,
+    // so collecting the unreferenced ones costs nothing the image still needs.
+    // The entry section is the walk's root and relocations carry it onward.
+    settings.gc_sections = true;
 #if defined(KR16_KRC_SYSROOT_DIR)
     settings.include_paths.push_back(std::string(KR16_KRC_SYSROOT_DIR) +
                                      "/include");

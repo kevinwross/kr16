@@ -709,3 +709,81 @@ started, `fileio.c` is not trimmed and the five `cforu` tests are not relaxed.
 **Commit:** this entry only.
 
 **Blocker:** 4.15 and 4.16 unpublished.
+
+## 2026-11-20T23:05:23-08:00
+
+**Changed:** re-pinned to 4.16, `resources/libc.s` split into per-function sections,
+`gc_sections` on for the krc path, the built-in linker folding the named sections back
+into their base sections, and the suite gated twice on Windows and WSL. Stage A is
+closed except C-for-U, which is still over the address space.
+
+**Pin.** KRCompiler `adopt-krc` @ `d2be672`
+(`d2be672214a413456313448e47f942416bb4d9f5`): 4.15 (`57182f6`, the KR16 line-table
+attribution) and 4.16 (`5983f90`, `.section .text.<name>`, section-level GC). The package
+was built from a `git archive` of that revision on Windows and in WSL; `KR16_KRC_PIN` is
+`d2be672`.
+
+**The split.** `resources/libc.s` now carries one `.section .text.<name>` before each of
+its 19 function globals — `putchar puts getchar __long_divmod abs atoi strcat strlen
+strcpy strcmp memset memcpy malloc free calloc realloc __kr16_heap_used
+__kr16_heap_peak exit`. The splitter tracked the base section, so the three data globals
+in `.data`/`.bss` (`__kr16_heap_start`, `__kr16_heap_top`, `__kr16_free_list`) are
+untouched. The file still totals 1,698 B of `.text`; the embedded `kLibc` is 20,119 B
+(the 456 extra bytes are the directives) and the resource manifest was refreshed. Both
+assemblers accept it: `kr16 as` exit 0, krc 4.16 `assemble` `OK`.
+
+**The built-in linker folds the named sections back.** `src/link/linker.cpp` maps
+`.text.<name>`, `.data.<name>` and `.bss.<name>` to their base output section, so the
+built-in image keeps its layout and both toolchains consume the same shipped file. That
+was the merge flagged on `2026-11-20T14:15:26-08:00`; it is done here.
+
+**GC on for the krc path:** `settings.gc_sections = true` in `build_program`'s krc
+branch, with the entry section as the walk's root.
+
+**Measurements.**
+
+| image | `.text` | result |
+|---|---|---|
+| `hello.c` (krc, GC) | **86 B** | runs, `Hello, KR16!`, exit 0 |
+| `C-for-U.c` (krc, GC) | **no image** | `build: ld failed: link relocation overflows its width` |
+
+`hello` dropped from 36,912 B to 86 B because GC now drops the whole `fileio` object —
+nothing in it is reachable from `hello` — and the unused libc sections with it.
+
+`C-for-U` still does not fit, and the split cannot change that: krc emits one `.text` per
+translation unit, so an image that calls any `fileio` function keeps all 35,158 B of it.
+The lower bound before libc, `.data`, `.bss` and the base:
+
+```text
+C-for-U.c program       48,972
+fileio.c                 35,158
+startup stub                  8
+                        -------
+                         84,138   against 65,536  ->  over by 18,602 B
+```
+
+Every libc section C-for-U references adds to that, so no amount of libc collection
+closes the gap; the mass is the program's own code and `fileio`, each a single section.
+
+**Gates. Four runs, each from a deleted build directory.**
+
+| | builtin | krc |
+|---|---|---|
+| Windows (`windows-ninja`) | **100% — 0 failed of 59** | **92% — 5 failed of 60** |
+| WSL (`linux-gcc`) | **100% — 0 failed of 56** | **91% — 5 failed of 56** |
+
+Under krc the only failures are the five `cforu` checks; **`kr16.unit` passes on both
+platforms with its line assertion untouched** — `test_debug_session.cpp` still requires
+line 3 for `int local; local = 42;`, and 4.15 reports line 3. The krc `.kdbg` debug case
+and `kr16.dap.smoke.krc` pass on both platforms.
+
+**Decision left open, not taken here:** whether C-for-U is over budget for stage A. The
+five `cforu` checks are not relaxed, `fileio.c` is not trimmed, and 4.17 (16-bit codegen
+density) is tracked and not started.
+
+**Next step:** the owner's call on C-for-U; nothing else in stage A is open.
+
+**Commit:** the pin, the split, the linker merge, the GC flag, the regenerated resources
+and this entry on `adopt-krc`.
+
+**Blocker:** C-for-U is 18,602 B over before libc, from its own code and `fileio`.

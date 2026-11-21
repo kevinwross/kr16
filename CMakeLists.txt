@@ -45,7 +45,7 @@ endif()
 # The KRCompiler revision this tree is pinned to. Recorded here because the
 # consumer knows what it was built and gated against; the package itself does
 # not export a revision.
-set(KR16_KRC_PIN "7d005d5" CACHE STRING
+set(KR16_KRC_PIN "d2be672" CACHE STRING
     "KRCompiler adopt-krc revision the krc toolchain package is pinned to")
 # Install prefix of the pinned package, passed on to find_package.
 set(KR16_KRC_PREFIX "" CACHE PATH

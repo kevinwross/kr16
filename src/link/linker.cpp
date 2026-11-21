@@ -288,23 +288,36 @@ LinkResult link_objects(const std::vector<Container>& input_objects,
                     continue;
                 }
                 const bool nobits = input.type == SectionType::Nobits;
-                auto it = output_index.find(input.name);
+                // `resources/libc.s` gives each function its own
+                // `.text.<name>` section so the krc path can collect the ones
+                // an image never calls. The built-in linker merges them back
+                // into their base section, so both toolchains accept the same
+                // shipped file and the built-in image keeps its layout.
+                std::string output_name = input.name;
+                for (const char* base : {".text", ".data", ".bss"}) {
+                    const std::string prefix = std::string(base) + ".";
+                    if (input.name.rfind(prefix, 0) == 0) {
+                        output_name = base;
+                        break;
+                    }
+                }
+                auto it = output_index.find(output_name);
                 if (it == output_index.end()) {
                     Section output;
-                    output.name = input.name;
+                    output.name = output_name;
                     output.flags = input.flags;
                     output.alignment = input.alignment;
                     output.type = nobits ? SectionType::Nobits
                                           : SectionType::Progbits;
                     outputs.push_back(std::move(output));
                     const auto index = outputs.size() - 1;
-                    output_index.emplace(input.name, index);
-                    it = output_index.find(input.name);
+                    output_index.emplace(output_name, index);
+                    it = output_index.find(output_name);
                 }
                 auto& output = outputs[it->second];
                 if (nobits != (output.type == SectionType::Nobits)) {
                     throw std::runtime_error("inconsistent section type for " +
-                                             input.name);
+                                             output_name);
                 }
                 output.alignment =
                     std::max(output.alignment, input.alignment);
