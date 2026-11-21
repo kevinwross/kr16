@@ -123,6 +123,29 @@ ctest --preset linux-gcc-debug
 The Ninja presets require a developer environment with `cl`, `g++`, or
 `clang++` on `PATH`.
 
+### Toolchain selection
+
+`KR16_TOOLCHAIN` picks the producer behind `kr16 build`:
+
+- `builtin` (the default) compiles C with `src/cc` and assembles and links with
+  `src/asm` and `src/link`.
+- `krc` compiles, assembles and links through KRCompiler's `krc::toolchain`
+  facade, pinned by `KR16_KRC_PIN` and located by `KR16_KRC_PREFIX`. A program
+  that includes a system header also needs the pin's target sysroot in
+  `KR16_KRC_SYSROOT`.
+
+```text
+cmake --preset windows-ninja -DKR16_TOOLCHAIN=krc ^
+  -DKR16_KRC_PREFIX=<krc-toolchain install prefix> ^
+  -DKR16_KRC_SYSROOT=<sysroot directory>
+cmake --build --preset windows-ninja-debug
+ctest --preset windows-ninja-debug
+```
+
+The `.kdbg` debug reader follows the toolchain (`KR16_KDBG`) and needs
+`krc::debug`. Both toolchains are supported for one release; the default flips
+only after stage B is approved.
+
 ## Quick start
 
 Assembly:
@@ -267,6 +290,15 @@ its generated program assembled, linked, and executed by CTest.
 
 The test presets run four CTest jobs. The C-for-U tests share a resource lock
 because they write the same generated assembler file.
+
+Run the suite once per toolchain. Under `krc` the five positive C-for-U checks
+become one negative test, `kr16.cforu.over-budget`, which asserts the link fails
+with `ld failed: link relocation overflows its width`: C-for-U needs 84,138 B of
+`.text` against the 65,536 B image space and is accepted as over budget for stage
+A (decision 6, 2026-11-21). KRCompiler 4.17, 16-bit codegen density, is the
+tracked work that would reopen it; the test fails and prints the build's output
+when krc's code shrinks enough to fit. Under `builtin` the same test skips,
+because the program builds.
 
 ## License
 

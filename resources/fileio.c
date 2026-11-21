@@ -48,6 +48,7 @@ struct sys_call_block {
 int __host_call(int service, void *block);
 int putchar(int value);
 int getchar(void);
+int fgetc(FILE *stream);
 
 static struct FILE *file_alloc(void) {
     int i;
@@ -829,7 +830,7 @@ static void print_long_words(FILE *stream, int low, int high, int base,
     int total;
     int index;
     char temp;
-    if (base == 10 && (high & 32768) != 0) {
+    if (base == 10 && (high & 0x8000) != 0) {
         int old_low = low;
         negative = 1;
         low = 0 - low;

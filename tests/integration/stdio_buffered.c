@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 
+/* The kr16 profile of <stdio.h> stops at printf; fileio.c also defines a
+ * formatted stream writer, so declare it here rather than call it implicitly. */
+int fprintf(FILE *stream, const char *format, ...);
+
 int main(void) {
     FILE *file;
     char line[32];
@@ -24,6 +28,9 @@ int main(void) {
     if (fclose(file) != 0) return 14;
     if (remove("stdio.tmp") != 0) return 15;
 
-    fprintf(stdout, "stdio ok\n");
+    /* `stdout` is a built-in identifier for the built-in compiler and a macro
+     * over a krc-runtime function in krc's sysroot, so print the marker with
+     * the routine both toolchains resolve from the shipped runtime. */
+    printf("stdio ok\n");
     return 0;
 }

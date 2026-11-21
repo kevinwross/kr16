@@ -1,5 +1,6 @@
 ; Small freestanding C runtime used by the taught subset.
 .text
+.section .text.putchar
 .global putchar
 putchar:
   MOV R0, R1
@@ -8,6 +9,7 @@ putchar:
   MOV R0, #0
   RET
 
+.section .text.puts
 .global puts
 puts:
   MOV R2, R1
@@ -26,6 +28,7 @@ puts:
   MOV R0, #0
   RET
 
+.section .text.getchar
 .global getchar
 getchar:
   LD R0, [stdin_index]
@@ -63,6 +66,7 @@ getchar:
   MOV R0, #0
   RET
 
+.section .text.__long_divmod
 .global __long_divmod
 __long_divmod:
   SUB SP, #26
@@ -267,6 +271,7 @@ stdin_count:
   LDB R0, [0xF004]
   RET
 
+.section .text.abs
 .global abs
 abs:
   MOV R0, R1
@@ -276,6 +281,7 @@ abs:
 .Labs_done:
   RET
 
+.section .text.atoi
 .global atoi
 atoi:
   PUSH R4
@@ -296,6 +302,7 @@ atoi:
   POP R4
   RET
 
+.section .text.strcat
 .global strcat
 strcat:
   MOV R0, R1
@@ -316,6 +323,7 @@ strcat:
 .Lstrcat_done:
   RET
 
+.section .text.strlen
 .global strlen
 strlen:
   MOV R0, #0
@@ -329,6 +337,7 @@ strlen:
 .Lstrlen_done:
   RET
 
+.section .text.strcpy
 .global strcpy
 strcpy:
   MOV R0, R1
@@ -343,6 +352,7 @@ strcpy:
 .Lstrcpy_done:
   RET
 
+.section .text.strcmp
 .global strcmp
 strcmp:
 .Lstrcmp_loop:
@@ -362,6 +372,7 @@ strcmp:
   MOV R0, #0
   RET
 
+.section .text.memset
 .global memset
 memset:
   MOV R0, R1
@@ -375,6 +386,7 @@ memset:
 .Lmemset_done:
   RET
 
+.section .text.memcpy
 .global memcpy
 memcpy:
   PUSH R4
@@ -455,6 +467,7 @@ __kr16_peak_bytes:
 ; ---------------------------------------------------------------------------
 ; malloc(size) -> void *
 ; ---------------------------------------------------------------------------
+.section .text.malloc
 .global malloc
 malloc:
   CMP R1, #0
@@ -590,6 +603,7 @@ malloc:
 ; ---------------------------------------------------------------------------
 ; free(void *)
 ; ---------------------------------------------------------------------------
+.section .text.free
 .global free
 free:
   CMP R1, #0
@@ -761,6 +775,7 @@ __kr16_unlink:
 ; ---------------------------------------------------------------------------
 ; calloc(count, size) -> void *
 ; ---------------------------------------------------------------------------
+.section .text.calloc
 .global calloc
 calloc:
   CMP R1, #0
@@ -803,6 +818,7 @@ calloc:
 ; ---------------------------------------------------------------------------
 ; realloc(ptr, size) -> void *
 ; ---------------------------------------------------------------------------
+.section .text.realloc
 .global realloc
 realloc:
   CMP R1, #0
@@ -1007,6 +1023,7 @@ realloc:
 ; __kr16_heap_used() -> bytes currently held by allocated blocks
 ; __kr16_heap_peak() -> largest top - heap_start ever reached
 ; ---------------------------------------------------------------------------
+.section .text.__kr16_heap_used
 .global __kr16_heap_used
 __kr16_heap_used:
   MOV R0, #__kr16_used_bytes
@@ -1014,6 +1031,7 @@ __kr16_heap_used:
   MOV R0, R1
   RET
 
+.section .text.__kr16_heap_peak
 .global __kr16_heap_peak
 __kr16_heap_peak:
   MOV R0, #__kr16_peak_bytes
@@ -1021,6 +1039,7 @@ __kr16_heap_peak:
   MOV R0, R1
   RET
 
+.section .text.exit
 .global exit
 exit:
   MOV R0, R1

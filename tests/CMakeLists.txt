@@ -29,6 +29,12 @@ target_include_directories(kr16_tests PRIVATE
 target_compile_definitions(kr16_tests PRIVATE
   KR16_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
+if(KR16_TOOLCHAIN STREQUAL "krc")
+  target_compile_definitions(kr16_tests PRIVATE KR16_TOOLCHAIN_KRC=1)
+endif()
+if(KR16_KDBG)
+  target_compile_definitions(kr16_tests PRIVATE KR16_KDBG=1)
+endif()
 
 add_executable(kr16_golden_gen EXCLUDE_FROM_ALL golden/generate.cpp)
 target_link_libraries(kr16_golden_gen PRIVATE kr16_core)
@@ -194,6 +200,10 @@ add_test(NAME kr16.vm.hello
 set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
 
+# C-for-U under the built-in compiler: it fits, so the five checks below run.
+# Under krc it does not fit; decision 6 (2026-11-21) accepts that for stage A and
+# the single negative test after this block records the wall instead.
+if(NOT KR16_TOOLCHAIN STREQUAL "krc")
 add_test(NAME kr16.cc.cforu
   COMMAND kr16 build --no-debug
     "${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
@@ -255,6 +265,22 @@ add_test(NAME kr16.cforu.cycles
 set_tests_properties(kr16.cforu.cycles PROPERTIES LABELS "integration"
   RESOURCE_LOCK cforu
   DEPENDS kr16.cc.cforu)
+endif()
+
+# The wall itself, registered under both toolchains. Under krc the build must
+# fail at the linker with the overflow diagnostic; under builtin it succeeds and
+# the case skips, with that as the printed reason.
+add_test(NAME kr16.cforu.over-budget
+  COMMAND ${CMAKE_COMMAND}
+    "-DKR16=$<TARGET_FILE:kr16>"
+    "-DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
+    "-DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_over_budget.cmake"
+)
+set_tests_properties(kr16.cforu.over-budget PROPERTIES
+  LABELS "integration"
+  RESOURCE_LOCK cforu
+  SKIP_REGULAR_EXPRESSION "skip: the build succeeded")
 # Heap allocator: the checker is a test-only object, linked explicitly so the
 # runtime itself stays small.
 add_test(NAME kr16.as.heapcheck
@@ -439,6 +465,18 @@ if(KR16_NODE_EXECUTABLE)
   )
   set_tests_properties(kr16.dap.smoke PROPERTIES LABELS "integration"
     DEPENDS kr16.ld.hello)
+  if(KR16_TOOLCHAIN STREQUAL "krc")
+    # The same check over an image the krc path built: no symbol table, so the
+    # function breakpoint has to come from `.kdbg`.
+    add_test(NAME kr16.dap.smoke.krc
+      COMMAND "${KR16_NODE_EXECUTABLE}"
+        "${CMAKE_SOURCE_DIR}/scripts/dap-smoke.js"
+        "$<TARGET_FILE:kr16>"
+        "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kex"
+    )
+    set_tests_properties(kr16.dap.smoke.krc PROPERTIES LABELS "integration"
+      DEPENDS kr16.build.hello)
+  endif()
 endif()
 
 

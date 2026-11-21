@@ -366,3 +366,74 @@ TEST_CASE("debug session runs to a line breakpoint") {
 
     std::filesystem::remove_all(image.parent_path());
 }
+
+#if defined(KR16_TOOLCHAIN_KRC) && defined(KR16_KDBG)
+// The krc path's debug model: a `.kdbg` payload in place of `.debug_*`. The
+// image is built by `build_program`, so this covers the producer and both
+// readers together.
+TEST_CASE("a krc-built image debugs through .kdbg") {
+    const auto directory =
+        std::filesystem::current_path() / "kr16_kdbg_smoke";
+    std::error_code ec;
+    std::filesystem::remove_all(directory, ec);
+    std::filesystem::create_directories(directory, ec);
+    REQUIRE_FALSE(ec);
+
+    {
+        std::ofstream source(directory / "kdbg_smoke.c");
+        REQUIRE(source.good());
+        source << "int add(int left, int right) {\n"
+                  "  int sum = left + right;\n"
+                  "  return sum;\n"
+                  "}\n"
+                  "int main(void) {\n"
+                  "  int value = add(2, 3);\n"
+                  "  return value;\n"
+                  "}\n";
+    }
+
+    kr16::BuildOptions options;
+    options.input = directory / "kdbg_smoke.c";
+    options.link_libc = true;
+    std::ostringstream build_error;
+    const auto built = kr16::build_program(options, build_error);
+    INFO(build_error.str());
+    REQUIRE(built.ok);
+
+    kr16::DebugSession session;
+    std::string error;
+    INFO(error);
+    REQUIRE(session.load(built.executable, error));
+    CHECK_FALSE(session.functions().empty());
+    CHECK_FALSE(session.source_lines().empty());
+    CHECK(session.executable_lines().count(6) != 0);
+
+    session.toggle_line_breakpoint(6);
+    session.start_run();
+    CHECK(session.run_slice(2'000'000) == kr16::SessionRunStop::Breakpoint);
+    CHECK(session.line_at(session.pc()) == 6);
+    REQUIRE(session.function_at(session.pc()) != nullptr);
+    CHECK(session.function_at(session.pc())->name == "main");
+
+    bool saw_value = false;
+    for (const auto& local : session.locals()) {
+        if (local.name != "value") {
+            continue;
+        }
+        saw_value = true;
+        CHECK(local.ok);
+        CHECK(local.type == "i16");
+    }
+    CHECK(saw_value);
+
+    REQUIRE(session.step_line(kr16::StepMode::LineOver));
+    CHECK(session.line_at(session.pc()) == 7);
+    for (const auto& local : session.locals()) {
+        if (local.name == "value" && local.ok) {
+            CHECK(local.value == 5);
+        }
+    }
+
+    std::filesystem::remove_all(directory, ec);
+}
+#endif

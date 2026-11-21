@@ -26,6 +26,7 @@
 #include "kr16/process.hpp"
 #include "kr16/instruction.hpp"
 #include "kr16/machine.hpp"
+#include "debug/kdbg_model.hpp"
 
 namespace kr16::dap {
 namespace {
@@ -127,6 +128,53 @@ std::string debug_function_at(const Container& container,
         }
     }
     return best;
+}
+
+std::vector<DapDebugVar> kdbg_debug_vars(const KdbgModel& model) {
+    std::vector<DapDebugVar> result;
+    result.reserve(model.locals.size());
+    for (const auto& local : model.locals) {
+        DapDebugVar variable;
+        variable.function = local.function;
+        variable.name = local.name;
+        variable.offset = local.offset;
+        variable.size = local.size;
+        result.push_back(std::move(variable));
+    }
+    return result;
+}
+
+std::string kdbg_function_at(const KdbgModel& model, std::uint16_t pc) {
+    std::string best;
+    std::uint16_t best_low = 0;
+    for (const auto& function : model.functions) {
+        if (pc < function.low || pc >= function.high) {
+            continue;
+        }
+        if (best.empty() || function.low >= best_low) {
+            best = function.name;
+            best_low = function.low;
+        }
+    }
+    return best;
+}
+
+std::vector<DebugLineRow> kdbg_line_rows(const KdbgModel& model) {
+    std::vector<DebugLineRow> rows;
+    rows.reserve(model.lines.size());
+    for (const auto& line : model.lines) {
+        if (line.source != model.primary_source) {
+            continue;
+        }
+        DebugLineRow row;
+        row.address = line.address;
+        row.file = static_cast<std::uint16_t>(line.source);
+        row.line = static_cast<std::uint16_t>(line.line);
+        row.column = 0;
+        row.flags = 0;
+        rows.push_back(row);
+    }
+    return rows;
 }
 
 std::string base64_encode(const std::vector<std::uint8_t>& bytes) {
@@ -476,6 +524,8 @@ struct DapSession::Impl {
     Container container;
     bool has_container = false;
     std::vector<DebugLineRow> line_rows;
+    KdbgModel kdbg;
+    bool has_kdbg = false;
     std::string source_path;
     std::uint16_t entry = 0;
     bool launched = false;
@@ -638,6 +688,8 @@ struct DapSession::Impl {
         container = Container{};
         has_container = false;
         line_rows.clear();
+        kdbg = KdbgModel{};
+        has_kdbg = false;
         source_path.clear();
         entry = 0;
     }
@@ -689,8 +741,16 @@ struct DapSession::Impl {
                 machine.load_bytes(section.address, section.data);
             }
             start = container.entry;
-            line_rows = load_line_rows(container);
-            source_path = load_source_path(container);
+            has_kdbg = decode_kdbg_model(bytes, kdbg);
+            if (has_kdbg) {
+                line_rows = kdbg_line_rows(kdbg);
+                if (kdbg.primary_source < kdbg.sources.size()) {
+                    source_path = kdbg.sources[kdbg.primary_source];
+                }
+            } else {
+                line_rows = load_line_rows(container);
+                source_path = load_source_path(container);
+            }
             source_path = resolve_source_path(source_path, options.program);
             stack_limit = symbol_value(container, "__stack_limit", 0xE000);
         }
@@ -1056,24 +1116,37 @@ std::vector<std::string> DapSession::Impl::handle_set_function_breakpoints(
         for (const auto& item : items->as_array()) {
             JsonValue function_entry = JsonValue::object();
             const auto name = string_or(&item, "name", {});
-            const Symbol* found = nullptr;
-            for (const auto& symbol : container.symbols) {
-                if (symbol.name == name) {
-                    found = &symbol;
-                    break;
+            // A krc-built image carries no symbol table, so the `.kdbg`
+            // function ranges stand in for it here.
+            bool resolved = false;
+            std::uint32_t function_low = 0;
+            if (has_kdbg) {
+                for (const auto& function : kdbg.functions) {
+                    if (function.name == name) {
+                        function_low = function.low;
+                        resolved = true;
+                        break;
+                    }
+                }
+            } else {
+                for (const auto& symbol : container.symbols) {
+                    if (symbol.name == name) {
+                        function_low = symbol.value;
+                        resolved = true;
+                        break;
+                    }
                 }
             }
-            if (found == nullptr) {
+            if (!resolved) {
                 function_entry.set("verified", JsonValue::boolean(false));
                 function_entry.set("message", JsonValue::string("function not found"));
             } else {
-                auto address = static_cast<std::uint16_t>(found->value);
+                auto address = static_cast<std::uint16_t>(function_low);
                 // Prefer the first source line after the prologue, when
                 // compiler line information is available.
                 for (const auto& row : line_rows) {
-                    if (row.address >= found->value &&
-                        row.address < static_cast<std::uint32_t>(found->value) +
-                                          0x400u) {
+                    if (row.address >= function_low &&
+                        row.address < function_low + 0x400u) {
                         address = row.address;
                         break;
                     }
@@ -1307,7 +1380,10 @@ std::vector<std::string> DapSession::Impl::handle_scopes(
         globals.set("variablesReference", JsonValue::integer(kGlobalsReference));
         globals.set("expensive", JsonValue::boolean(true));
         scopes.push(std::move(globals));
-        if (!debug_function_at(container, cpu.pc()).empty()) {
+        const std::string locals_function =
+            has_kdbg ? kdbg_function_at(kdbg, cpu.pc())
+                     : debug_function_at(container, cpu.pc());
+        if (!locals_function.empty()) {
             JsonValue locals = JsonValue::object();
             locals.set("name", JsonValue::string("Locals"));
             locals.set("variablesReference", JsonValue::integer(kLocalsReference));
@@ -1424,9 +1500,11 @@ std::vector<std::string> DapSession::Impl::handle_variables(
         }
     } else if (reference == kLocalsReference && has_container) {
         const std::string function =
-            debug_function_at(container, cpu.pc());
+            has_kdbg ? kdbg_function_at(kdbg, cpu.pc())
+                     : debug_function_at(container, cpu.pc());
         const auto frame = cpu.reg(4);
-        for (const auto& local : parse_debug_vars(container)) {
+        for (const auto& local :
+             has_kdbg ? kdbg_debug_vars(kdbg) : parse_debug_vars(container)) {
             if (local.function != function) {
                 continue;
             }
@@ -1514,8 +1592,10 @@ std::vector<std::string> DapSession::Impl::handle_set_variable(
         }
     } else if (reference == kLocalsReference && has_container) {
         const std::string function =
-            debug_function_at(container, cpu.pc());
-        for (const auto& local : parse_debug_vars(container)) {
+            has_kdbg ? kdbg_function_at(kdbg, cpu.pc())
+                     : debug_function_at(container, cpu.pc());
+        for (const auto& local :
+             has_kdbg ? kdbg_debug_vars(kdbg) : parse_debug_vars(container)) {
             if (local.function != function || local.name != name) {
                 continue;
             }
