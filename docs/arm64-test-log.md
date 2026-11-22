@@ -51,3 +51,16 @@
   (test_resources.cpp:33,36; kLibc +1048 bytes, kFileio +1465 bytes vs sources — CRLF in embedded arrays)
 - Skipped: none
 - Next: fix embedded_libc.cpp line endings
+
+## 2026-11-21T16:04:07-08:00 — main @ 89261a2
+
+- Host: BitWhiz
+- Range: d3404fa..89261a2, 17 commits
+- Docs-only: no
+- Configure: linux-gcc — ok, 1 s
+- Build: linux-gcc-debug — ok, 30 s
+- Test: linux-gcc-debug — 56/58 passed, 1 failed, 1 skipped, 19 s
+- Failed: kr16.unit — embedded runtime sources match checked-in resources
+  (test_resources.cpp:33,36; kLibc +1048 bytes, kFileio +1465 bytes vs sources — CRLF in embedded arrays)
+- Skipped: kr16.cforu.over-budget (expected under builtin; decision 6)
+- Next: fix embedded_libc.cpp line endings
