@@ -3,8 +3,13 @@
 **Created:** 2026-11-20T03:19:09-08:00
 **Read by:** the ARM64 tester session on a Raspberry Pi.
 **Repository:** `https://github.com/kevinwross/kr16.git` — the clone on the Pi.
-**Watch:** `main` and `adopt-krc`.
+**Watch:** `main` only.
 **You are:** the single ARM64 tester for this repository.
+
+**Since 2026-11-21:** `adopt-krc` is merged into `main` (merge commit `f50f239`) and
+`main` is the only branch to watch. `adopt-krc` is kept on the remote for history and is
+not tested again; do not build it, and do not switch the clone to it. The krc toolchain
+lives behind `KR16_TOOLCHAIN=krc` on `main`; the default is still `builtin`.
 
 ---
 
@@ -25,8 +30,8 @@ Every 5 minutes, and immediately after finishing a job:
 git fetch --prune origin
 ```
 
-For each watched branch `b`, compare `git rev-parse --short origin/<b>` with the
-last tested SHA for that branch (§5). If it has not moved, do nothing.
+For the watched branch, `main`, compare `git rev-parse --short origin/main` with the last
+tested SHA (§5). If it has not moved, do nothing.
 
 The checkout must be clean apart from the log entry you are about to add:
 
@@ -39,7 +44,7 @@ If anything else is modified or untracked, stop and report.
 ## 3. Is it more than documentation?
 
 ```sh
-git diff --name-only <last-tested-sha>..origin/<branch>
+git diff --name-only <last-tested-sha>..origin/main
 ```
 
 Skip when every path is a Markdown file (`*.md`), under `docs/`, or under
@@ -53,7 +58,7 @@ write `history rewritten` in the entry.
 Use the native preset:
 
 ```sh
-git switch <branch>
+git switch main
 git pull --rebase --ff-only
 cmake --preset linux-gcc
 cmake --build --preset linux-gcc --parallel $(( $(nproc) - 1 ))
@@ -71,11 +76,11 @@ ctest --preset linux-gcc --output-on-failure
 
 ## 5. The log
 
-Append to `docs/arm64-test-log.md` on the branch you tested. One entry per tested
+Append to `docs/arm64-test-log.md` on `main`, the branch you tested. One entry per tested
 SHA:
 
 ```markdown
-## 2026-11-20T03:19:09-08:00 — adopt-krc @ d3404fa
+## 2026-11-20T03:19:09-08:00 — main @ d3404fa
 
 - Host: <hostname>
 - Range: 9705ef6..d3404fa, 2 commits
@@ -127,9 +132,8 @@ you did not run.
 
 ## 8. State
 
-Your last tested SHA per branch is the most recent `docs/arm64-test-log.md` entry
-whose heading names that branch. With no entry, treat the tip as untested and
-write `first run`.
+Your last tested SHA is the most recent `docs/arm64-test-log.md` entry whose heading names
+`main`. With no entry, treat the tip as untested and write `first run`.
 
-A branch that is force-pushed or rebased invalidates that state; retest the tip
-and say so.
+A branch that is force-pushed or rebased invalidates that state; retest the tip and say
+so.

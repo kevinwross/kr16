@@ -32,6 +32,10 @@ Milestones M0–M12 are implemented. The working pipeline is:
 C or assembly → .o → .kex → VM
 ```
 
+`main` is the integration branch. The krc toolchain was merged into it at merge commit
+`f50f239` (2026-11-21); both `KR16_TOOLCHAIN` values are supported for one release, and
+the ARM64 tester polls `main` only — see [docs/arm64-tester.md](docs/arm64-tester.md).
+
 ## Dead-code collection
 
 `kr16 ld --gc-all` drops whole input objects that are unreachable from the

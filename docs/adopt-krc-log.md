@@ -849,3 +849,42 @@ else in stage A is open.
 **Commit:** the test, its registration, the README lines and this entry on `adopt-krc`.
 
 **Blocker:** none. C-for-U is a recorded stage A limitation, not a blocker.
+
+## 2026-11-21T16:01:57-08:00
+
+**`adopt-krc` is merged into `main`.** Merge commit `f50f239` with parents `6971a40`
+(`origin/main`, the tester's log of `main @ d3404fa`) and `87d1c80` (`adopt-krc`, stage A
+close-out). Not a fast-forward: `main` carried the tester's commit, as the request said.
+`adopt-krc` stays on the remote for history and is not deleted.
+
+**The one conflict was the tester's log.** `docs/arm64-test-log.md` was add/add — `main`
+had one entry, `adopt-krc` had three. The merged file keeps all four verbatim, in timestamp
+order: `13:54:00` (`adopt-krc @ a6bdc1a`), `13:59:28` (`main @ d3404fa`), `14:04:32`
+(`adopt-krc @ c098d4e`), `23:08:01` (`adopt-krc @ 5ec6eb9`). Each entry was checked against
+its source side and appears unchanged; nothing was rewritten or dropped.
+
+**Gate on `main`, four runs from deleted build directories, pinned at `d2be672`.**
+
+| | builtin | krc |
+|---|---|---|
+| Windows (`windows-ninja`) | **100% — 0 failed of 60**, 1 skipped | **100% — 0 failed of 56** |
+| WSL (`linux-gcc`) | **100% — 0 failed of 57**, 1 skipped | **100% — 0 failed of 52** |
+
+The skipped case in each builtin run is `kr16.cforu.over-budget`, listed under "The
+following tests did not run"; under krc it passes, which is decision 6 behaving as recorded
+— the link fails with `ld failed: link relocation overflows its width` and the test asserts
+exactly that. The count differences are the platform-only tests (`kr16.installer`,
+`kr16.resources.manifest`) and the `node`-dependent DAP checks absent from WSL.
+
+**Docs, so the tester polls `main`.** `docs/arm64-tester.md` now watches `main` only, with a
+note that `adopt-krc` is merged, kept, and not tested again; its polling, build, log and
+state sections name `main` instead of a `<branch>` placeholder. `README.md`'s Status
+records the merge commit and that the tester polls `main`. A new `AGENTS.local.md` records
+the branch policy, the toolchain selection, the C-for-U decision and the stage B rule.
+
+**Next step:** the ARM64 tester's next entry will be `main @ <sha>`. Stage B (2.6) still
+needs its second approval and the one-release window.
+
+**Commit:** the merge, the docs and this entry on `main`.
+
+**Blocker:** none.
