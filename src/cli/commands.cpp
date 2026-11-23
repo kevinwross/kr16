@@ -1,4 +1,5 @@
 #include "kr16/cli.hpp"
+#include "kr16/debug_instruments.hpp"
 
 #include <algorithm>
 #include <array>
@@ -520,6 +521,36 @@ int run_vm_command(int argc, char** argv) {
             options.bios_path = argv[i];
         } else if (argument == "--no-bios") {
             options.no_bios = true;
+        } else if (argument == "--watch") {
+            if (++i >= argc) {
+                std::cerr << "kr16 vm: --watch needs an address\n";
+                return 2;
+            }
+            g_debug.watch_address = static_cast<std::uint16_t>(std::strtoul(argv[i], nullptr, 0));
+            g_debug.watch = true;
+        } else if (argument == "--break") {
+            if (++i >= argc) {
+                std::cerr << "kr16 vm: --break needs an address\n";
+                return 2;
+            }
+            g_debug.break_address = static_cast<std::uint16_t>(std::strtoul(argv[i], nullptr, 0));
+            g_debug.breakpoint = true;
+        } else if (argument == "--break-max") {
+            if (++i >= argc) {
+                std::cerr << "kr16 vm: --break-max needs a count\n";
+                return 2;
+            }
+            g_debug.break_limit = static_cast<unsigned>(std::strtoul(argv[i], nullptr, 0));
+        } else if (argument == "--watch-page") {
+            if (++i >= argc) {
+                std::cerr << "kr16 vm: --watch-page needs an address\n";
+                return 2;
+            }
+            g_debug.page_base = static_cast<std::uint16_t>(
+                std::strtoul(argv[i], nullptr, 0) & 0xF000u);
+            g_debug.page = true;
+        } else if (argument == "--watch-fp") {
+            g_debug.frame_pointer = true;
         } else if (argument == "--max-cycles") {
             if (++i >= argc) {
                 std::cerr << "kr16 vm: --max-cycles needs a number\n";

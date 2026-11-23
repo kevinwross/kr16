@@ -1,3 +1,4 @@
+#include "kr16/debug_instruments.hpp"
 #include "kr16/vm.hpp"
 
 #include <algorithm>
@@ -157,7 +158,59 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
             }
 
             const auto pc = cpu.pc();
+            if (g_debug.breakpoint && pc == g_debug.break_address) {
+                std::printf("break at 0x%04X: ", static_cast<unsigned>(pc));
+                for (std::uint8_t reg = 0; reg < 5; ++reg) {
+                    std::printf("r%u=0x%04X ", static_cast<unsigned>(reg),
+                                static_cast<unsigned>(cpu.reg(reg)));
+                }
+                std::printf("sp=0x%04X\n", static_cast<unsigned>(cpu.reg(4)));
+                if (++g_debug.break_hits >= g_debug.break_limit) {
+                    break;
+                }
+            }
+            std::uint16_t watched_before = 0;
+            if (g_debug.watch) {
+                watched_before = static_cast<std::uint16_t>(
+                    machine.read8(g_debug.watch_address) |
+                    (machine.read8(static_cast<std::uint16_t>(g_debug.watch_address + 1))
+                     << 8));
+            }
+            if (g_debug.page && !g_debug.page_valid) {
+                for (std::uint32_t byte = 0; byte < 4096; ++byte) {
+                    g_debug.page_before[byte] =
+                        machine.read8(static_cast<std::uint16_t>(g_debug.page_base + byte));
+                }
+                g_debug.page_valid = true;
+            }
             const auto used = cpu.step(machine);
+            if (g_debug.watch) {
+                const std::uint16_t watched_after = static_cast<std::uint16_t>(
+                    machine.read8(g_debug.watch_address) |
+                    (machine.read8(static_cast<std::uint16_t>(g_debug.watch_address + 1))
+                     << 8));
+                if (watched_after != watched_before) {
+                    std::printf("watch 0x%04X at pc=0x%04X: 0x%04X -> 0x%04X\n",
+                                static_cast<unsigned>(g_debug.watch_address),
+                                static_cast<unsigned>(pc),
+                                static_cast<unsigned>(watched_before),
+                                static_cast<unsigned>(watched_after));
+                }
+            }
+            if (g_debug.page) {
+                for (std::uint32_t byte = 0; byte < 4096; ++byte) {
+                    const std::uint8_t value =
+                        machine.read8(static_cast<std::uint16_t>(g_debug.page_base + byte));
+                    if (value != g_debug.page_before[byte]) {
+                        std::printf("page 0x%04X at pc=0x%04X: 0x%02X -> 0x%02X\n",
+                                    static_cast<unsigned>(g_debug.page_base + byte),
+                                    static_cast<unsigned>(pc),
+                                    static_cast<unsigned>(g_debug.page_before[byte]),
+                                    static_cast<unsigned>(value));
+                        g_debug.page_before[byte] = value;
+                    }
+                }
+            }
             if (used == 0) {
                 break;
             }
