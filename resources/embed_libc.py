@@ -40,7 +40,12 @@ lines = [
     "namespace {",
 ]
 for array_name, _, source in sources:
-    data = source.read_bytes()
+    # Normalise line endings before embedding. The embedded copy is compared
+    # byte for byte against the checked-in resource, and `.gitattributes` pins
+    # those to LF; a checkout made with core.autocrlf=true handed this script
+    # CRLF bytes, so the committed array disagreed with the file it came from
+    # on every line. The array must not depend on how the tree was checked out.
+    data = source.read_bytes().replace(b"\r\n", b"\n")
     lines.append(
         "constexpr std::array<std::uint8_t, "
         + str(len(data))
@@ -68,5 +73,7 @@ for array_name, function_name, source in sources:
         ]
     )
 lines.extend(["}", ""])
-output.write_text("\n".join(lines), encoding="utf-8")
+# LF in the output as well: the repository pins LF, and text mode on Windows
+# would otherwise write CRLF into the working tree and re-normalise on commit.
+output.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 print(output)
