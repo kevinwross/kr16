@@ -19,6 +19,11 @@ true of kr16.
 - `KR16_TOOLCHAIN` selects the producer behind `kr16 build`: `builtin` (the default) or
   `krc`. The krc path is pinned by `KR16_KRC_PIN`, located by `KR16_KRC_PREFIX`, and a
   program that includes a system header also needs `KR16_KRC_SYSROOT`.
+- That mode links the dynamic CRT because the package is built with it, while the
+  `builtin` mode keeps the static CRT so the shipped binary needs no redistributable.
+  A package of the same configuration is required
+  ([why](../krcompiler/docs/toolchain-embedding.md)): Debug builds take
+  `KR16_KRC_PREFIX=C:/Users/kevin/krc-debug`, Release builds `C:/Users/kevin/krc`.
 - Both toolchains must stay green. Run the suite once per toolchain, on Windows and WSL;
   the README's "Toolchain selection" section has the commands.
 - C-for-U is accepted as over budget for the krc toolchain by decision 6

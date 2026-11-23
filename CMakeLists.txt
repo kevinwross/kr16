@@ -70,7 +70,15 @@ message(STATUS "kr16 toolchain: ${KR16_TOOLCHAIN} (krc pin ${KR16_KRC_PIN}); "
                "kdbg reader: ${KR16_KDBG}")
 
 if(MSVC)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  # The installed krc package is built against the dynamic CRT, so a binary that
+  # links krc::toolchain must use it too: a static-CRT object meets an /MD archive
+  # with LNK2038. The builtin toolchain keeps the static CRT, which is why the
+  # shipped kr16.exe needs no redistributable; the choice follows the toolchain.
+  if(KR16_TOOLCHAIN STREQUAL "krc")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  else()
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  endif()
   add_compile_options(/W4 /WX /permissive- /Zc:__cplusplus /Brepro)
   add_link_options(/Brepro)
 else()
