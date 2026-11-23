@@ -164,7 +164,7 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
                     std::printf("r%u=0x%04X ", static_cast<unsigned>(reg),
                                 static_cast<unsigned>(cpu.reg(reg)));
                 }
-                std::printf("sp=0x%04X\n", static_cast<unsigned>(cpu.reg(4)));
+                std::printf("pc=0x%04X\n", static_cast<unsigned>(cpu.pc()));
                 if (++g_debug.break_hits >= g_debug.break_limit) {
                     break;
                 }
