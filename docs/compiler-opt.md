@@ -29,8 +29,8 @@ The first two milestones target this directly.
 
 Measurements to record before and after each milestone:
 
-- VM instruction count and cycles: `kr16 vm --stats image.kex`
-- image text/data/bss: `kr16 size image.kex`
+- VM instruction count and cycles: `kr16 vm --stats image.kr16`
+- image text/data/bss: `kr16 size image.kr16`
 - generated assembly instruction count
 - compile time
 - behavior: output and exit code must match the `-O0` build
@@ -147,10 +147,10 @@ Reproduce the comparison with:
 ```text
 kr16 cc -O0 -o bench_O0.o bench.c
 kr16 cc -O1 -o bench_O1.o bench.c
-kr16 ld bench_O0.o -o bench_O0.kex
-kr16 ld bench_O1.o -o bench_O1.kex
-kr16 vm --stats bench_O0.kex
-kr16 vm --stats bench_O1.kex
+kr16 ld bench_O0.o -o bench_O0.kr16
+kr16 ld bench_O1.o -o bench_O1.kr16
+kr16 vm --stats bench_O0.kr16
+kr16 vm --stats bench_O1.kr16
 ```
 
 Example optimized expression:

@@ -22,8 +22,8 @@ Build and run:
 
 ```text
 kr16 as program.s -o program.o -l program.lst
-kr16 ld program.o -o program.kex
-kr16 vm program.kex
+kr16 ld program.o -o program.kr16
+kr16 vm program.kr16
 ```
 
 The VM exits with `R0 & 0xFF` after `HLT`.
@@ -78,7 +78,7 @@ Compile and run, one step:
 
 ```text
 kr16 build examples/sum.c
-kr16 vm examples/sum.kex
+kr16 vm examples/sum.kr16
 ```
 
 `build` leaves `sum.s`, `sum.o`, and `sum.libc.o` beside the source, records
@@ -88,8 +88,8 @@ listing of the generated assembly. The same steps by hand:
 ```text
 kr16 cc examples/sum.c -S -o build/sum.s
 kr16 as build/sum.s -o build/sum.o
-kr16 ld build/sum.o -o build/sum.kex
-kr16 vm build/sum.kex
+kr16 ld build/sum.o -o build/sum.kr16
+kr16 vm build/sum.kr16
 ```
 
 ## 5. Devices and interrupts

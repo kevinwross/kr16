@@ -471,8 +471,8 @@ A zero vector entry halts the VM with an unhandled-exception diagnostic.
 - RAM is zeroed by the VM for determinism.
 - ROM is loaded before execution and write-protected.
 
-Normal `.kex` programs enter at `0x0100`. With `--no-bios`, the VM starts at the
-`.kex` header entry (default `0x0100`). Raw images start at `--base`.
+Normal `.kr16` programs enter at `0x0100`. With `--no-bios`, the VM starts at the
+`.kr16` header entry (default `0x0100`). Raw images start at `--base`.
 
 ## 16. Reserved and Illegal Encodings
 

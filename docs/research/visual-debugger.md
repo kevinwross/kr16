@@ -55,7 +55,7 @@ table support a good C stepping experience." It mostly does, with caveats in
 | Piece | Where | State |
 |---|---|---|
 | 16-bit VM, exact single-step | [`src/vm/runner.cpp`](../../src/vm/runner.cpp), [`src/cpu/cpu.cpp`](../../src/cpu/cpu.cpp) | Solid. No caches or pipelines, so single-step is exact. |
-| Container with symbols, sections, relocations | [`include/kr16/container.hpp`](../../include/kr16/container.hpp) | Solid. `.kex` is self-contained. |
+| Container with symbols, sections, relocations | [`include/kr16/container.hpp`](../../include/kr16/container.hpp) | Solid. `.kr16` is self-contained. |
 | Line table (`.debug_line`) | [`src/debug/debug_info.cpp`](../../src/debug/debug_info.cpp), [`include/kr16/debug_info.hpp`](../../include/kr16/debug_info.hpp) | One row per instruction while a `.loc` is active — dense enough for "line changed" stepping. |
 | Disassembler | [`src/dis/disassembler.cpp`](../../src/dis/disassembler.cpp) | Symbol-aware, reusable as a library. |
 | Frame-pointer call stack | [`src/dap/dap_session.cpp:1058`](../../src/dap/dap_session.cpp#L1058-L1075) | Structurally correct: `[R4]` = saved FP, `[R4+2]` = return address. |
@@ -548,7 +548,7 @@ custom UI is built.
 A two-pane mockup was built to test the interaction before committing to a GUI
 toolkit. It lives in [`tools/mockup/`](../../tools/mockup/README.md), links the
 existing `kr16_core.lib`, and is a single statically linked `.exe` with no
-runtime installs. It executes a real `.kex`; it is not a static fake. No existing
+runtime installs. It executes a real `.kr16`; it is not a static fake. No existing
 source file was changed.
 
 ![mockup at the first C line](mockup-start.png)
@@ -580,7 +580,7 @@ click-to-toggle.
 ![registers and flag bits](mockup-registers.png)
 
 The top bar is **Load… / Run / Break / Restart / Reload image**. Load accepts a
-`.kex` directly, or compiles/assembles/links a `.c`, `.s`, `.asm` or `.o` with
+`.kr16` directly, or compiles/assembles/links a `.c`, `.s`, `.asm` or `.o` with
 the same pipeline as `kr16 build`. C input always links libc, and the mockup
 embeds `libc.s` so a C file can be loaded without a `resources` folder beside
 the executable. Run executes in 8 ms slices so the window stays responsive;
@@ -779,8 +779,8 @@ int main(void) {
 Then:
 
 ```text
-kr16 debug demo.kex --lines
-kr16 dis demo.kex --source --symbols
+kr16 debug demo.kr16 --lines
+kr16 dis demo.kr16 --source --symbols
 ```
 
 Line table facts for this program:
@@ -803,8 +803,8 @@ Multi-object line-table test:
 kr16 cc helper.c -c -g -o helper.o
 kr16 cc app.c    -c -g -o app.o
 kr16 as resources\libc.s -o libc.o
-kr16 ld libc.o helper.o app.o -o multi.kex
-kr16 debug multi.kex --lines   # prints two line tables
+kr16 ld libc.o helper.o app.o -o multi.kr16
+kr16 debug multi.kr16 --lines   # prints two line tables
 ```
 
 where `helper.c` defines `int helper(int x) { int y = x * 2; return y; }` and
