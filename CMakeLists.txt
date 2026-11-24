@@ -133,7 +133,10 @@ add_library(kr16_core STATIC
   src/dap/dap_session.cpp
   src/dap/dap_server.cpp
 )
-target_include_directories(kr16_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+include(GNUInstallDirs)
+target_include_directories(kr16_core PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_include_directories(kr16_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(kr16_core PUBLIC KR16_VERSION="${PROJECT_VERSION}")
 if(KRG_TOOLCHAIN STREQUAL "krc")
@@ -172,7 +175,33 @@ if(KR16_BUILD_UI)
       src/platform/ui/win32/win32_canvas.cpp
       src/platform/ui/win32/win32_window.cpp
     )
-    add_library(kr16_ui STATIC ${KR16_UI_SOURCES})
+    # Exporting the core lets another tree link this machine instead of compiling its
+# sources (D4 of the build cleanup plan); the other three cores export the same
+# way. The include directory above is split so the export is legal.
+add_library(kr16::core ALIAS kr16_core)
+set_target_properties(kr16_core PROPERTIES EXPORT_NAME core)
+target_compile_features(kr16_core PUBLIC cxx_std_20)
+option(KR16_INSTALL "Install kr16::core and its headers for other trees" OFF)
+if(KR16_INSTALL)
+    install(TARGETS kr16_core EXPORT kr16Targets
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+    install(EXPORT kr16Targets
+        FILE kr16Targets.cmake
+        NAMESPACE kr16::
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/kr16-core")
+    include(CMakePackageConfigHelpers)
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/kr16-core-config.cmake.in"
+        "@PACKAGE_INIT@\ninclude(\"\${CMAKE_CURRENT_LIST_DIR}/kr16Targets.cmake\")\n")
+    configure_package_config_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/kr16-core-config.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/kr16-core-config.cmake"
+        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/kr16-core")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/kr16-core-config.cmake"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/kr16-core")
+endif()
+add_library(kr16_ui STATIC ${KR16_UI_SOURCES})
     target_compile_definitions(kr16_ui PRIVATE
       UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS
     )
@@ -214,7 +243,33 @@ if(KR16_BUILD_UI)
         target_compile_options(${sdl_target} PRIVATE -Wno-error)
       endif()
     endforeach()
-    add_library(kr16_ui STATIC ${KR16_UI_SOURCES})
+    # Exporting the core lets another tree link this machine instead of compiling its
+# sources (D4 of the build cleanup plan); the other three cores export the same
+# way. The include directory above is split so the export is legal.
+add_library(kr16::core ALIAS kr16_core)
+set_target_properties(kr16_core PROPERTIES EXPORT_NAME core)
+target_compile_features(kr16_core PUBLIC cxx_std_20)
+option(KR16_INSTALL "Install kr16::core and its headers for other trees" OFF)
+if(KR16_INSTALL)
+    install(TARGETS kr16_core EXPORT kr16Targets
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+    install(EXPORT kr16Targets
+        FILE kr16Targets.cmake
+        NAMESPACE kr16::
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/kr16-core")
+    include(CMakePackageConfigHelpers)
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/kr16-core-config.cmake.in"
+        "@PACKAGE_INIT@\ninclude(\"\${CMAKE_CURRENT_LIST_DIR}/kr16Targets.cmake\")\n")
+    configure_package_config_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/kr16-core-config.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/kr16-core-config.cmake"
+        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/kr16-core")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/kr16-core-config.cmake"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/kr16-core")
+endif()
+add_library(kr16_ui STATIC ${KR16_UI_SOURCES})
     target_include_directories(kr16_ui PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb"
     )
