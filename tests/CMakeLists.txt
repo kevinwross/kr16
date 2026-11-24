@@ -519,9 +519,9 @@ add_test(NAME kr16.example.putchar.run
 set_tests_properties(kr16.example.putchar.run PROPERTIES LABELS "integration"
   DEPENDS kr16.example.putchar.build PASS_REGULAR_EXPRESSION "KR16")
 
-
-
-
-
-
-
+add_test(NAME kr16.embed.libc
+  COMMAND ${CMAKE_COMMAND}
+    "-DROOT=${CMAKE_SOURCE_DIR}"
+    "-DCHECK=${CMAKE_SOURCE_DIR}/src/resources/embedded_libc.cpp"
+    -P "${CMAKE_SOURCE_DIR}/resources/embed_libc.cmake")
+set_tests_properties(kr16.embed.libc PROPERTIES LABELS "integration")
