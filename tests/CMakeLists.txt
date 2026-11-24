@@ -483,11 +483,11 @@ endif()
 
 
 
-add_test(NAME kr16.release.workflow
+add_test(NAME kr16.release.policy
   COMMAND ${CMAKE_COMMAND}
     "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/release_check.cmake")
-set_tests_properties(kr16.release.workflow PROPERTIES LABELS "policy")
+set_tests_properties(kr16.release.policy PROPERTIES LABELS "policy")
 
 # Curriculum examples: hand-written assembly.
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/../examples/sum_loop.s"
