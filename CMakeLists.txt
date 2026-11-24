@@ -74,9 +74,12 @@ if(KR16_KRC_PREFIX)
   list(PREPEND CMAKE_PREFIX_PATH "${KR16_KRC_PREFIX}")
 endif()
 
-if(KRG_TOOLCHAIN STREQUAL "krc")
-  find_package(krc-toolchain CONFIG REQUIRED)
-endif()
+# The package is required in both modes, for different things: the krc path uses its
+# facade and archive, and the builtin path includes krc/listing.h so its `-l` is
+# rendered by the same code as the compiler's. Only the facade is linked -- the
+# renderer is inline, which is what keeps the builtin binary free of the package's
+# dynamic CRT.
+find_package(krc-toolchain CONFIG REQUIRED)
 if(KR16_KDBG AND NOT TARGET krc::debug)
   find_package(krc-debug CONFIG REQUIRED)
 endif()
@@ -139,6 +142,15 @@ target_include_directories(kr16_core PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_include_directories(kr16_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(kr16_core PUBLIC KR16_VERSION="${PROJECT_VERSION}")
+# Headers in both modes: the builtin assembler renders its listing with the inline
+# renderer from krc/listing.h, so a `-l` prints the same bytes from either toolchain
+# path. Nothing from the package is linked in builtin mode, which is what keeps that
+# binary free of the package's dynamic CRT.
+get_target_property(KR16_KRC_INCLUDE_DIRS krc::toolchain INTERFACE_INCLUDE_DIRECTORIES)
+if(NOT KR16_KRC_INCLUDE_DIRS)
+  message(FATAL_ERROR "krc::toolchain exports no include directories")
+endif()
+target_include_directories(kr16_core PRIVATE ${KR16_KRC_INCLUDE_DIRS})
 if(KRG_TOOLCHAIN STREQUAL "krc")
   target_compile_definitions(kr16_core PRIVATE KR16_TOOLCHAIN_KRC=1)
   target_link_libraries(kr16_core PRIVATE krc::toolchain)

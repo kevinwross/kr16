@@ -123,10 +123,13 @@ TEST_CASE("as -l writes a listing beside the object") {
         text.assign(std::istreambuf_iterator<char>(listing),
                     std::istreambuf_iterator<char>());
     }
+    // The shared renderer packs each word and prints eight-digit addresses, so the
+    // encoded bytes appear as `8111` and the rows at `00000000` and `00000002`
+    // where kr16's private layout wrote `81 11` and `0x0000`/`0x0002`.
     CHECK(text.find("MOV R0, #1") != std::string::npos);
-    CHECK(text.find("81 11") != std::string::npos);
-    CHECK(text.find("0x0000") != std::string::npos);
-    CHECK(text.find("0x0002") != std::string::npos);
+    CHECK(text.find("8111") != std::string::npos);
+    CHECK(text.find("00000000") != std::string::npos);
+    CHECK(text.find("00000002") != std::string::npos);
     CHECK(text.find("HLT") != std::string::npos);
 
     std::filesystem::remove_all(directory);

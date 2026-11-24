@@ -70,9 +70,14 @@ TEST_CASE("build -l writes a listing beside the source") {
     CHECK(run_cli({"kr16", "build", "-l", source.string()}) == 0);
     REQUIRE(std::filesystem::exists(directory / "program.lst"));
     const auto listing = read_text(directory / "program.lst");
-    CHECK(listing.find(".file 0") != std::string::npos);
-    CHECK(listing.find("main:") != std::string::npos);
-    CHECK(listing.find("0x0000") != std::string::npos);
+    // The listing is rendered by the shared renderer, so it carries its header and
+    // its eight-digit addresses rather than kr16's old `0x%04X` column. The
+    // expectation moves with the layout H4 replaces: the statements and the bytes
+    // are the same, the row text is not.
+    CHECK(listing.find("; krc listing") != std::string::npos);
+    CHECK(listing.find("; target kr16") != std::string::npos);
+    CHECK(listing.find("MOV R0, #1") != std::string::npos);
+    CHECK(listing.find("00000000") != std::string::npos);
 
     // -L is the same flag; --listing=FILE renames the file.
     CHECK(run_cli({"kr16", "build", "-L", source.string()}) == 0);

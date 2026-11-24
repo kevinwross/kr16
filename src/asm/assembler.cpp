@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "krc/listing.h"
 #include "kr16/diagnostic.hpp"
 #include "kr16/instruction.hpp"
 
@@ -650,7 +651,7 @@ private:
     int branch_ordinal_ = 0;
     std::unordered_set<int> long_branches_;
     std::vector<BranchSite> branch_sites_;
-    std::vector<std::string> listing_;
+    std::vector<krc::listing::ListingRow> rows_;
 };
 
 std::string read_file_text(const std::string& path) {
@@ -850,7 +851,7 @@ void Assembler::reset_for_pass(bool first) {
     raw_.clear();
     relocations_.clear();
     conditionals_.clear();
-    listing_.clear();
+    rows_.clear();
     line_rows_.clear();
     current_debug_file_ = 0;
     current_debug_line_ = 0;
@@ -936,17 +937,18 @@ AsmResult Assembler::run() {
             }
         }
 
+    auto render_listing = [&]() {
+        krc::listing::Document document;
+        document.title = current_file_.empty() ? std::string("<assembly>") : current_file_;
+        document.target = "kr16";
+        document.linked = false;
+        document.word_bytes = 2;
+        return krc::listing::render(rows_, {}, {}, document);
+    };
         if (options_.raw) {
             result.raw = raw_;
             result.ok = true;
-            result.listing = [&]() {
-                std::string text;
-                for (const auto& line : listing_) {
-                    text += line;
-                    text.push_back('\n');
-                }
-                return text;
-            }();
+            result.listing = render_listing();
             return result;
         }
 
@@ -1021,10 +1023,7 @@ AsmResult Assembler::run() {
 
         result.object = std::move(object);
         result.ok = true;
-        for (const auto& line : listing_) {
-            result.listing += line;
-            result.listing.push_back('\n');
-        }
+        result.listing = render_listing();
         return result;
     } catch (const AsmError& error) {
         result.diagnostics.push_back(
@@ -1365,14 +1364,19 @@ void Assembler::append_listing(const SourceLine& line,
         }
     }
 
-    std::ostringstream text;
-    text << "0x" << std::hex << std::uppercase << std::setw(4)
-         << std::setfill('0') << (start_address & 0xFFFF) << "  ";
-    for (std::size_t i = 0; i < bytes.size() && i < 8; ++i) {
-        text << std::setw(2) << static_cast<unsigned>(bytes[i]) << " ";
+    // A row, not a formatted line: the shared renderer owns the layout, so this host
+    // and the compiler print the same bytes for the same statements.
+    krc::listing::ListingRow row;
+    if (options_.raw) {
+        row.section = ".text";
+    } else if (start_section < sections_.size()) {
+        row.section = sections_[start_section].name;
     }
-    text << " " << line.text;
-    listing_.push_back(text.str());
+    row.address = start_address;
+    row.bytes = std::move(bytes);
+    row.text = line.text;
+    row.source_line = static_cast<std::uint32_t>(line.line);
+    rows_.push_back(std::move(row));
 }
 
 void Assembler::process_line(const SourceLine& line) {
