@@ -36,3 +36,17 @@ true of kr16.
 - Flipping the default to `krc` and deleting `src/cc`, `src/asm` and `src/link` need the
   second approval and the one-release window from the plan. Do not start stage B from a
   working session.
+
+## WSL builds
+
+A WSL build runs on an ext4 mirror, never on `/mnt/c`. A build under the mount carries
+mount paths in its debug data and its file timestamps are too coarse for incremental
+work, so the mirror is refreshed with the family tool and the gate runs from there:
+
+    sh ../krcompiler/scripts/kr-mirror.sh kr16
+    cd ~/mirrors/kr16 && cmake --preset linux-gcc-debug && ctest --preset linux-gcc-debug
+
+A gate that supports it does this itself when it is started from a `/mnt/c` path: it
+prints the mirror it used and re-executes there, and `--in-place` opts out for the
+rare case where a mount build is intended. Editing happens on Windows; the mirror is
+disposable and is never committed.
