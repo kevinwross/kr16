@@ -147,6 +147,18 @@ if(KR16_KDBG)
   target_compile_definitions(kr16_core PRIVATE KR16_KDBG=1)
   target_link_libraries(kr16_core PRIVATE krc::debug)
 endif()
+# The krc build path compiles resources/fileio.c through the in-process facade,
+# and the facade searches no sysroot unless it is told one: without this, a krc
+# build fails with "header not found: 'stdarg.h'" even though the installed
+# sysroot carries it. Deriving it from the package config means a caller does not
+# have to name a path the package already knows.
+if(KRG_TOOLCHAIN STREQUAL "krc" AND NOT KR16_KRC_SYSROOT AND krc-toolchain_DIR)
+  get_filename_component(_krc_prefix "${krc-toolchain_DIR}/../../.." ABSOLUTE)
+  if(EXISTS "${_krc_prefix}/share/krc/sysroot")
+    set(KR16_KRC_SYSROOT "${_krc_prefix}/share/krc/sysroot")
+    message(STATUS "kr16 krc sysroot: ${KR16_KRC_SYSROOT}")
+  endif()
+endif()
 if(KR16_KRC_SYSROOT)
   target_compile_definitions(kr16_core PRIVATE
     KR16_KRC_SYSROOT_DIR="${KR16_KRC_SYSROOT}")
