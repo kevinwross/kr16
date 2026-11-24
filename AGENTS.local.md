@@ -24,6 +24,11 @@ true of kr16.
   A package of the same configuration is required
   ([why](../krcompiler/docs/toolchain-embedding.md)): Debug builds take
   `KR16_KRC_PREFIX=C:/Users/kevin/krc-debug`, Release builds `C:/Users/kevin/krc`.
+- Both toolchains include the package's headers and neither links it in `builtin`
+  mode: `kr16`'s listing is rendered by the inline `krc::listing` from
+  `krc/listing.h`, so the two paths print the same bytes for the same statements
+  while `builtin` still ships against the static CRT. `find_package(krc-toolchain)`
+  therefore runs in both modes, and `krc::toolchain` is linked only under `krc`.
 - Both toolchains must stay green. Run the suite once per toolchain, on Windows and WSL;
   the README's "Toolchain selection" section has the commands.
 - C-for-U is accepted as over budget for the krc toolchain by decision 6
