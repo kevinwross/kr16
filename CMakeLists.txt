@@ -18,22 +18,36 @@ set(KR16_SDL3_SOURCE_DIR "" CACHE PATH
     "Optional SDL3 source tree; otherwise a pinned release is fetched")
 
 # Which producer builds a program in `build_program`: the built-in compiler in
-# `src/cc`, or KRCompiler's facade through `krc::toolchain`. The default stays
-# `builtin` until stage B.
-set(KR16_TOOLCHAIN "builtin" CACHE STRING
-    "Program build path: builtin or krc")
-set_property(CACHE KR16_TOOLCHAIN PROPERTY STRINGS builtin krc)
-if(NOT KR16_TOOLCHAIN STREQUAL "builtin" AND NOT KR16_TOOLCHAIN STREQUAL "krc")
-  message(FATAL_ERROR
-    "KR16_TOOLCHAIN must be 'builtin' or 'krc', not '${KR16_TOOLCHAIN}'")
+# `src/cc`, or KRCompiler's facade through `krc::toolchain`.
+#
+# The option is `KRG_TOOLCHAIN` like every other tree; `KR16_TOOLCHAIN` remains
+# as this repository's legacy spelling. The value set is the union of what the
+# family supports -- krc, builtin, bundled -- and this tree accepts the two that
+# exist here, naming the third in the error rather than pretending it is a typo.
+set(KR16_TOOLCHAIN "" CACHE STRING "Program build path (legacy alias for KRG_TOOLCHAIN)")
+if(NOT KRG_TOOLCHAIN AND KR16_TOOLCHAIN)
+  set(KRG_TOOLCHAIN "${KR16_TOOLCHAIN}")
 endif()
+if(NOT KRG_TOOLCHAIN)
+  # `builtin` stays the default here until stage B moves the tree onto krc; the
+  # family default is krc, so a tree that has not made the move says so.
+  set(KRG_TOOLCHAIN "builtin")
+endif()
+set(KRG_TOOLCHAIN "${KRG_TOOLCHAIN}" CACHE STRING "Program build path: krc or builtin")
+set_property(CACHE KRG_TOOLCHAIN PROPERTY STRINGS krc builtin)
+if(NOT KRG_TOOLCHAIN STREQUAL "krc" AND NOT KRG_TOOLCHAIN STREQUAL "builtin")
+  message(FATAL_ERROR
+    "KRG_TOOLCHAIN must be one of krc, builtin (or bundled, which this tree does "
+    "not have), not '${KRG_TOOLCHAIN}'")
+endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KrGuest.cmake")
 
 # `.kdbg` is the debug payload a krc-built `.kex` carries instead of `.debug_*`.
 # It needs `krc::debug`, so it follows the toolchain. Deliberately not a cached
 # option: a build directory reconfigured for the other toolchain must follow it,
 # and a cached value would keep whatever the first configure wrote. Pass
 # `-DKR16_KDBG=ON|OFF` to override.
-if(KR16_TOOLCHAIN STREQUAL "krc")
+if(KRG_TOOLCHAIN STREQUAL "krc")
   set(KR16_KDBG_DEFAULT ON)
 else()
   set(KR16_KDBG_DEFAULT OFF)
@@ -60,13 +74,13 @@ if(KR16_KRC_PREFIX)
   list(PREPEND CMAKE_PREFIX_PATH "${KR16_KRC_PREFIX}")
 endif()
 
-if(KR16_TOOLCHAIN STREQUAL "krc")
+if(KRG_TOOLCHAIN STREQUAL "krc")
   find_package(krc-toolchain CONFIG REQUIRED)
 endif()
 if(KR16_KDBG AND NOT TARGET krc::debug)
   find_package(krc-debug CONFIG REQUIRED)
 endif()
-message(STATUS "kr16 toolchain: ${KR16_TOOLCHAIN} (krc pin ${KR16_KRC_PIN}); "
+message(STATUS "kr16 toolchain: ${KRG_TOOLCHAIN} (krc pin ${KR16_KRC_PIN}); "
                "kdbg reader: ${KR16_KDBG}")
 
 if(MSVC)
@@ -74,7 +88,7 @@ if(MSVC)
   # links krc::toolchain must use it too: a static-CRT object meets an /MD archive
   # with LNK2038. The builtin toolchain keeps the static CRT, which is why the
   # shipped kr16.exe needs no redistributable; the choice follows the toolchain.
-  if(KR16_TOOLCHAIN STREQUAL "krc")
+  if(KRG_TOOLCHAIN STREQUAL "krc")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
   else()
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -122,7 +136,7 @@ add_library(kr16_core STATIC
 target_include_directories(kr16_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_include_directories(kr16_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(kr16_core PUBLIC KR16_VERSION="${PROJECT_VERSION}")
-if(KR16_TOOLCHAIN STREQUAL "krc")
+if(KRG_TOOLCHAIN STREQUAL "krc")
   target_compile_definitions(kr16_core PRIVATE KR16_TOOLCHAIN_KRC=1)
   target_link_libraries(kr16_core PRIVATE krc::toolchain)
 endif()

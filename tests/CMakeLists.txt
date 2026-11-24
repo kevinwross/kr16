@@ -29,7 +29,7 @@ target_include_directories(kr16_tests PRIVATE
 target_compile_definitions(kr16_tests PRIVATE
   KR16_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
-if(KR16_TOOLCHAIN STREQUAL "krc")
+if(KRG_TOOLCHAIN STREQUAL "krc")
   target_compile_definitions(kr16_tests PRIVATE KR16_TOOLCHAIN_KRC=1)
 endif()
 if(KR16_KDBG)
@@ -203,7 +203,7 @@ set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
 # C-for-U under the built-in compiler: it fits, so the five checks below run.
 # Under krc it does not fit; decision 6 (2026-11-21) accepts that for stage A and
 # the single negative test after this block records the wall instead.
-if(NOT KR16_TOOLCHAIN STREQUAL "krc")
+if(NOT KRG_TOOLCHAIN STREQUAL "krc")
 add_test(NAME kr16.cc.cforu
   COMMAND kr16 build --no-debug
     "${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
@@ -465,7 +465,7 @@ if(KR16_NODE_EXECUTABLE)
   )
   set_tests_properties(kr16.dap.smoke PROPERTIES LABELS "integration"
     DEPENDS kr16.ld.hello)
-  if(KR16_TOOLCHAIN STREQUAL "krc")
+  if(KRG_TOOLCHAIN STREQUAL "krc")
     # The same check over an image the krc path built: no symbol table, so the
     # function breakpoint has to come from `.kdbg`.
     add_test(NAME kr16.dap.smoke.krc
