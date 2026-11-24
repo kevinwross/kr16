@@ -2996,7 +2996,7 @@ mode the monitor is disabled; the console is program I/O only.
 - Integration tests that assemble/link/run example programs and compare
   console output and exit codes.
 - Headless VM mode with scripted input and cycle limits.
-- CI: GitHub Actions on `windows-2025` and `ubuntu-22.04` for push/PR/tag
+- CI: no hosted CI; the gates run locally on Windows (native), in WSL, and on BitWhiz for ARM64, and packaging is `scripts/package.ps1` and `scripts/package.sh` run by hand at a tag
   workflows, with releases on `v*` tags. Windows/Linux Debug and Release,
   Linux ASan/UBSan, bootstrap/resource hash checks, and archive hash checks.
   Windows 10/11 x64 and glibc 2.35 are the baselines. CI uses Ninja + MSVC;
@@ -3035,7 +3035,7 @@ mode the monitor is disabled; the console is program I/O only.
   - `SHA256SUMS`
   - Archives contain `bin/`, `vscode/`, `docs/`, `examples/`, `README.md`, and
     `LICENSE`.
-- CI/release: GitHub Actions on `windows-2025` and `ubuntu-22.04`, with
+- CI/release: local gates on Windows and in WSL, with
   push/PR/tag workflows and release publishing on `v*` tags. Windows 10/11 x64
   and glibc 2.35 (Ubuntu 22.04) are the baselines. CI uses Ninja + MSVC; local
   development uses Visual Studio 2026.
