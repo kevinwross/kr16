@@ -29,7 +29,7 @@ kr16::VmResult run_c_stats(const std::string& source,
     REQUIRE(linked.ok);
     static int counter = 0;
     const auto path = std::filesystem::current_path() /
-                      ("kr16_c_test_" + std::to_string(counter++) + ".kex");
+                      ("kr16_c_test_" + std::to_string(counter++) + ".kr16");
     {
         std::ofstream output(path, std::ios::binary);
         const auto bytes = linked.image.write();
@@ -88,7 +88,7 @@ std::string run_c_with_libc(const std::string& source,
     REQUIRE(linked.ok);
     static int counter = 0;
     const auto path = std::filesystem::current_path() /
-                      ("kr16_c_libc_" + std::to_string(counter++) + ".kex");
+                      ("kr16_c_libc_" + std::to_string(counter++) + ".kr16");
     {
         std::ofstream output(path, std::ios::binary);
         const auto bytes = linked.image.write();
@@ -131,7 +131,7 @@ int run_c_libc_exit(const std::string& source, const std::string& input = {}) {
     REQUIRE(linked.ok);
     static int counter = 0;
     const auto path = std::filesystem::current_path() /
-                      ("kr16_c_libc_exit_" + std::to_string(counter++) + ".kex");
+                      ("kr16_c_libc_exit_" + std::to_string(counter++) + ".kr16");
     {
         std::ofstream output(path, std::ios::binary);
         const auto bytes = linked.image.write();

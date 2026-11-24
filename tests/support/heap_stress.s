@@ -4,7 +4,7 @@
 ;
 ; Build:
 ;   kr16 as tests/support/heap_stress.s -o heap_stress.o
-;   kr16 ld libc.o heapcheck.o heap_stress.o -o heap_stress.kex
+;   kr16 ld libc.o heapcheck.o heap_stress.o -o heap_stress.kr16
 
 .extern __kr16_heap_check
 .extern __kr16_heap_used

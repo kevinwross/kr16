@@ -2,7 +2,7 @@
 
 These files are stable byte-level fixtures for the KR16 container reader:
 
-- `exec_min.kex` — minimal EXEC container with `.text`, `.bss`, `.debug_str`,
+- `exec_min.kr16` — minimal EXEC container with `.text`, `.bss`, `.debug_str`,
   and a `main` symbol.
 - `rel_min.o` — minimal REL container with an `ABS16` relocation.
 

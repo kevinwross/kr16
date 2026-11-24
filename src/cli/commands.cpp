@@ -63,12 +63,12 @@ Examples:
 )";
     }
     if (command == "dis") {
-        return R"(usage: kr16 dis <file.o|file.kex> [options]
+        return R"(usage: kr16 dis <file.o|file.kr16> [options]
 
 Disassemble a KR16 object or executable image.
 
 Arguments:
-  <file.o|file.kex>    image to disassemble
+  <file.o|file.kr16>    image to disassemble
 
 Options:
   --raw                treat the input as a flat binary
@@ -121,7 +121,7 @@ Arguments:
   <file.o>             link
 
 Options:
-  -o <path>            image path (default: <input>.kex)
+  -o <path>            image path (default: <input>.kr16)
   -l, -L               write a listing beside the source
   -l=<path>            write the listing to the given path
   --listing=<path>     write the listing to the given path
@@ -146,7 +146,7 @@ Arguments:
   <object.o>...        input objects; at least one is required
 
 Options:
-  -o <path>            output image (default: a.kex)
+  -o <path>            output image (default: a.kr16)
   --map <path>         write a map of sections and symbols
   --strip-debug        remove debug sections
   --strip              remove debug sections and all but required symbols
@@ -157,7 +157,7 @@ Options:
 )";
     }
     if (command == "size") {
-        return R"(usage: kr16 size <file.kex|file.o>
+        return R"(usage: kr16 size <file.kr16|file.o>
 
 Report the allocatable .text, .data and .bss sizes of an image or object.
 
@@ -170,7 +170,7 @@ Options:
 )";
     }
     if (command == "debug") {
-        return R"(usage: kr16 debug <file.o|file.kex> [filters]
+        return R"(usage: kr16 debug <file.o|file.kr16> [filters]
 
 Dump decoded debug information.
 
@@ -189,7 +189,7 @@ Filters (default: all):
 )";
     }
     if (command == "vm") {
-        return R"(usage: kr16 vm <program.kex|program.bin> [options] [-- args...]
+        return R"(usage: kr16 vm <program.kr16|program.bin> [options] [-- args...]
 
 Run a KR16 program on the virtual machine.
 
@@ -224,12 +224,12 @@ Options:
 )";
     }
     if (command == "dap") {
-        return R"(usage: kr16 dap <program.kex> [options]
+        return R"(usage: kr16 dap <program.kr16> [options]
 
 Run the VM with the Debug Adapter Protocol server listening on TCP.
 
 Arguments:
-  <program.kex>        image to debug
+  <program.kr16>        image to debug
 
 Options:
   --port <n>           TCP port (default: 22152)
@@ -678,7 +678,7 @@ int run_vm_command(int argc, char** argv) {
 
 int run_ld_command(int argc, char** argv) {
     std::vector<std::string> inputs;
-    std::string output = "a.kex";
+    std::string output = "a.kr16";
     std::string map_path;
     LinkOptions options;
     for (int i = 0; i < argc; ++i) {
@@ -1131,7 +1131,7 @@ int run_build_command(int argc, char** argv) {
     }
     if (options.output.empty()) {
         options.output = input;
-        options.output.replace_extension(".kex");
+        options.output.replace_extension(".kr16");
     }
     if (listing && options.listing.empty()) {
         options.listing = options.input;
@@ -1163,13 +1163,13 @@ std::string usage_text() {
         "\n"
         "Commands:\n"
         "  as       Assemble a .s file into a relocatable .o\n"
-        "  dis      Disassemble a .o or .kex\n"
+        "  dis      Disassemble a .o or .kr16\n"
         "  cc       Compile C to assembly, then assemble to .o\n"
-        "  build    Compile, assemble, and link one input into a .kex\n"
-        "  ld       Link .o files into a .kex\n"
+        "  build    Compile, assemble, and link one input into a .kr16\n"
+        "  ld       Link .o files into a .kr16\n"
         "  size     Report code, data and bss sizes\n"
         "  debug    Dump decoded symbols, lines, types, variables, frames, objects\n"
-        "  vm       Run a .kex (or raw binary) on the virtual machine\n"
+        "  vm       Run a .kr16 (or raw binary) on the virtual machine\n"
         "  dap      Run the VM with the debug adapter listening on TCP\n"
         "  version  Print tool, ISA, container, host-service ABI, and debug versions\n"
         "  shell    Start the interactive shell\n"

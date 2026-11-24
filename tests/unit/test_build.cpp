@@ -49,15 +49,15 @@ std::vector<std::uint8_t> read_bytes(const fs::path& path) {
 
 }  // namespace
 
-TEST_CASE("build turns C source into a runnable .kex") {
+TEST_CASE("build turns C source into a runnable .kr16") {
     const auto directory = make_workspace("kr16_build_c");
     const auto source = directory / "program.c";
     write_file(source, "int main(void) { return 7; }\n");
 
     CHECK(run_cli({"kr16", "build", source.string()}) == 0);
-    CHECK(std::filesystem::exists(directory / "program.kex"));
+    CHECK(std::filesystem::exists(directory / "program.kr16"));
     CHECK(std::filesystem::exists(directory / "program.o"));
-    CHECK(run_cli({"kr16", "vm", (directory / "program.kex").string()}) == 7);
+    CHECK(run_cli({"kr16", "vm", (directory / "program.kr16").string()}) == 7);
 
     std::filesystem::remove_all(directory);
 }
@@ -97,15 +97,15 @@ TEST_CASE("build records debug info unless --no-debug is given") {
 
     CHECK(run_cli({"kr16", "build", source.string()}) == 0);
     {
-        const auto bytes = read_bytes(directory / "program.kex");
+        const auto bytes = read_bytes(directory / "program.kr16");
         const auto image = kr16::Container::read(bytes);
         CHECK(image.find_section(kDebugSection) != nullptr);
         CHECK(image.find_section(".text") != nullptr);
     }
     CHECK(run_cli({"kr16", "build", "--no-debug", "-o",
-                   (directory / "plain.kex").string(), source.string()}) == 0);
+                   (directory / "plain.kr16").string(), source.string()}) == 0);
     {
-        const auto bytes = read_bytes(directory / "plain.kex");
+        const auto bytes = read_bytes(directory / "plain.kr16");
         const auto image = kr16::Container::read(bytes);
         CHECK(image.find_section(kDebugSection) == nullptr);
         CHECK(image.find_section(".text") != nullptr);
@@ -136,7 +136,7 @@ TEST_CASE("build -I resolves include paths") {
 
     CHECK(run_cli({"kr16", "build", "-I", include.string(), source.string()}) ==
           0);
-    CHECK(run_cli({"kr16", "vm", (directory / "program.kex").string()}) == 5);
+    CHECK(run_cli({"kr16", "vm", (directory / "program.kr16").string()}) == 5);
 
     std::filesystem::remove_all(directory);
 }
@@ -152,11 +152,11 @@ TEST_CASE("build accepts assembly and object input") {
                "  HLT\n");
 
     CHECK(run_cli({"kr16", "build", source.string()}) == 0);
-    CHECK(run_cli({"kr16", "vm", (directory / "program.kex").string()}) == 4);
+    CHECK(run_cli({"kr16", "vm", (directory / "program.kr16").string()}) == 4);
 
     CHECK(run_cli({"kr16", "build", (directory / "program.o").string(), "-o",
-                   (directory / "from_object.kex").string()}) == 0);
-    CHECK(run_cli({"kr16", "vm", (directory / "from_object.kex").string()}) ==
+                   (directory / "from_object.kr16").string()}) == 0);
+    CHECK(run_cli({"kr16", "vm", (directory / "from_object.kr16").string()}) ==
           4);
 
     std::filesystem::remove_all(directory);
@@ -171,15 +171,15 @@ TEST_CASE("build --libc links the runtime for object input") {
     REQUIRE(run_cli({"kr16", "cc", source.string(), "-c", "-o",
                      object.string()}) == 0);
     CHECK(run_cli({"kr16", "build", object.string(), "--libc", "-o",
-                   (directory / "linked.kex").string()}) == 0);
-    CHECK(run_cli({"kr16", "vm", (directory / "linked.kex").string()}) == 3);
+                   (directory / "linked.kr16").string()}) == 0);
+    CHECK(run_cli({"kr16", "vm", (directory / "linked.kr16").string()}) == 3);
 
     std::filesystem::remove_all(directory);
 }
 
-TEST_CASE("build rejects inputs it cannot turn into a .kex") {
+TEST_CASE("build rejects inputs it cannot turn into a .kr16") {
     CHECK(run_cli({"kr16", "build"}) == 2);
     CHECK(run_cli({"kr16", "build", "program.txt"}) == 2);
-    CHECK(run_cli({"kr16", "build", "program.kex"}) == 2);
+    CHECK(run_cli({"kr16", "build", "program.kr16"}) == 2);
     CHECK(run_cli({"kr16", "build", "--nope", "program.c"}) == 2);
 }

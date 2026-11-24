@@ -91,19 +91,19 @@ machine, and debug adapter — ships as a single `kr16` binary.
      v
   hello.o  (relocatable object: sections, symbols, relocations, debug info)
      |
-     |  kr16 ld hello.o -o hello.kex      (resolve symbols, lay out memory)
+     |  kr16 ld hello.o -o hello.kr16      (resolve symbols, lay out memory)
      v
-  hello.kex (loadable image: segments, entry point, symbols, types, lines)
+  hello.kr16 (loadable image: segments, entry point, symbols, types, lines)
      |
-     |  kr16 vm hello.kex                  (simulate CPU, RAM, ROM, I/O)
-     |  kr16 dap hello.kex                 (same VM + DAP server on TCP)
+     |  kr16 vm hello.kr16                  (simulate CPU, RAM, ROM, I/O)
+     |  kr16 dap hello.kr16                 (same VM + DAP server on TCP)
      v
   console output / VS Code debug session
 ```
 
 `kr16 cc -S hello.c -o hello.s` stops after emitting assembly.
 `kr16 as hello.s -o hello.o` assembles by hand.
-`kr16 dis hello.o` or `kr16 dis hello.kex` produces a readable listing.
+`kr16 dis hello.o` or `kr16 dis hello.kr16` produces a readable listing.
 
 ### 4.2 Single-Binary CLI
 
@@ -112,12 +112,12 @@ kr16 <command> [options]
 
 Commands:
   as       Assemble a .s file into a relocatable .o
-  dis      Disassemble a .o or .kex
+  dis      Disassemble a .o or .kr16
   cc       Compile C to assembly, then assemble to .o
-  ld       Link .o files into a .kex
+  ld       Link .o files into a .kr16
   size     Report code/data/bss and free heap/stack
   debug    Dump decoded symbols, lines, types, variables, frames, objects
-  vm       Run a .kex (or raw binary) on the virtual machine
+  vm       Run a .kr16 (or raw binary) on the virtual machine
   dap      Run the VM with the debug adapter listening on TCP
   version  Print tool, ISA, container, host-service ABI, and debug versions
   help     Print help (also: kr16 <command> --help)
@@ -129,11 +129,11 @@ Examples:
 kr16 cc hello.c -o hello.o
 kr16 cc hello.c -S -o hello.s
 kr16 as hello.s -o hello.o
-kr16 ld hello.o -o hello.kex
-kr16 size hello.kex
-kr16 debug hello.kex
-kr16 vm hello.kex
-kr16 dap --port 22152 hello.kex
+kr16 ld hello.o -o hello.kr16
+kr16 size hello.kr16
+kr16 debug hello.kr16
+kr16 vm hello.kr16
+kr16 dap --port 22152 hello.kr16
 ```
 
 `kr16 version` prints
@@ -372,7 +372,7 @@ libc in the compiler/runtime round):
 The BIOS entry point is `0xF100`; the reset vector points there. The ROM is
 loaded before execution and write-protected while the CPU runs. Writes to ROM
 are ignored (the VM may log them). In `--no-bios` mode the VM sets PC directly
-to the `.kex` header entry (or the raw `--base`).
+to the `.kr16` header entry (or the raw `--base`).
 
 ### 5.5 Data Representation
 
@@ -1051,13 +1051,13 @@ Boot protocol:
 1. The VM loads a 3.75 KiB ROM image (default: the embedded reference BIOS, or
    a user-supplied image via the BIOS load command) at `0xF100–0xFFFF`.
 2. The VM loads the program image. The standard entry is `0x0100`,
-   immediately after the first page; the `.kex` header records the actual
+   immediately after the first page; the `.kr16` header records the actual
    entry.
 3. If a BIOS is present, the reset vector points to the BIOS entry (normally
    `0xF100`). The BIOS initializes devices, copies the default hardware
    vectors and BIOS jump table into the first page, then jumps to `0x0100`.
-   Normal `.kex` images therefore place their entry code at `0x0100`.
-4. If no BIOS is loaded (`--no-bios`), the VM starts directly at the `.kex`
+   Normal `.kr16` images therefore place their entry code at `0x0100`.
+4. If no BIOS is loaded (`--no-bios`), the VM starts directly at the `.kr16`
    header entry (default `0x0100`). The C runtime initializes the first page
    as needed.
 5. The C runtime startup at the entry (normally `0x0100`) sets `R4 = 0`,
@@ -1196,8 +1196,8 @@ host-call block.
 | Syntax | Intel-style, destination first; `#` immediates; brackets for memory |
 | Lexical | Mnemonics/registers case-insensitive; labels case-sensitive; `;` and `//` comments |
 | Output | Relocatable `.o` by default; `--raw --base` for flat images |
-| Object format | KR16 container; `.o` = REL, `.kex` = EXEC; 32-bit offsets/sizes |
-| Symbols | Global/extern plus `.L` locals with `-g`; included in `.kex` by default |
+| Object format | KR16 container; `.o` = REL, `.kr16` = EXEC; 32-bit offsets/sizes |
+| Symbols | Global/extern plus `.L` locals with `-g`; included in `.kr16` by default |
 | Relocations | `ABS16`, `PCREL8W`, `PCREL16W`, `PCREL16B` |
 | Sizing | Smallest form; local branch relaxation |
 | Debug | Binary `.debug_*`; assembler builds `.debug_line`, preserves compiler sections |
@@ -1361,7 +1361,7 @@ is `P+4`. The linker applies the formula and checks the range.
 KR16 uses **one self-describing container format** with two kinds:
 
 - `.o` — relocatable object (`kind = REL`).
-- `.kex` — executable image (`kind = EXEC`).
+- `.kr16` — executable image (`kind = EXEC`).
 
 The same container is used for both so the assembler, linker, disassembler,
 VM, and DAP share one reader/writer. The object file and the final executable
@@ -1445,7 +1445,7 @@ path offset (4), build-directory offset (4), flags (2), reserved (2).
 
 Global width rules: file offsets and section sizes are 32-bit; symbol counts
 and relocation symbol indices are 32-bit; guest addresses, section counts,
-object IDs, type IDs, and source-file indices are 16-bit. This lets a `.kex`
+object IDs, type IDs, and source-file indices are 16-bit. This lets a `.kr16`
 with debug info exceed 64 KiB while keeping guest-visible values 16-bit.
 
 Layout (all tables/sections 2-byte aligned; this order is fixed):
@@ -1485,15 +1485,15 @@ Behavior:
 - The CRC32 checksum covers the entire file, including header, tables, debug
   data, and padding, with the checksum field itself zeroed during calculation.
   It uses the standard IEEE CRC32 polynomial (reflected `0xEDB88320`).
-- The DAP reads the **same** `.kex` for symbols, line tables, types, variable
+- The DAP reads the **same** `.kr16` for symbols, line tables, types, variable
   locations, and frame information. There is no sidecar symbol file.
 - The disassembler reads the same file for symbols and sections; `kr16 dis`
   is the human-readable view of the container.
 - The linker merges `.text`/`.rodata`/`.data`/`.bss`, resolves symbols,
   applies relocations, relocates debug sections, deduplicates strings into
-  `.debug_str`, builds `.debug_objects`, and writes the `.kex`.
+  `.debug_str`, builds `.debug_objects`, and writes the `.kr16`.
 - Symbols and debug sections are included by default. `kr16 ld --strip`
-  produces a runnable `.kex` without them; the VM still runs it, but the DAP
+  produces a runnable `.kr16` without them; the VM still runs it, but the DAP
   cannot provide source-level debugging.
 - A `.map` file is optional and human-readable; it is not required for
   symbols or debugging.
@@ -1501,8 +1501,8 @@ Behavior:
   Source text is not embedded by default; the DAP reads the source from disk
   so edits are visible. Embedding source can be a later option.
 - The format is versioned and every offset/length is bounds-checked by the
-  reader. A malformed `.kex` must produce a diagnostic, never a crash.
-- The `.kex` is self-contained for distribution: program, data, symbols, and
+  reader. A malformed `.kr16` must produce a diagnostic, never a crash.
+- The `.kr16` is self-contained for distribution: program, data, symbols, and
   debug information travel together. The `.o` is only needed during linking.
 
 Why a custom container rather than ELF32 + DWARF: the KR16 address space is
@@ -1570,7 +1570,7 @@ sections without extraction or decompression.
 
 ### 6.9 Disassembler
 
-- `kr16 dis file.o|file.kex` reads the container; `--raw --base addr` handles
+- `kr16 dis file.o|file.kr16` reads the container; `--raw --base addr` handles
   flat images.
 - Default output is readable and symbol-aware: section headers, labels and
   symbol names, canonical mnemonics, and optional raw bytes.
@@ -1583,7 +1583,7 @@ sections without extraction or decompression.
   one-operand shorthand is assembler-only.
 - `SYS #n` prints a symbolic `SYS_*` name when the service is known and a
   numeric value otherwise.
-- `kr16 debug file.o|file.kex` decodes `.debug_*` tables; `--lines`, `--types`,
+- `kr16 debug file.o|file.kr16` decodes `.debug_*` tables; `--lines`, `--types`,
   `--vars`, `--frames`, and `--objects` filter the output.
 - Round-trip test: assemble → disassemble → assemble → compare bytes for
   `.text`. This is a required regression test.
@@ -1607,19 +1607,19 @@ sections without extraction or decompression.
 kr16 as file.s -o file.o [-I dir] [-D name=value] [-l listing] [-g]
               [--raw --base addr]
 
-kr16 dis file.o|file.kex [--source] [--reloc] [--no-hex] [--symbols]
+kr16 dis file.o|file.kr16 [--source] [--reloc] [--no-hex] [--symbols]
               [--raw --base addr]
 ```
 
 - `kr16 cc` emits assembly and calls the assembler library in-process; it does
   not spawn a separate process.
-- `kr16 ld` reads `.o` files and writes the `.kex`; `--strip` removes symbols
+- `kr16 ld` reads `.o` files and writes the `.kr16`; `--strip` removes symbols
   and debug sections from the executable.
 - The assembler, linker, disassembler, VM, and DAP share the container reader
   and writer. The container is the single source of truth for sections,
   symbols, relocations, and debug data.
 - Source files may use `.s` or `.asm`; objects use `.o`; executables use
-  `.kex`.
+  `.kr16`.
 - `--raw` emits a flat binary for BIOS/ROM and simple loaders; `.org` is
   meaningful there.
 
@@ -1630,7 +1630,7 @@ kr16 dis file.o|file.kex [--source] [--reloc] [--no-hex] [--symbols]
 - Linker script/layout syntax and section placement (later).
 - Source path mapping and stale-source detection.
 - Relaxation pass limit and diagnostics for unstable layouts.
-- Whether `.kex` can also represent a ROM image directly, or whether BIOS
+- Whether `.kr16` can also represent a ROM image directly, or whether BIOS
   images remain raw `--raw` output.
 
 ## 7. C Compiler
@@ -1975,7 +1975,7 @@ With `-g`, the compiler emits full `-O0` debug information:
   build directory, plus line/column mappings. Out-of-tree headers use an
   absolute fallback; source text is not embedded.
 - The linker builds `.debug_objects`, merges/deduplicates `.debug_str`, and
-  relocates the per-object sections; the `.kex` carries them unless `--strip`
+  relocates the per-object sections; the `.kr16` carries them unless `--strip`
   is used.
 - The DAP contract is: symbols + line table + type table + variable/scope
   locations + frame information. This supports breakpoints, stepping, call
@@ -2065,7 +2065,7 @@ kr16 cc [options] file.c -o out.o
 
 The effective general RAM is `0x0100–0xEFFF` = 61,184 bytes (59.75 KiB),
 after the first-page vectors/BIOS jump table. ROM and MMIO are separate, and
-symbols/debug sections in the `.kex` are **not** loaded into RAM.
+symbols/debug sections in the `.kr16` are **not** loaded into RAM.
 
 A rough `-O0` budget:
 
@@ -2108,13 +2108,13 @@ To keep the budget predictable:
    stack (`__stack_limit = 0xE000`), sets `__heap_end = __stack_limit`, and
    has the VM/runtime detect heap-stack collision. The reserve is
    linker-configurable for recursion-heavy examples.
-4. **Size reporting.** `kr16 size program.kex` and `kr16 ld --map` report
+4. **Size reporting.** `kr16 size program.kr16` and `kr16 ld --map` report
    code/data/bss sizes and the free heap/stack gap, so students can see the
    budget instead of guessing.
 5. **Use the heap for large data.** Large transient buffers should come from
    `malloc`; large permanent arrays should be sized deliberately.
 6. **Debug info stays out of RAM.** Symbols and `.debug_*` sections live in
-   the `.kex` file and are ignored by the loader.
+   the `.kr16` file and are ignored by the loader.
 
 The 60 KiB machine is comfortable for the intended high-school programs but
 not for large applications, large global arrays, or deep recursion without
@@ -2164,7 +2164,7 @@ change, not a linker tweak.
 - The linker errors if code/data/bss overlap the reserved first page, the MMIO
   page, the ROM, or if the heap start reaches the stack limit.
 - `--base addr` is only for `--raw` or `--nostdlib` bare-metal images. A normal
-  `.kex` is fixed at `0x0100`; combining `--base` with the built-in runtime is
+  `.kr16` is fixed at `0x0100`; combining `--base` with the built-in runtime is
   an error. `--entry symbol|addr` changes the entry point.
 - `--stack-reserve bytes` changes the default 4 KiB stack reserve.
 - The first page is not part of `.text`. It is reserved unless the inputs
@@ -2183,7 +2183,7 @@ change, not a linker tweak.
   supports custom bare-metal startup without `--nostdlib`.
 - Otherwise, if `main` is present and `--nostdlib` is not given, `kr16 ld`
   includes the built-in runtime automatically and `crt0` is placed at
-  `0x0100`. This makes `kr16 ld hello.o -o hello.kex` work without an archive
+  `0x0100`. This makes `kr16 ld hello.o -o hello.kr16` work without an archive
   or `-l` flag.
 - `crt0` sets R4=0, zeroes `.bss` if needed, installs default vectors/jump-table
   entries, forwards R1/R2 to `main`, and halts with the return value.
@@ -2231,12 +2231,12 @@ change, not a linker tweak.
 - `static` functions and objects are local symbols and are retained with
   object identity. `.L` assembler-local labels are retained in the debug
   symbol table when `-g` is requested and omitted otherwise. The map prefixes
-  object names; there is no name mangling in the `.kex` symbol table, and the
+  object names; there is no name mangling in the `.kr16` symbol table, and the
   DAP uses `.debug_objects` to disambiguate.
 - `--strip` removes normal symbols and debug sections but preserves the
   special memory-layout symbols (`__stack_top`, `__stack_limit`,
   `__heap_start`, `__heap_end`) so the VM can enforce guards.
-- The linker produces a merged symbol table for the `.kex`: functions,
+- The linker produces a merged symbol table for the `.kr16`: functions,
   globals, statics, object-scoped locals, and special symbols. Local variables
   and types live in the debug sections.
 
@@ -2266,7 +2266,7 @@ change, not a linker tweak.
   - The reset vector at `0xFFFE` is set to the entry address.
   - `.text` and `.rodata` are placed in ROM.
   - Unused bytes are filled with `0x00`.
-  - The output is a raw ROM image, not a `.kex`; symbols/debug are not
+  - The output is a raw ROM image, not a `.kr16`; symbols/debug are not
     included. `kr16 dis --raw --base 0xF100` can inspect it.
 - `.data` and `.bss` are rejected in v1; the reference BIOS is stateless.
   `--bios-ram` is deferred until a proper BIOS RAM map is designed, so a
@@ -2314,13 +2314,13 @@ change, not a linker tweak.
   `__stack_limit`, `__stack_top`, free heap space, and free stack space.
 - Any relocation or layout diagnostics.
 
-`kr16 size program.kex` prints the same budget in a compact form: text,
+`kr16 size program.kr16` prints the same budget in a compact form: text,
 rodata, data, bss, heap start/end, stack limit/top, and the free gap.
 
 The map is generated only when `--map` is requested. A JSON map format is a
 later addition; v1 keeps the human-readable report for students and tests.
 
-The map is optional and never required for symbols or debugging; the `.kex`
+The map is optional and never required for symbols or debugging; the `.kr16`
 carries those. A JSON map format can be added later.
 
 ### 8.10 Relocations and Errors
@@ -2340,7 +2340,7 @@ carries those. A JSON map format can be added later.
 ### 8.11 CLI
 
 ```text
-kr16 ld [options] file.o ... -o out.kex
+kr16 ld [options] file.o ... -o out.kr16
 
   --base addr          raw/bare-metal only; requires --raw or --nostdlib
   --entry symbol|addr  entry point (default _start, or 0x0100 with crt0)
@@ -2356,16 +2356,16 @@ kr16 ld [options] file.o ... -o out.kex
   --help
 ```
 
-- The output is `.kex` by default; `--rom`/`--raw` produce flat images.
-- A normal `.kex` is fixed at `0x0100`; `--base` with the built-in runtime is
+- The output is `.kr16` by default; `--rom`/`--raw` produce flat images.
+- A normal `.kr16` is fixed at `0x0100`; `--base` with the built-in runtime is
   an error. Use `--raw --base` for flat images or `--nostdlib` for bare metal.
-- A normal `.kex` with the default BIOS must enter at `0x0100`; other entries
+- A normal `.kr16` with the default BIOS must enter at `0x0100`; other entries
   require `--no-bios` or raw mode. The header records the actual entry.
 - `--strip` removes symbols/debug but keeps the header entry and the special
   memory-layout symbols.
 - A custom `_start` disables `crt0` auto-linking; `--nostdlib` disables the
   entire built-in runtime.
-- `kr16 size program.kex` prints the compact memory budget.
+- `kr16 size program.kr16` prints the compact memory budget.
 - Exit codes: 0 success, 1 link error, 2 usage error.
 
 ### 8.12 Testing
@@ -2414,7 +2414,7 @@ kr16 ld [options] file.o ... -o out.kex
 |---|---|
 | Host model | Console application; the program owns stdin/stdout |
 | Modes | Batch `kr16 vm`, optional `-i` monitor, debug `kr16 dap` |
-| Loading | `.kex` `ALLOC` sections; raw `--raw --base`; BIOS image |
+| Loading | `.kr16` `ALLOC` sections; raw `--raw --base`; BIOS image |
 | Execution | Deterministic simulated cycles; max speed default; `--realtime`/`--mhz` optional |
 | Console I/O | Raw key mode with `--line-input` fallback; VM owns keyboard/output |
 | BIOS | Embedded default; `--bios`/`--no-bios`; monitor `load-bios` |
@@ -2426,9 +2426,9 @@ kr16 ld [options] file.o ... -o out.kex
 ### 9.2 Host Modes and CLI
 
 ```text
-kr16 vm program.kex [options]
-kr16 vm -i program.kex [options]
-kr16 dap [--port 22152] program.kex
+kr16 vm program.kr16 [options]
+kr16 vm -i program.kr16 [options]
+kr16 dap [--port 22152] program.kr16
 ```
 
 - `kr16 vm` is the batch runner. It loads the program, runs it, and exits with
@@ -2443,7 +2443,7 @@ Common options:
 
 ```text
 --bios <file>       load a 3,840-byte ROM image
---no-bios           skip ROM; start at the .kex entry (default 0x0100)
+--no-bios           skip ROM; start at the .kr16 entry (default 0x0100)
 --raw --base addr   load a flat binary at an address
 --max-cycles n      stop with a timeout after n simulated cycles
 --trace             trace instructions/registers/memory to stderr
@@ -2462,13 +2462,13 @@ Common options:
 
 ### 9.3 Loading, Reset, and BIOS
 
-- Validate the `.kex` container (magic, version, kind, section bounds,
+- Validate the `.kr16` container (magic, version, kind, section bounds,
   checksum) before touching memory.
 - Zero the 64 KiB RAM image; load every `ALLOC` section at its virtual
   address; zero `.bss`; load `.vectors`/`.bios_jump` if present.
 - Load the ROM image at `0xF100–0xFFFF`. The default BIOS is embedded; a user
   BIOS comes from `--bios`, and `--no-bios` disables ROM and starts directly
-  at the `.kex` header entry.
+  at the `.kr16` header entry.
 - The default BIOS is loaded automatically for normal runs. Precedence is
   `--bios` over the embedded default, and `--no-bios` disables ROM entirely.
   The default BIOS source lives in the repo, is built with the assembler, and
@@ -2479,7 +2479,7 @@ Common options:
   argv array and strings in a block just below `0xF000`, set SP below the
   block, and set R1=argc, R2=argv. Limits are 16 arguments and 512 bytes.
   With no arguments, SP=`0xF000` and R1=R2=0.
-- Reset the CPU: PC from `0xFFFE` (or the `.kex` header entry with
+- Reset the CPU: PC from `0xFFFE` (or the `.kr16` header entry with
   `--no-bios`, or `--base` for raw images), SR=0, GPRs=0 except for the
   command-line R1/R2 values, I/O defaults; then start at the reset vector.
 - The default BIOS preserves R1/R2 and SP across its initialization and jumps
@@ -2743,7 +2743,7 @@ mode the monitor is disabled; the console is program I/O only.
 
 ### 9.11 Testing
 
-- Load/run tests for `.kex`, raw images, BIOS/no-BIOS, first-page vectors, and
+- Load/run tests for `.kr16`, raw images, BIOS/no-BIOS, first-page vectors, and
   entry points.
 - CPU/device tests: timer, keyboard FIFO, interrupts, console output, raw and
   line input.
@@ -2756,7 +2756,7 @@ mode the monitor is disabled; the console is program I/O only.
   block/pointer `EFAULT`, sandbox path escapes, symlink/reparse rejection,
   Windows reserved names/ADS, read-only denial, quota exhaustion, fd limits,
   lazy sandbox creation, and `--trace-syscalls`.
-- Memory tests: stack guard, heap-stack collision, malformed `.kex`.
+- Memory tests: stack guard, heap-stack collision, malformed `.kr16`.
 - Windows and Linux; use a PTY on POSIX for raw-input tests and line/headless
   mode in CI where a TTY is unavailable.
 
@@ -2784,14 +2784,14 @@ mode the monitor is disabled; the console is program I/O only.
 | Role | DAP controls execution only; program I/O stays on the console |
 | Startup | Load, listen, start paused at entry, wait for VS Code |
 | Threading | DAP thread + VM main thread + console thread; command queue |
-| Debug info | Symbols and `.debug_*` sections from the `.kex` |
+| Debug info | Symbols and `.debug_*` sections from the `.kr16` |
 | Features | Breakpoints, stepping, stack, locals, globals, registers, memory, disassembly, evaluate/watch |
 | Extension | `DebugAdapterServer(22152)`; launch `kr16 dap` in an integrated terminal |
 | Disconnect | Pause, print a message, resume listening |
 
 ### 10.2 Transport
 
-- `kr16 dap [--port 22152] program.kex` binds `127.0.0.1` only. The default
+- `kr16 dap [--port 22152] program.kr16` binds `127.0.0.1` only. The default
   port `22152` is in the user range and is fixed; `--port` overrides it for
   multiple instances.
 - One client at a time. A busy port is a clear startup error with a suggestion
@@ -2814,9 +2814,9 @@ mode the monitor is disabled; the console is program I/O only.
 
 ### 10.3 Startup and Takeover
 
-`kr16 dap program.kex`:
+`kr16 dap program.kr16`:
 
-1. Loads the `.kex`, BIOS, and first page.
+1. Loads the `.kr16`, BIOS, and first page.
 2. Starts the DAP thread and binds `127.0.0.1:22152`.
 3. Prints `DAP listening on 127.0.0.1:22152` to stderr.
 4. Starts the VM paused at the entry point.
@@ -2873,14 +2873,14 @@ mode the monitor is disabled; the console is program I/O only.
 
 ### 10.6 Debug Information
 
-- The DAP reads the `.kex` directly: symbols, `.debug_line`,
+- The DAP reads the `.kr16` directly: symbols, `.debug_line`,
   `.debug_types`, `.debug_vars`, `.debug_frames`, `.debug_str`, and the
   `.debug_objects` directory.
 - Source paths are stored in the line table and the deduplicated source table;
   the DAP resolves relative paths against the recorded build directory, maps
   Windows/Linux paths, and can apply a source-map configuration later.
 - `-g`/debug sections are required for source-level variables and types; a
-  stripped `.kex` still supports registers, memory, disassembly, and address
+  stripped `.kr16` still supports registers, memory, disassembly, and address
   breakpoints, but not source-level locals.
 - The DAP does not require a sidecar symbol or map file.
 - The debugger's memory reads use a side-effect-free bus path; I/O registers
@@ -2894,11 +2894,11 @@ mode the monitor is disabled; the console is program I/O only.
   extension connects after the `kr16 dap` process is listening.
 - Two supported workflows:
   1. **Extension-launched terminal.** The extension opens an integrated
-     terminal running `kr16 dap --port 22152 program.kex`, waits for the port
+     terminal running `kr16 dap --port 22152 program.kr16`, waits for the port
      to accept, then starts the debug session. The terminal is the program's
      console and remains visible.
   2. **Manual launch/attach.** The student runs `kr16 dap --port 22152
-     program.kex` in a terminal; the extension connects to the fixed port.
+     program.kr16` in a terminal; the extension connects to the fixed port.
 - The extension must **not** launch `kr16 dap` as a hidden child process for a
   program that uses keyboard input. On Windows there may be no visible console;
   on Linux there may be no TTY. Raw mode needs a real console. The integrated
@@ -3045,7 +3045,7 @@ mode the monitor is disabled; the console is program I/O only.
   `vsce` into a `.vsix`. It is included in the release archive; it is not
   built inside CMake.
 - The extension remains thin: it opens an integrated terminal running
-  `kr16 dap --port 22152 program.kex` and connects to the fixed port. It must
+  `kr16 dap --port 22152 program.kr16` and connects to the fixed port. It must
   not launch the host as a hidden child process for interactive programs,
   because the program needs a real console/TTY.
 - Windows x64 and Linux x64 are the v1 release targets. Marketplace
@@ -3079,7 +3079,7 @@ mode the monitor is disabled; the console is program I/O only.
 ### Phase 3 — Full object format, linker, debug info
 
 - Relocatable objects with symbols, relocations, lines, and types.
-- `ld` with section layout, relocation, map file, and `.kex` output.
+- `ld` with section layout, relocation, map file, and `.kr16` output.
 - Debug-section merging and relocation.
 - ROM/BIOS image generation.
 
@@ -3127,7 +3127,7 @@ mode the monitor is disabled; the console is program I/O only.
 | `HLT` exit | VM exits with `R0 & 0xFF` in run mode | Proposed |
 | Assembler syntax | Intel-style, destination first; case-insensitive mnemonics/registers | Confirmed |
 | Assembler output | Relocatable `.o` default; `--raw --base` for flat images | Confirmed |
-| Object format | KR16 container; `.o`=REL, `.kex`=EXEC; 32-bit offsets/sizes, 16-bit addresses; fixed 64-byte header; CRC32 whole file | Confirmed |
+| Object format | KR16 container; `.o`=REL, `.kr16`=EXEC; 32-bit offsets/sizes, 16-bit addresses; fixed 64-byte header; CRC32 whole file | Confirmed |
 | Container layout | Fixed offsets; header 64, section 32, symbol 20, reloc 16, object 48, source 12 bytes; 2-byte alignment | Confirmed |
 | Version/reserved | Major/minor; zero reserved; ignore optional flags; reject unknown major; accept newer minor | Confirmed |
 | String table | `.debug_str` shared by symbols/debug; dedup first-use; 32-bit offsets | Confirmed |
@@ -3153,7 +3153,7 @@ mode the monitor is disabled; the console is program I/O only.
 | Stack ABI | Right-to-left, caller cleans, 2-byte alignment, first stack arg at [FP+4] | Confirmed |
 | Varargs | All arguments on stack; `va_list` 16-bit pointer; no aggregate `va_arg` | Confirmed |
 | argc/argv | VM sets R1=argc, R2=argv on a stack block; argv[0] basename; 16 args/512B | Confirmed |
-| Entry storage | `.kex` header entry field plus symbol; `--strip` keeps the header entry | Confirmed |
+| Entry storage | `.kr16` header entry field plus symbol; `--strip` keeps the header entry | Confirmed |
 | C backend | Correctness-first `-O0`; typed AST to stack-machine assembly | Confirmed |
 | C runtime | Practical embedded libc with varargs, printf family, malloc/free, string basics | Confirmed |
 | C debug info | Full `-O0`; parameters spilled in prologue; function-entry breakpoint after prologue | Confirmed |
@@ -3241,7 +3241,7 @@ Remaining:
 - **MMIO:** Memory-mapped I/O; device registers appear at memory addresses.
 - **Relocatable object:** Machine code with unresolved addresses, linked later.
 - **Relocation:** A record telling the linker how to fix up an address.
-- **KR16 container:** The self-describing `.o`/`.kex` file that carries
+- **KR16 container:** The self-describing `.o`/`.kr16` file that carries
   sections, symbols, relocations (REL only), and debug sections.
 - **REL / EXEC:** The two container kinds: relocatable object and executable.
 - **DAP:** Debug Adapter Protocol, the protocol VS Code uses for debugging.

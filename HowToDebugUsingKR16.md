@@ -368,7 +368,7 @@ Work through these in order; each step narrows the problem.
 
 | Symptom | Likely cause | Next command |
 |---|---|---|
-| `invalid KR16 magic` | `--raw` missing, or you passed a `.kex` | add `--raw` |
+| `invalid KR16 magic` | `--raw` missing, or you passed a `.kr16` | add `--raw` |
 | `program entry is below the first page` | `--base` below `0x0100` | use `0x0100` |
 | exit 124, no output | infinite loop, or polling input that never arrives | `--trace`, check loop increment |
 | exit 124, partial output | ran out of cycles, not crashed | raise `--max-cycles`, check termination |
@@ -381,9 +381,9 @@ Work through these in order; each step narrows the problem.
 
 ### 5.2 What you cannot get from a raw binary
 
-- No source lines, no symbols, no function names: those live in the `.kex`
+- No source lines, no symbols, no function names: those live in the `.kr16`
   container's debug sections.
-- The windowed debugger (`kr16` with a file) accepts `.kex`, `.c`, `.s`, `.asm`
+- The windowed debugger (`kr16` with a file) accepts `.kr16`, `.c`, `.s`, `.asm`
   and `.o` — **not** `.bin`.
 - `kr16 debug prog.bin` reports `invalid KR16 magic`; it reads containers.
 
@@ -482,8 +482,8 @@ If your compiler can emit KR16 assembly instead of raw bytes, you get the
 project's libc (verified end to end):
 
 ```text
-kr16 build prog.s --libc -o prog.kex
-kr16 vm prog.kex
+kr16 build prog.s --libc -o prog.kr16
+kr16 vm prog.kr16
 ```
 
 `build` assembles the file, links `resources/libc.s`, and also compiles and
@@ -493,7 +493,7 @@ links `resources/fileio.c` (the C stdio layer). The manual pipeline is:
 kr16 as resources/libc.s -o libc.o
 kr16 cc resources/fileio.c -c -I include -o fileio.o
 kr16 as prog.s -o prog.o
-kr16 ld libc.o fileio.o prog.o -o prog.kex
+kr16 ld libc.o fileio.o prog.o -o prog.kr16
 ```
 
 What that buys you: `printf` (`%d %x %s %c %%`), `puts`, `putchar`, `getchar`,
@@ -513,7 +513,7 @@ Costs and conditions:
 - The runtime reserves a 16 KiB heap in `.bss`, so images carry that footprint
   even if you never call `malloc`.
 
-The payoff is that the `.kex` container keeps symbols and debug records, so the
+The payoff is that the `.kr16` container keeps symbols and debug records, so the
 windowed debugger and source-level DAP breakpoints work.
 
 ---

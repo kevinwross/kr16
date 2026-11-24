@@ -237,7 +237,7 @@ bool DebugSession::build_and_load(const std::filesystem::path& input,
                    [](unsigned char ch) {
                        return static_cast<char>(std::tolower(ch));
                    });
-    if (extension == ".kex") {
+    if (extension == ".kr16") {
         return load(input, error);
     }
     if (!is_build_input(input)) {

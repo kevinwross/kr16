@@ -1,5 +1,5 @@
 param(
-  [string]$Program = "build/windows-ninja/tests/link.kex",
+  [string]$Program = "build/windows-ninja/tests/link.kr16",
   [int]$Iterations = 5
 )
 

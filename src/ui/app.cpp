@@ -915,7 +915,7 @@ void App::draw_source(Canvas& canvas) {
          kPanelAlt);
     if (!session_.loaded()) {
         text(canvas, source_text_.left + 16, source_text_.top + 16,
-             "Load a .kex, .c, .s, .asm or .o file to begin.", kTextDim,
+             "Load a .kr16, .c, .s, .asm or .o file to begin.", kTextDim,
              FontRole::MonoSmall);
         return;
     }
@@ -1854,7 +1854,7 @@ void App::apply_settings() {
     }
     const std::string extension =
         current_path_.extension().string();
-    if (extension == ".kex") {
+    if (extension == ".kr16") {
         message_ = "settings apply to compile inputs";
         window_.invalidate();
         return;

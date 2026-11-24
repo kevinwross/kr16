@@ -80,7 +80,7 @@ std::filesystem::path make_debug_fixture(std::string& error) {
 
     kr16::BuildOptions options;
     options.input = directory / "session_debug.s";
-    options.output = directory / "session_debug.kex";
+    options.output = directory / "session_debug.kr16";
     options.debug = true;
     options.command = "session-test";
     std::ostringstream diagnostics;
@@ -97,7 +97,7 @@ std::filesystem::path make_debug_fixture(std::string& error) {
 TEST_CASE("debug session can disassemble an edited PC outside text") {
     kr16::DebugSession session;
     std::string error;
-    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    REQUIRE(session.load(fixture("exec_min.kr16"), error));
     session.set_reg(5, 0xF100);
     CHECK(session.pc() == 0xF100);
     CHECK(session.ensure_disassembly_at(session.pc()));
@@ -116,9 +116,9 @@ TEST_CASE("debug session can disassemble an edited PC outside text") {
 TEST_CASE("debug session loads an executable and decodes disassembly") {
     kr16::DebugSession session;
     std::string error;
-    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    REQUIRE(session.load(fixture("exec_min.kr16"), error));
     CHECK(session.loaded());
-    CHECK(session.image_path() == fixture("exec_min.kex"));
+    CHECK(session.image_path() == fixture("exec_min.kr16"));
     CHECK(session.pc() == 0x0100);
 
     REQUIRE(session.disassembly().size() >= 2);
@@ -139,7 +139,7 @@ TEST_CASE("debug session loads an executable and decodes disassembly") {
 TEST_CASE("debug session initializes argc and argv") {
     kr16::DebugSession session;
     std::string error;
-    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    REQUIRE(session.load(fixture("exec_min.kr16"), error));
     CHECK(session.reg(1) == 1);
     CHECK(session.reg(2) == session.sp());
     const auto first = session.read16(session.reg(2));
@@ -152,7 +152,7 @@ TEST_CASE("debug session initializes argc and argv") {
         }
         name.push_back(ch);
     }
-    CHECK(name == "exec_min.kex");
+    CHECK(name == "exec_min.kr16");
     CHECK(session.read16(
               static_cast<std::uint16_t>(session.reg(2) + 2)) == 0);
 }
@@ -161,7 +161,7 @@ TEST_CASE("debug session forwards program arguments") {
     kr16::DebugSession session;
     session.set_program_args({"one", "two words", "C:\\Users\\kevin"});
     std::string error;
-    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    REQUIRE(session.load(fixture("exec_min.kr16"), error));
     CHECK(session.reg(1) == 4);
     CHECK(session.reg(2) == session.sp());
     auto read_argument = [&](int index) {
@@ -178,7 +178,7 @@ TEST_CASE("debug session forwards program arguments") {
         }
         return value;
     };
-    CHECK(read_argument(0) == "exec_min.kex");
+    CHECK(read_argument(0) == "exec_min.kr16");
     CHECK(read_argument(1) == "one");
     CHECK(read_argument(2) == "two words");
     CHECK(read_argument(3) == "C:\\Users\\kevin");
@@ -189,7 +189,7 @@ TEST_CASE("debug session forwards program arguments") {
 TEST_CASE("debug session exposes registers and writable memory") {
     kr16::DebugSession session;
     std::string error;
-    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    REQUIRE(session.load(fixture("exec_min.kr16"), error));
 
     session.set_reg(0, 0x1234);
     CHECK(session.reg(0) == 0x1234);
@@ -210,7 +210,7 @@ TEST_CASE("debug session exposes registers and writable memory") {
 TEST_CASE("debug session steps one instruction and counts it") {
     kr16::DebugSession session;
     std::string error;
-    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    REQUIRE(session.load(fixture("exec_min.kr16"), error));
     CHECK(session.step_instruction());
     CHECK(session.pc() == 0x0102);
     CHECK(session.instructions_executed() == 1);
@@ -223,7 +223,7 @@ TEST_CASE("debug session steps one instruction and counts it") {
 TEST_CASE("debug session stops at an address breakpoint and keeps it on restart") {
     kr16::DebugSession session;
     std::string error;
-    REQUIRE(session.load(fixture("exec_min.kex"), error));
+    REQUIRE(session.load(fixture("exec_min.kr16"), error));
 
     session.toggle_address_breakpoint(0x0102);
     CHECK(session.has_breakpoint(0x0102));
@@ -245,7 +245,7 @@ TEST_CASE("debug session stops at an address breakpoint and keeps it on restart"
 TEST_CASE("debug session reports a load failure") {
     kr16::DebugSession session;
     std::string error;
-    CHECK_FALSE(session.load(fixture("does-not-exist.kex"), error));
+    CHECK_FALSE(session.load(fixture("does-not-exist.kr16"), error));
     CHECK_FALSE(session.loaded());
     CHECK_FALSE(error.empty());
 }

@@ -50,7 +50,7 @@ int main() {
     main_symbol.binding = kr16::SymbolBinding::Global;
     main_symbol.type = kr16::SymbolType::Function;
     exec.symbols.push_back(main_symbol);
-    write_file("tests/golden/exec_min.kex", exec.write());
+    write_file("tests/golden/exec_min.kr16", exec.write());
 
     kr16::Container rel;
     rel.kind = kr16::ContainerKind::Rel;

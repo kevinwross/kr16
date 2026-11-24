@@ -26,7 +26,7 @@ std::vector<std::uint8_t> read_file(const std::filesystem::path& path) {
 
 TEST_CASE("golden EXEC container decodes") {
     const auto path = std::filesystem::path(KR16_SOURCE_DIR) / "tests" /
-                      "golden" / "exec_min.kex";
+                      "golden" / "exec_min.kr16";
     const auto bytes = read_file(path);
     const auto container = kr16::Container::read(bytes);
     CHECK(container.kind == kr16::ContainerKind::Exec);

@@ -523,11 +523,11 @@ BuildResult build_program(const BuildOptions& options, std::ostream& error) {
 
     result.executable = options.output.empty() ? options.input : options.output;
     if (options.output.empty()) {
-        result.executable.replace_extension(".kex");
+        result.executable.replace_extension(".kr16");
     }
 
     // Artifacts stay beside the input, mirroring a hand-run toolchain:
-    // name.c -> name.s, name.o, name.libc.o, name.lst, name.kex.
+    // name.c -> name.s, name.o, name.libc.o, name.lst, name.kr16.
     const fs::path directory = options.input.parent_path();
     const std::string stem = options.input.stem().string();
     const fs::path assembly = directory / (stem + ".s");

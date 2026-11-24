@@ -58,7 +58,7 @@
             "properties": {
               "program": {
                 "type": "string",
-                "description": "Absolute path to the .kex or raw image"
+                "description": "Absolute path to the .kr16 or raw image"
               },
               "port": {
                 "type": "number",
@@ -94,7 +94,7 @@
             "type": "kr16",
             "request": "launch",
             "name": "Debug KR16 program",
-            "program": "${workspaceFolder}/build/program.kex",
+            "program": "${workspaceFolder}/build/program.kr16",
             "stopOnEntry": true
           }
         ],
@@ -106,7 +106,7 @@
               "type": "kr16",
               "request": "launch",
               "name": "Debug KR16 program",
-              "program": "${workspaceFolder}/build/program.kex",
+              "program": "${workspaceFolder}/build/program.kr16",
               "stopOnEntry": true
             }
           }

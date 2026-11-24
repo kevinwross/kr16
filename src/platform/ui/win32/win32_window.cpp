@@ -165,7 +165,7 @@ void Win32Window::open_file(FileCallback callback, std::string_view title,
                             std::string_view filter) {
     (void)filter;
     static const wchar_t kFilter[] =
-        L"Supported\0*.kex;*.c;*.s;*.asm;*.o\0All files\0*.*\0";
+        L"Supported\0*.kr16;*.c;*.s;*.asm;*.o\0All files\0*.*\0";
     const std::wstring wide_title = widen(title);
     std::vector<wchar_t> path(32768, L'\0');
     OPENFILENAMEW dialog{};

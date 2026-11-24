@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
         const std::filesystem::path candidate(argv[1]);
         std::error_code fs_error;
         const bool image =
-            candidate.extension() == ".kex" || kr16::is_build_input(candidate);
+            candidate.extension() == ".kr16" || kr16::is_build_input(candidate);
         if (image && std::filesystem::exists(candidate, fs_error)) {
             std::string error;
             if (kr16::ui::launch_ui_child(candidate, error)) {
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
         const std::filesystem::path candidate(argv[1]);
         std::error_code fs_error;
         const bool image =
-            candidate.extension() == ".kex" || kr16::is_build_input(candidate);
+            candidate.extension() == ".kr16" || kr16::is_build_input(candidate);
         if (image && std::filesystem::exists(candidate, fs_error)) {
             return kr16::ui::run_ui(argc, argv);
         }

@@ -60,7 +60,7 @@ TEST_CASE("DAP launch forwards program arguments") {
     kr16::dap::DapOptions options;
     options.program =
         (std::filesystem::path(KR16_SOURCE_DIR) / "tests" / "golden" /
-         "exec_min.kex")
+         "exec_min.kr16")
             .string();
     kr16::dap::DapSession session(options);
     session.handle_message(
@@ -101,7 +101,7 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
     const auto linked = kr16::link_objects({assembled.object});
     REQUIRE(linked.ok);
     const auto image = linked.image.write();
-    const auto path = std::filesystem::current_path() / "dap_source.kex";
+    const auto path = std::filesystem::current_path() / "dap_source.kr16";
     {
         std::ofstream output(path, std::ios::binary);
         output.write(reinterpret_cast<const char*>(image.data()),
@@ -116,7 +116,7 @@ TEST_CASE("DAP stack frame uses the compiled source path") {
         "\"arguments\":{}}");
     session.handle_message(
         "{\"seq\":2,\"type\":\"request\",\"command\":\"launch\","
-        "\"arguments\":{\"program\":\"dap_source.kex\"}}");
+        "\"arguments\":{\"program\":\"dap_source.kr16\"}}");
     session.handle_message(
         "{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\","
         "\"arguments\":{}}");
@@ -292,7 +292,7 @@ TEST_CASE("DAP reads memory disassembles and sets function breakpoints") {
     const auto linked = kr16::link_objects({assembled.object});
     REQUIRE(linked.ok);
     const auto bytes = linked.image.write();
-    const auto path = std::filesystem::current_path() / "dap_views.kex";
+    const auto path = std::filesystem::current_path() / "dap_views.kr16";
     {
         std::ofstream output(path, std::ios::binary);
         output.write(reinterpret_cast<const char*>(bytes.data()),

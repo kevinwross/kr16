@@ -54,7 +54,7 @@ struct KdbgModel {
     std::size_t primary_source = 0;
 };
 
-/// Decodes `.kdbg` from a `.kex` image. Returns false when the image carries no
+/// Decodes `.kdbg` from a `.kr16` image. Returns false when the image carries no
 /// `.kdbg`, when the payload is malformed, or when it records an image base
 /// different from the one the container loads at — the caller then falls back
 /// to the `.debug_*` sections. A build without the KDBG reader always returns

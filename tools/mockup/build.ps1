@@ -10,7 +10,7 @@
 #   .\tools\mockup\build.ps1 -Config windows-ninja-release
 #
 # Outputs (all under build\mock):
-#   demo.c, demo.s, demo.o, demo.libc.o, demo.kex
+#   demo.c, demo.s, demo.o, demo.libc.o, demo.kr16
 #   kr16_mockup.exe
 
 param(
@@ -94,7 +94,7 @@ Set-Content -Path (Join-Path $out "embedded_libc.cpp") -Value $embedded -Encodin
 # Build the sample program next to the mock so its source path stays absolute
 # and the generated .s/.o files stay out of the source tree.
 Copy-Item (Join-Path $PSScriptRoot "demo.c") (Join-Path $out "demo.c") -Force
-& $kr16 build (Join-Path $out "demo.c") -o (Join-Path $out "demo.kex")
+& $kr16 build (Join-Path $out "demo.c") -o (Join-Path $out "demo.kr16")
 if ($LASTEXITCODE -ne 0) {
     throw "kr16 build failed for demo.c"
 }
@@ -120,5 +120,5 @@ try {
 
 Write-Host ""
 Write-Host "Built $out\kr16_mockup.exe"
-Write-Host "Run:   $out\kr16_mockup.exe $out\demo.kex"
-Write-Host "Or double-click kr16_mockup.exe (it loads demo.kex beside itself)."
+Write-Host "Run:   $out\kr16_mockup.exe $out\demo.kr16"
+Write-Host "Or double-click kr16_mockup.exe (it loads demo.kr16 beside itself)."

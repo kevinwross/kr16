@@ -11,7 +11,7 @@ Minimal VS Code debug adapter integration for KR16.
   "type": "kr16",
   "request": "launch",
   "name": "Debug KR16 program",
-  "program": "${workspaceFolder}/build/program.kex",
+  "program": "${workspaceFolder}/build/program.kr16",
   "stopOnEntry": true,
   "kr16Path": "kr16"
 }
@@ -53,7 +53,7 @@ starts a KR16 debug session:
 
 ```text
 npm install
-KR16_TEST_PROGRAM=<absolute path to hello.kex> \
+KR16_TEST_PROGRAM=<absolute path to hello.kr16> \
 KR16_TEST_EXE=<absolute path to kr16> \
 npm test
 ```
@@ -61,7 +61,7 @@ npm test
 On Windows PowerShell:
 
 ```powershell
-$env:KR16_TEST_PROGRAM = (Resolve-Path "..\build\windows-ninja\tests\hello.kex").Path
+$env:KR16_TEST_PROGRAM = (Resolve-Path "..\build\windows-ninja\tests\hello.kr16").Path
 $env:KR16_TEST_EXE = (Resolve-Path "..\build\windows-ninja\kr16.exe").Path
 npm test
 ```

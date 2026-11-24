@@ -148,7 +148,7 @@ TEST_CASE("build accepts optimization-level flags") {
     auto source =
         std::filesystem::current_path() / "cli_opt_flag.c";
     const auto image =
-        std::filesystem::current_path() / "cli_opt_flag.kex";
+        std::filesystem::current_path() / "cli_opt_flag.kr16";
     {
         std::ofstream output(source);
         output << "int main(void) { return 0; }\n";

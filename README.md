@@ -29,7 +29,7 @@ Windows zip, VS Code VSIX, and SHA256SUMS.
 Milestones M0–M12 are implemented. The working pipeline is:
 
 ```text
-C or assembly → .o → .kex → VM
+C or assembly → .o → .kr16 → VM
 ```
 
 `main` is the integration branch. The krc toolchain was merged into it at merge commit
@@ -156,15 +156,15 @@ Assembly:
 
 ```text
 kr16 as hello.s -o hello.o
-kr16 ld hello.o -o hello.kex
-kr16 vm hello.kex
+kr16 ld hello.o -o hello.kr16
+kr16 vm hello.kr16
 ```
 
 C, one step (compiles, assembles, links `resources/libc.s`, records debug info):
 
 ```text
 kr16 build hello.c
-kr16 vm hello.kex
+kr16 vm hello.kr16
 ```
 
 `build` writes `hello.s`, `hello.o`, and `hello.libc.o` next to the source.
@@ -177,20 +177,20 @@ The same steps by hand:
 kr16 cc hello.c -S -o hello.s
 kr16 as hello.s -o hello.o
 kr16 as resources/libc.s -o libc.o
-kr16 ld libc.o hello.o -o hello.kex
-kr16 vm hello.kex
+kr16 ld libc.o hello.o -o hello.kr16
+kr16 vm hello.kr16
 ```
 
 Debug information:
 
 ```text
-kr16 debug hello.kex --lines
+kr16 debug hello.kr16 --lines
 ```
 
 ## Windowed debugger and shell
 
 On Windows, `kr16` with no arguments opens the windowed debugger. Passing an
-existing `.kex`, `.c`, `.s`, `.asm`, or `.o` file also opens it with that file
+existing `.kr16`, `.c`, `.s`, `.asm`, or `.o` file also opens it with that file
 loaded. The UI has source and disassembly panes, linked stepping, registers and
 flags, variables, a memory strip, a call stack and the console; see
 [`docs/research/ui-integration-plan.md`](docs/research/ui-integration-plan.md).
@@ -262,13 +262,13 @@ kr16 shell
 ```text
 kr16 C:\work> help
 kr16 C:\work> as hello.s -o hello.o
-kr16 C:\work> ld hello.o -o hello.kex
+kr16 C:\work> ld hello.o -o hello.kr16
 kr16 C:\work> build hello.c
 kr16 C:\work> load hello.c
 ```
 
-`load` accepts `.c`, `.asm`, `.s`, `.o`, or `.kex`. It compiles, assembles,
-and links as needed, writes a sibling `.kex`, and runs it. `build` runs the
+`load` accepts `.c`, `.asm`, `.s`, `.o`, or `.kr16`. It compiles, assembles,
+and links as needed, writes a sibling `.kr16`, and runs it. `build` runs the
 same pipeline without executing the program.
 
 Shell commands include `cd`, `pwd`, `clear`, `history`, `run`, `help`, and
@@ -279,7 +279,7 @@ prompts, so scripted shell sessions work too.
 `dap` refuses to block the shell unless forced:
 
 ```text
-kr16 C:\work> dap --force hello.kex
+kr16 C:\work> dap --force hello.kr16
 ```
 
 ## Tests

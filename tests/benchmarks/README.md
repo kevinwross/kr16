@@ -3,13 +3,13 @@
 Run the loop-heavy benchmark at both optimization levels:
 
 ```powershell
-build\windows-ninja\kr16.exe build tests\benchmarks\loops.c -O0 -o build\loops-o0.kex
-build\windows-ninja\kr16.exe build tests\benchmarks\loops.c -O1 -o build\loops-o1.kex
+build\windows-ninja\kr16.exe build tests\benchmarks\loops.c -O0 -o build\loops-o0.kr16
+build\windows-ninja\kr16.exe build tests\benchmarks\loops.c -O1 -o build\loops-o1.kr16
 
-build\windows-ninja\kr16.exe vm build\loops-o0.kex --stats
-build\windows-ninja\kr16.exe vm build\loops-o1.kex --stats
-build\windows-ninja\kr16.exe size build\loops-o0.kex
-build\windows-ninja\kr16.exe size build\loops-o1.kex
+build\windows-ninja\kr16.exe vm build\loops-o0.kr16 --stats
+build\windows-ninja\kr16.exe vm build\loops-o1.kr16 --stats
+build\windows-ninja\kr16.exe size build\loops-o0.kr16
+build\windows-ninja\kr16.exe size build\loops-o1.kr16
 ```
 
 Recorded on 2026-11-14 with the Windows Debug build:
@@ -34,10 +34,10 @@ a regression in instruction count fails CTest.
 the `same()` pointer loop.
 
 ```powershell
-build\windows-ninja\kr16.exe build tests\benchmarks\opt_loops.c -O0 -o build\opt_loops-o0.kex
-build\windows-ninja\kr16.exe build tests\benchmarks\opt_loops.c -O1 -o build\opt_loops-o1.kex
-build\windows-ninja\kr16.exe vm build\opt_loops-o0.kex --stats
-build\windows-ninja\kr16.exe vm build\opt_loops-o1.kex --stats
+build\windows-ninja\kr16.exe build tests\benchmarks\opt_loops.c -O0 -o build\opt_loops-o0.kr16
+build\windows-ninja\kr16.exe build tests\benchmarks\opt_loops.c -O1 -o build\opt_loops-o1.kr16
+build\windows-ninja\kr16.exe vm build\opt_loops-o0.kr16 --stats
+build\windows-ninja\kr16.exe vm build\opt_loops-o1.kr16 --stats
 ```
 
 Recorded on 2026-11-15 with the Windows Debug build:

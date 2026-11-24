@@ -73,8 +73,8 @@ std::string shell_help() {
            "  pwd           Print the current directory\n"
            "  clear         Clear the terminal\n"
            "  history       Show command history\n"
-           "  build file... Build .c, .asm, .s, or .o into a .kex (no run)\n"
-           "  load file...  Build and run .c, .asm, .s, .o, or .kex\n"
+           "  build file... Build .c, .asm, .s, or .o into a .kr16 (no run)\n"
+           "  load file...  Build and run .c, .asm, .s, .o, or .kr16\n"
            "  run file...   Run a program (alias for vm)\n"
            "  quit, exit    Leave the shell\n"
            "  help          Show this help\n";
@@ -127,7 +127,7 @@ int run_interactive_command(const std::vector<std::string>& tokens,
 int load_program(const std::vector<std::string>& tokens,
                  std::ostream& output, std::ostream& error) {
     if (tokens.size() != 2) {
-        error << "load: usage: load <file.c|file.asm|file.s|file.o|file.kex>\n";
+        error << "load: usage: load <file.c|file.asm|file.s|file.o|file.kr16>\n";
         return 2;
     }
     const std::filesystem::path source = tokens[1];
@@ -142,7 +142,7 @@ int load_program(const std::vector<std::string>& tokens,
                        return static_cast<char>(std::tolower(ch));
                    });
 
-    if (extension == ".kex") {
+    if (extension == ".kr16") {
         return dispatch({"vm", source.string()});
     }
     if (extension != ".c" && extension != ".asm" && extension != ".s" &&

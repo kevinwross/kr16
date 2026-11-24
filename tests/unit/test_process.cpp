@@ -54,14 +54,14 @@ TEST_CASE("process stack exposes argc and argv strings") {
     kr16::ProcessStackLayout layout;
     std::string error;
     REQUIRE(kr16::initialize_process_stack(
-        memory, "bigtest.kex", {"one", "two words"}, 0xF000, 0xE000, layout,
+        memory, "bigtest.kr16", {"one", "two words"}, 0xF000, 0xE000, layout,
         error));
     CHECK(layout.argc == 3);
     CHECK(layout.argv == layout.sp);
     CHECK(layout.sp < 0xF000);
     const auto program =
         memory.read16(layout.argv);
-    CHECK(read_string(memory, program) == "bigtest.kex");
+    CHECK(read_string(memory, program) == "bigtest.kr16");
     const auto first =
         memory.read16(static_cast<std::uint16_t>(layout.argv + 2));
     const auto second =

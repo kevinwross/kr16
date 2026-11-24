@@ -38,7 +38,7 @@ Rules:
 | M3 | Assembler and disassembler | Complete | Raw-program gate |
 | M4 | Memory, devices, interrupts, boot | Complete | Device/boot gate |
 | M5 | VM host and CLI | Complete | Batch/VM gate |
-| M6 | Linker and runtime linking | Complete | `.kex` toolchain gate |
+| M6 | Linker and runtime linking | Complete | `.kr16` toolchain gate |
 | M7 | Debug information and `kr16 debug` | Complete | Debug-format gate |
 | M8 | C front end | Complete (teaching subset, ADR 0001) | C front-end gate |
 | M9 | C backend, ABI, and runtime | Complete (teaching subset, ADR 0001) | C execution gate |
@@ -182,7 +182,7 @@ churn.
 
 ### M1 — Container, CRC, and Diagnostics
 
-**Goal:** Implement the self-describing `.o`/`.kex` container reader/writer and
+**Goal:** Implement the self-describing `.o`/`.kr16` container reader/writer and
 the shared byte-level diagnostics used everywhere.
 
 **Dependencies:** M0.
@@ -205,7 +205,7 @@ the shared byte-level diagnostics used everywhere.
       major rejected, optional flags ignored, reserved fields zero.
 - [x] Implement REL/EXEC validation and table bounds checking.
 - [x] Add container dump/diagnostic output used by tests.
-- [x] Add golden `.o` and `.kex` fixtures for valid and malformed files.
+- [x] Add golden `.o` and `.kr16` fixtures for valid and malformed files.
 
 **Testing:**
 
@@ -402,7 +402,7 @@ diagnostics.
 
 **Tasks:**
 
-- [x] Implement `.kex`/raw loading, validation, and memory layout.
+- [x] Implement `.kr16`/raw loading, validation, and memory layout.
 - [x] Implement BIOS loading with `--bios`/`--no-bios`; the embedded default
       image is finalized in M12.
 - [x] Implement the first-page boot policy: zero RAM, load allocated sections,
@@ -441,7 +441,7 @@ M10 together with the debug adapter and terminal policy.
 
 **Exit criteria:**
 
-- Assembly `.kex`/raw programs run reliably.
+- Assembly `.kr16`/raw programs run reliably.
 - Monitor and headless modes are usable and tested.
 - Diagnostics are clear and nonzero exit codes are correct.
 
@@ -449,7 +449,7 @@ M10 together with the debug adapter and terminal policy.
 
 ### M6 — Linker and Runtime Linking
 
-**Goal:** Deliver `kr16 ld`: relocatable objects to `.kex`, with runtime
+**Goal:** Deliver `kr16 ld`: relocatable objects to `.kr16`, with runtime
 auto-linking, map/size reporting, ROM images, and strict layout rules.
 
 **Dependencies:** M5.
@@ -482,7 +482,7 @@ the C runtime and reference BIOS exist in M7/M12.
 - Runtime auto-link and unused runtime section behavior.
 - `.vectors`/`.bios_jump` size/overlap tests.
 - Map/size output and ROM output.
-- Deterministic repeated links; golden `.kex`.
+- Deterministic repeated links; golden `.kr16`.
 
 **Regression tests:**
 
@@ -495,7 +495,7 @@ the C runtime and reference BIOS exist in M7/M12.
 
 **Exit criteria:**
 
-- Hand-written assembly objects link and run as `.kex`.
+- Hand-written assembly objects link and run as `.kr16`.
 - Runtime auto-link path works.
 - Layout, map, size, and errors are stable.
 - ROM output matches the expected 3,840-byte image rules.
@@ -887,7 +887,7 @@ ship `1.0.0`.
 | Gate | After | Requirement |
 |---|---|---|
 | A | M3 | CPU, assembler, disassembler, and raw images work |
-| B | M6 | Assembly toolchain produces and runs `.kex` files |
+| B | M6 | Assembly toolchain produces and runs `.kr16` files |
 | C | M9 | C programs compile, link, run, and pass ABI tests |
 | D | M11 | VS Code debug session works with console I/O separated |
 | E | M12 | Reproducible release candidate is packaged |
@@ -1154,7 +1154,7 @@ Entry format:
 ### 2026-10-27 19:18:10 -07:00 — M5: VM host and CLI complete
 
 - Status: M5 batch runner complete locally; terminal monitor/console move to M10.
-- Changes: added the VM runner, raw/`.kex` loading, optional BIOS ROM and reset
+- Changes: added the VM runner, raw/`.kr16` loading, optional BIOS ROM and reset
   vector boot, argv block construction, R1/R2 entry registers, stack guard,
   scripted input, console capture, trace/stats, max-cycle timeout, `kr16 vm`,
   `kr16 size`, and a minimal reference BIOS source.
@@ -1172,7 +1172,7 @@ Entry format:
 - Changes: added object loading, section merging, fixed first-page layout,
   alignment, strong/global/local symbol resolution, ABS16/PCREL8W/PCREL16W/
   PCREL16B relocations, entry selection, built-in heap/stack symbols, `kr16
-  ld`, and executable `.kex` output.
+  ld`, and executable `.kr16` output.
 - Tests: Windows Ninja Debug build passed; 56 doctest cases and 18 CTest
   entries passed, including merged sections, duplicate globals, relocation
   patching, stack symbols, and a full assemble-link-run pipeline.
@@ -2037,8 +2037,8 @@ Entry format:
 - Added `load <file>` to build and run a program from source:
   - `.c`: `cc -g -c`, assemble `resources/libc.s`, link, then run
   - `.asm`/`.s`: assemble, link, then run
-  - `.o`: link and run; `.kex`: run directly
-- Outputs a sibling `.kex`; resolves libc from the workspace, executable tree,
+  - `.o`: link and run; `.kr16`: run directly
+- Outputs a sibling `.kr16`; resolves libc from the workspace, executable tree,
   installed package, or `KR16_RESOURCE_DIR`.
 - Quoted Windows paths now preserve backslashes unless escaping `"` or `\`.
 - Tests: shell load/history/tokenizer; Windows 88/88 doctest (2958 assertions),
@@ -2048,7 +2048,7 @@ Entry format:
 ### 2026-10-28 05:15:08 -07:00 — DAP source loading and disassembly
 
 - Root cause: `.debug_line` carried file indices but the assembler discarded
-  `.file` names, so the DAP fell back to opening the `.kex` binary.
+  `.file` names, so the DAP fell back to opening the `.kr16` binary.
 - Fix: emit `.debug_sources`, merge it in the linker, resolve the source path
   against the program/workspace, and never fall back to the binary path.
 - Fixed assembler string unescaping so single Windows backslashes in `.file`
@@ -2099,7 +2099,7 @@ Entry format:
 - Added a multi-object `.debug_line` placement test.
 - Tests: 90/90 doctest (2976 assertions), Windows 24/24 CTest, Linux 23/23;
   source breakpoint smoke returned `reason: breakpoint`, `hitBreakpointIds:[1]`.
-- Rebuilt `build\windows-ninja\kr16.exe` and `tests\kevin\bigtest.kex`.
+- Rebuilt `build\windows-ninja\kr16.exe` and `tests\kevin\bigtest.kr16`.
 
 ### 2026-10-28 06:45:07 -07:00 — assembler `-l` listing file
 
@@ -2119,7 +2119,7 @@ Entry format:
 ### 2026-10-28 06:59:17 -07:00 — one-step `kr16 build`
 
 - Added `kr16 build <file>`: `cc -S` → `as` → `ld` with `resources/libc.s`,
-  writing `<name>.kex` next to the input. `.s`, `.asm`, and `.o` inputs are
+  writing `<name>.kr16` next to the input. `.s`, `.asm`, and `.o` inputs are
   accepted too; `--libc` links the runtime for those (implicit for `.c`).
 - Artifacts stay beside the source (`name.s`, `name.o`, `name.libc.o`), so
   there is no temp directory and nothing to clean up.
@@ -2128,7 +2128,7 @@ Entry format:
   matched case-insensitively.
 - Moved the shell's `load` onto the same `build_program` pipeline, so it no
   longer leaves a stray `<name>.o` behind; `build` also works in the shell.
-- Tests: `test_build.cpp` (C to runnable `.kex`, listing, debug sections,
+- Tests: `test_build.cpp` (C to runnable `.kr16`, listing, debug sections,
   `--run`, `-I`, assembly/object input, `--libc`, usage errors) plus three
   CTest cases. 100/100 doctest (3018 assertions), Windows 28/28 CTest in both
   Debug and Release.
@@ -2157,7 +2157,7 @@ Entry format:
 
 ### 2026-10-28 07:13:15 -07:00 — `kr16 dis` label offset on linked images
 
-- Root cause: the linker stores **absolute** symbol addresses in a `.kex`
+- Root cause: the linker stores **absolute** symbol addresses in a `.kr16`
   (`placement.address + symbol.value`), but `disassemble_container` added the
   output section address again when building its label map. Every label was
   therefore shifted by the section base (`+0x0106` for `.text`), so `main:` and

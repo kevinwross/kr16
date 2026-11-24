@@ -42,7 +42,7 @@ if(NOT KRG_TOOLCHAIN STREQUAL "krc" AND NOT KRG_TOOLCHAIN STREQUAL "builtin")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KrGuest.cmake")
 
-# `.kdbg` is the debug payload a krc-built `.kex` carries instead of `.debug_*`.
+# `.kdbg` is the debug payload a krc-built `.kr16` carries instead of `.debug_*`.
 # It needs `krc::debug`, so it follows the toolchain. Deliberately not a cached
 # option: a build directory reconfigured for the other toolchain must follow it,
 # and a cached value would keep whatever the first configure wrote. Pass

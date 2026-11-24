@@ -55,7 +55,7 @@ so every layer is visible and consistent.
 
 ```text
    C source ──► cc ──► .s ──► as ──► .o ──┐
-                                          ├──► ld ──► .kex ──► vm / GUI / DAP
+                                          ├──► ld ──► .kr16 ──► vm / GUI / DAP
    assembly ──────────► as ──► .o ────────┘
 ```
 
@@ -79,13 +79,13 @@ Five things make it pleasant to teach with:
 ```text
 kr16 build hello.c --run          # compile, assemble, link libc, run
 kr16 as boot.s --raw --base 0x0100 -o boot.bin
-kr16 ld libc.o hello.o -o hello.kex --map hello.map
-kr16 size hello.kex
-kr16 dis hello.kex
-kr16 debug hello.kex --lines
-kr16 vm hello.kex --stats
-kr16 vm hello.kex --trace --trace-syscalls
-kr16 dap hello.kex --port 22152
+kr16 ld libc.o hello.o -o hello.kr16 --map hello.map
+kr16 size hello.kr16
+kr16 dis hello.kr16
+kr16 debug hello.kr16 --lines
+kr16 vm hello.kr16 --stats
+kr16 vm hello.kr16 --trace --trace-syscalls
+kr16 dap hello.kr16 --port 22152
 kr16                              # windowed debugger (when the UI is built)
 kr16 shell                        # interactive shell
 ```
@@ -168,7 +168,7 @@ Rules the build enforces:
 | `src/cli` | 1,889 | Command dispatch, help text, build pipeline, shell |
 | `src/vm` | 1,453 | Machine, runner, host services, command line, process |
 | `src/debug` | 1,330 | Debug info parsing, `DebugSession` |
-| `src/container` | 613 | `.o`/`.kex` reading and writing |
+| `src/container` | 613 | `.o`/`.kr16` reading and writing |
 | `src/cpu` | 577 | CPU core, devices, interrupts, bus |
 | `src/instruction` | 553 | Decode/encode tables |
 | `src/link` | 471 | Placement, relocation, symbols, map |
@@ -190,7 +190,7 @@ cmake/                    platform-boundary check and helpers
 include/kr16/             public engine headers + systemservices.h
 src/
   asm/ cc/ link/ dis/     the toolchain
-  container/              .o and .kex format
+  container/              .o and .kr16 format
   cpu/ instruction/       the machine
   vm/                     runner, host services, command line, process
   debug/                  debug info + DebugSession
@@ -430,7 +430,7 @@ from C.
 
 | Option | Meaning |
 |---|---|
-| `-o path` | output image (default `a.kex`) |
+| `-o path` | output image (default `a.kr16`) |
 | `--map path` | section and symbol map |
 | `--strip-debug` | drop debug sections |
 | `--strip` | drop debug sections and all but required symbols |
@@ -447,7 +447,7 @@ Reports allocatable `.text`, `.data`, and `.bss` for an image or object:
 
 ```text
    text    data     bss     dec     hex  file
-   6912      19   16486   23417    5b79  hello.kex
+   6912      19   16486   23417    5b79  hello.kr16
 ```
 
 ### 6.6 `kr16 debug`
@@ -473,7 +473,7 @@ Compiles C to assembly, then assembles by default (`-S` stops at assembly).
 
 The one-step pipeline for a single input: compile `.c` (or assemble `.s`/
 `.asm`, or link `.o`), link `libc.s` (and, for C, the compiled `fileio.c`), and
-write a sibling `.kex`. Options: `-o`, `-l`/`-L`/`-l=<path>`/`--listing=<path>`,
+write a sibling `.kr16`. Options: `-o`, `-l`/`-L`/`-l=<path>`/`--listing=<path>`,
 `-I`, `-g`/`--no-debug`, `-O0`/`-O1`, `--libc`, `--run`.
 
 `build` writes `x.s`, `x.o`, `x.libc.o`, `x.fileio.o` beside the input; copy
@@ -698,7 +698,7 @@ primary tools for understanding a failing program without a debugger.
 ## 10. The windowed debugger
 
 On Windows and Linux, `kr16` with no arguments opens the debugger; passing a
-`.kex`, `.c`, `.s`, `.asm`, or `.o` file opens it with that program loaded. It
+`.kr16`, `.c`, `.s`, `.asm`, or `.o` file opens it with that program loaded. It
 is one window with these panes:
 
 ![KR16 windowed debugger](docs/research/ui-win32-memory.png)
@@ -733,7 +733,7 @@ Both embed subsetted JetBrains Mono and Inter, so no fonts need to be installed.
 
 ## 11. DAP and VS Code
 
-`kr16 dap program.kex` runs the VM with a Debug Adapter Protocol server on TCP
+`kr16 dap program.kr16` runs the VM with a Debug Adapter Protocol server on TCP
 (port 22152 by default, `--port` to change). It writes an optional readiness
 file, reports a stopped/entry event by default (`--no-stop-on-entry` disables),
 and accepts `--raw`, `--base`, `--bios`, `--no-bios`.
@@ -759,7 +759,7 @@ The VS Code extension (`vscode/`, "KR16 Debug", 1.2.0) contributes:
   `program`, `port`, `kr16Path`, `args`, `stopOnEntry`, and `launchAdapter`;
 - commands **KR16: Debug Program** and **KR16: Show Disassembly**;
 - a disassembly view in the debug toolbar during a session;
-- an initial configuration and snippet that target `${workspaceFolder}/build/program.kex`.
+- an initial configuration and snippet that target `${workspaceFolder}/build/program.kr16`.
 
 `debug-with-vscode.md` documents installing and configuring the extension.
 
@@ -772,7 +772,7 @@ GUI:
 
 ```text
 kr16 C:\work> as hello.s -o hello.o
-kr16 C:\work> ld hello.o -o hello.kex
+kr16 C:\work> ld hello.o -o hello.kr16
 kr16 C:\work> build hello.c
 kr16 C:\work> load hello.c        # build, then run
 ```
@@ -792,7 +792,7 @@ refuses to block the shell unless given `--force`.
 |---|---|---|
 | Unit | `tests/unit` (22 files) | assembler, linker, container, CPU, instruction encode/decode, VM, debug info, debug session, DAP, CLI, shell, UI, resources, version |
 | Integration | `tests/integration` | `hello.c`, `heap.c`, `printf_hex.c`, assembly fixtures, link fixtures |
-| Golden | `tests/golden` | checked-in `exec_min.kex` and `rel_min.o` plus a generator |
+| Golden | `tests/golden` | checked-in `exec_min.kr16` and `rel_min.o` plus a generator |
 | Support | `tests/support` | heap invariant checker and seeded churn test |
 | Larger programs | `tests/kevin` | `C-for-U.c` (a C compiler written in KR16 C), `fileio.c`, `sysfile.c`, `args.c` |
 
@@ -926,14 +926,14 @@ Branch conditions: `EQ NE CS/HS CC/LO MI PL VS VC HI LS GE LT GT LE AL/RA`.
 | Command | Purpose |
 |---|---|
 | `kr16 as <file.s>` | assemble to `.o` (or `--raw` binary) |
-| `kr16 dis <file.o\|.kex>` | disassemble |
+| `kr16 dis <file.o\|.kr16>` | disassemble |
 | `kr16 cc <file.c>` | compile to `.o` (`-S` for `.s`) |
 | `kr16 build <file>` | compile/assemble/link one input |
-| `kr16 ld <objs>` | link to `.kex` |
+| `kr16 ld <objs>` | link to `.kr16` |
 | `kr16 size <file>` | text/data/bss report |
 | `kr16 debug <file>` | dump debug records |
 | `kr16 vm <file>` | run with options |
-| `kr16 dap <program.kex>` | DAP server on TCP |
+| `kr16 dap <program.kr16>` | DAP server on TCP |
 | `kr16 version` | version tuple |
 | `kr16 shell` | interactive shell |
 | `kr16` | windowed debugger |
@@ -943,8 +943,8 @@ Branch conditions: `EQ NE CS/HS CC/LO MI PL VS VC HI LS GE LT GT LE AL/RA`.
 
 | Term | Meaning |
 |---|---|
-| **container** | the `.o`/`.kex` file format: sections, symbols, relocations, debug |
-| **`.kex`** | executable container, laid out at final addresses |
+| **container** | the `.o`/`.kr16` file format: sections, symbols, relocations, debug |
+| **`.kr16`** | executable container, laid out at final addresses |
 | **relaxation** | rewriting a far conditional branch as an inverted branch plus `JMP` |
 | **`__heap_start`** | first address after the loaded image, provided by the linker |
 | **`__stack_limit`** | bottom of the stack reserve, `0xF000` minus the reserve |

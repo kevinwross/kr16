@@ -11,7 +11,7 @@ runnable reference and is not part of the CMake build.
 ![the reference UI at the first C line](../../docs/research/mockup-start.png)
 
 One native Win32 window, one executable, no runtime installs. It links the
-existing `kr16_core.lib` and executes a real `.kex`, with:
+existing `kr16_core.lib` and executes a real `.kr16`, with:
 
 - a C source pane with its own **Over / In / Out** line-step buttons;
 - a disassembly pane with its own **Over / In / Out** instruction-step buttons,
@@ -65,7 +65,7 @@ one under the cursor.
 
 | Button | Behaviour |
 |---|---|
-| **Load…** | File picker. A `.kex` loads directly. A `.c`, `.s`, `.asm` or `.o` is compiled/assembled and linked with the same pipeline as `kr16 build`, then loaded. **C input always links libc**, and this reference build embeds `libc.s` so no `resources\` folder is needed beside the executable. Assembly and object input also link it so calls such as `puts` resolve. Build errors appear in a message box. |
+| **Load…** | File picker. A `.kr16` loads directly. A `.c`, `.s`, `.asm` or `.o` is compiled/assembled and linked with the same pipeline as `kr16 build`, then loaded. **C input always links libc**, and this reference build embeds `libc.s` so no `resources\` folder is needed beside the executable. Assembly and object input also link it so calls such as `puts` resolve. Build errors appear in a message box. |
 | **Run** | Starts execution in 8 ms time slices, so the window stays responsive. Stops at a line/address breakpoint, on halt, or when **Break** is clicked. |
 | **Break** | Stops the running program at the current instruction boundary. The panes and registers then reflect the stopped state and stepping resumes from there. |
 | **Restart** | Reloads the current image and stops at the first C line. In-memory register edits are discarded. |
@@ -131,12 +131,12 @@ so a normal PowerShell works:
 
 ```powershell
 .\tools\mockup\build.ps1
-.\build\mock\kr16_mockup.exe .\build\mock\demo.kex
+.\build\mock\kr16_mockup.exe .\build\mock\demo.kr16
 ```
 
 `build.ps1` puts everything under `build\mock\` (git-ignored): the sample
-`demo.c`, its `.s`/`.o`/`.kex`, and `kr16_mockup.exe`. Running the executable
-without arguments loads `demo.kex` beside it, so double-clicking also works.
+`demo.c`, its `.s`/`.o`/`.kr16`, and `kr16_mockup.exe`. Running the executable
+without arguments loads `demo.kr16` beside it, so double-clicking also works.
 The executable embeds the libc source, so loading a `.c` file works even if the
 `resources\` folder is not present.
 

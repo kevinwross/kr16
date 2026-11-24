@@ -5,7 +5,7 @@
 //   - Disassembly pane with its own step-over/in/out buttons
 //   - variables, call stack and console strips underneath
 //
-// It links the existing kr16_core library and executes a real .kex, so the
+// It links the existing kr16_core library and executes a real .kr16, so the
 // stepping feel can be judged without DAP, VS Code, sockets or threads.
 //
 // The C stepping model is the one proposed in docs/research/visual-debugger.md:
@@ -1180,7 +1180,7 @@ void App::open_file() {
     dialog.lStructSize = sizeof(dialog);
     dialog.hwndOwner = g_hwnd;
     dialog.lpstrFilter =
-        L"KR16 images (*.kex)\0*.kex\0"
+        L"KR16 images (*.kr16)\0*.kr16\0"
         L"C sources (*.c)\0*.c\0"
         L"Assembly (*.s;*.asm)\0*.s;*.asm\0"
         L"Objects (*.o)\0*.o\0"
@@ -1210,12 +1210,12 @@ void App::load_any(const std::filesystem::path& path) {
     for (auto& character : extension) {
         character = static_cast<wchar_t>(std::towlower(character));
     }
-    const bool is_image = extension == L".kex";
+    const bool is_image = extension == L".kr16";
     const bool is_source = extension == L".c" || extension == L".s" ||
                            extension == L".asm" || extension == L".o";
     if (!is_image && !is_source) {
         show_error(L"Unsupported file",
-                   "Choose a .kex, .c, .s, .asm, or .o file.");
+                   "Choose a .kr16, .c, .s, .asm, or .o file.");
         return;
     }
 
@@ -1225,7 +1225,7 @@ void App::load_any(const std::filesystem::path& path) {
         BuildOptions options;
         options.input = path;
         options.output =
-            path.parent_path() / (path.stem().wstring() + L".kex");
+            path.parent_path() / (path.stem().wstring() + L".kr16");
         options.debug = true;
         // C input always links libc. Set it explicitly for every built source
         // so a loaded C file can call printf/puts without extra flags.
@@ -3743,7 +3743,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
                 GetModuleFileNameW(nullptr, module, static_cast<DWORD>(32768));
             if (length > 0) {
                 image = std::filesystem::path(module).parent_path() /
-                        L"demo.kex";
+                        L"demo.kr16";
             }
         }
         if (argv != nullptr) {

@@ -52,13 +52,13 @@ $kr = "build\windows-ninja\kr16.exe"
 & $kr as resources\libc.s -o build\scratch\libc.o
 & $kr as tests\support\heapcheck.s -o build\scratch\heapcheck.o
 & $kr as tests\support\heap_stress.s -o build\scratch\stress.o
-& $kr ld build\scratch\libc.o build\scratch\heapcheck.o build\scratch\stress.o -o build\scratch\stress.kex
-& $kr vm build\scratch\stress.kex                # expect: OK
+& $kr ld build\scratch\libc.o build\scratch\heapcheck.o build\scratch\stress.o -o build\scratch\stress.kr16
+& $kr vm build\scratch\stress.kr16                # expect: OK
 
 & $kr cc tests\integration\heap.c -S -o build\scratch\heapint.s
 & $kr as build\scratch\heapint.s -o build\scratch\heapint.o
-& $kr ld build\scratch\libc.o build\scratch\heapcheck.o build\scratch\heapint.o -o build\scratch\heapint.kex
-& $kr vm build\scratch\heapint.kex               # expect: heap ok peak=20002
+& $kr ld build\scratch\libc.o build\scratch\heapcheck.o build\scratch\heapint.o -o build\scratch\heapint.kr16
+& $kr vm build\scratch\heapint.kr16               # expect: heap ok peak=20002
 ```
 
 `build\scratch\` is a scratch directory created during this work; it is not
@@ -171,8 +171,8 @@ allocations hand out overlapping memory and `used_bytes` drifts. Registers in
 
 | Check | Command | Observed |
 |---|---|---|
-| Behaviour | `kr16 vm heapint.kex` | `heap ok peak=20002` |
-| Churn + checker | `kr16 vm stress.kex` | `OK` (173,821 instructions) |
+| Behaviour | `kr16 vm heapint.kr16` | `heap ok peak=20002` |
+| Churn + checker | `kr16 vm stress.kr16` | `OK` (173,821 instructions) |
 | Existing suite | `tests\kr16_tests.exe` | 112/112 cases, 3126 assertions |
 | `malloc` from C | `kr16 build tests/kevin/smalltest.c` | prints as before |
 | `printf` `%x` | `kr16 build tests/integration/printf_hex.c` | `0 1 f 10 ff fff 1234 ffff -> 255=ff hex Z` |

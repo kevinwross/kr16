@@ -12,10 +12,10 @@ namespace kr16 {
 ///
 /// Artifacts land next to the input, like a hand-run `cc`/`as`/`ld` sequence:
 /// `name.c` produces `name.s`, `name.o`, and `name.libc.o`; `-l` adds
-/// `name.lst`; the image is `name.kex` unless `output` says otherwise.
+/// `name.lst`; the image is `name.kr16` unless `output` says otherwise.
 struct BuildOptions {
     std::filesystem::path input;    ///< .c, .s, .asm, or .o
-    std::filesystem::path output;   ///< image; empty means "<input>.kex"
+    std::filesystem::path output;   ///< image; empty means "<input>.kr16"
     std::filesystem::path listing;  ///< listing; empty means "do not write one"
     std::filesystem::path libc_source;  ///< explicit libc.s; empty means search
     std::vector<std::filesystem::path> include_paths;

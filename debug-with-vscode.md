@@ -12,7 +12,7 @@ alongside the toolchain.
 
 From the Run and Debug view:
 
-- Launch a `.kex` image, or attach to a `kr16 dap` server you started yourself.
+- Launch a `.kr16` image, or attach to a `kr16 dap` server you started yourself.
 - Source-line breakpoints, plus function-entry breakpoints by name.
 - Continue, pause, step in, step over, and step out.
 - A multi-frame call stack.
@@ -50,11 +50,11 @@ point `kr16Path` at it in `launch.json` (shown below).
 
 ```text
 kr16 build tests/kevin/bigtest.c
-kr16 vm tests/kevin/bigtest.kex
+kr16 vm tests/kevin/bigtest.kr16
 ```
 
-That writes `bigtest.s`, `bigtest.o`, `bigtest.libc.o`, and `bigtest.kex` next
-to the source. The `.kex` carries `.debug_line`, `.debug_sources`, and the
+That writes `bigtest.s`, `bigtest.o`, `bigtest.libc.o`, and `bigtest.kr16` next
+to the source. The `.kr16` carries `.debug_line`, `.debug_sources`, and the
 compiler's variable and frame records — which is what turns a source line into
 an address.
 
@@ -62,8 +62,8 @@ Two things to avoid:
 
 - `kr16 build --no-debug` (or `cc`/`as` without `-g`) produces an image with no
   line table. The program still runs, but source breakpoints stay unverified:
-  `kr16 debug bigtest.kex --lines` prints `no line table` for such a build.
-- Debugging a stale `.kex` is confusing. Rebuild after editing the source.
+  `kr16 debug bigtest.kr16 --lines` prints `no line table` for such a build.
+- Debugging a stale `.kr16` is confusing. Rebuild after editing the source.
 
 ## Install the extension
 
@@ -130,8 +130,8 @@ Windows profile that points at the build from this repository:
     {
       "type": "kr16",
       "request": "launch",
-      "name": "Debug bigtest.kex",
-      "program": "${workspaceFolder}/tests/kevin/bigtest.kex",
+      "name": "Debug bigtest.kr16",
+      "program": "${workspaceFolder}/tests/kevin/bigtest.kr16",
       "kr16Path": "${workspaceFolder}/build/windows-ninja-release/kr16.exe",
       "stopOnEntry": true
     }
@@ -145,7 +145,7 @@ On Linux, change `kr16Path` to
 
 | Property | Default | Meaning |
 | --- | --- | --- |
-| `program` | — (required) | Path to the `.kex` or raw image; prefer `${workspaceFolder}/…` |
+| `program` | — (required) | Path to the `.kr16` or raw image; prefer `${workspaceFolder}/…` |
 | `kr16Path` | `kr16` | Executable the extension spawns; absolute path is safest |
 | `port` | `22152` | TCP port for the DAP server on `127.0.0.1` |
 | `args` | `[]` | Extra arguments passed to `kr16 dap` after the image path |
@@ -172,7 +172,7 @@ though the extension does not turn it into a command-line flag.
   "type": "kr16",
   "request": "launch",
   "name": "Debug with a custom BIOS",
-  "program": "${workspaceFolder}/build/program.kex",
+  "program": "${workspaceFolder}/build/program.kr16",
   "args": ["--bios", "${workspaceFolder}/build/bios.bin"]
 }
 ```
@@ -269,7 +269,7 @@ disassembly is produced by the adapter's `disassemble` request.
 Start the server yourself:
 
 ```text
-kr16 dap --port 22152 --no-stop-on-entry build/program.kex
+kr16 dap --port 22152 --no-stop-on-entry build/program.kr16
 ```
 
 and point a configuration at it:
@@ -279,7 +279,7 @@ and point a configuration at it:
   "type": "kr16",
   "request": "attach",
   "name": "Attach to KR16 DAP",
-  "program": "${workspaceFolder}/build/program.kex",
+  "program": "${workspaceFolder}/build/program.kr16",
   "port": 22152,
   "launchAdapter": false
 }
@@ -294,7 +294,7 @@ to `127.0.0.1:<port>` and waits for the server to accept. `request` may be
 The integration smoke test speaks DAP directly:
 
 ```text
-node scripts/dap-smoke.js build/windows-ninja-release/kr16.exe tests/kevin/bigtest.kex
+node scripts/dap-smoke.js build/windows-ninja-release/kr16.exe tests/kevin/bigtest.kr16
 ```
 
 It starts `kr16 dap`, sets a breakpoint, continues, and checks the stopped
@@ -308,7 +308,7 @@ events. `ctest --preset windows-ninja-release -R dap` runs the same check.
 | `KR16: the launch configuration needs a "program" path` | `program` missing | Add it to `launch.json` |
 | `EADDRINUSE`/bind failure in the terminal | Another session is using port 22152 | Pick another port in `launch.json` |
 | Breakpoints stay unverified | Image built without `-g` | Rebuild with `kr16 build` (or drop `--no-debug`) |
-| Breakpoints verify but never hit | Stale `.kex`, or the line maps to an address the flow skips | Rebuild; check `kr16 debug <image> --lines` |
+| Breakpoints verify but never hit | Stale `.kr16`, or the line maps to an address the flow skips | Rebuild; check `kr16 debug <image> --lines` |
 | `Locals` scope missing or empty | Image built without `-g`, or the PC is outside a known function | Rebuild with debug info |
 | `Globals` empty | Image was stripped, so `.data`/`.bss` symbols are gone | Link without `ld --strip` |
 | Program output missing | It goes to the KR16 DAP terminal | Look at that terminal, not the Debug Console |

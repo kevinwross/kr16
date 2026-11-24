@@ -28,7 +28,7 @@ endif()
 file(READ "${generated_output}" generated)
 
 set(generated_s "${GENDIR}/C-for-U.generated.s")
-set(generated_kex "${GENDIR}/C-for-U.generated.kex")
+set(generated_kex "${GENDIR}/C-for-U.generated.kr16")
 file(WRITE "${generated_s}" "${generated}")
 
 execute_process(

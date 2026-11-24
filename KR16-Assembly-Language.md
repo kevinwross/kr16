@@ -36,7 +36,7 @@ written `C`, `Z`, `N`, `V`, and `I`.
 5. [Functions, the stack, and frames](#5-functions-the-stack-and-frames)
 6. [Writing assembly source](#6-writing-assembly-source)
 7. [Assembler directives](#7-assembler-directives)
-8. [From source to runnable `.kex`](#8-from-source-to-runnable-kex)
+8. [From source to runnable `.kr16`](#8-from-source-to-runnable-kex)
 9. [The disassembler](#9-the-disassembler)
 10. [Programmer's reference: the machine](#10-programmers-reference-the-machine)
 11. [Programmer's reference: addressing modes](#11-programmers-reference-addressing-modes)
@@ -135,7 +135,7 @@ or `R2`.
 
 ### 1.3 What happens when a program runs
 
-A normal `.kex` program is loaded by the VM at the addresses recorded in the
+A normal `.kr16` program is loaded by the VM at the addresses recorded in the
 file. The VM starts the CPU at the reset vector (`0xF100` in the reference
 BIOS), and the BIOS jumps to `0x0100`. The instructions at `0x0100` are your
 program's entry point.
@@ -196,8 +196,8 @@ _start:
 
 ```text
 kr16 as first.s -o first.o
-kr16 ld first.o -o first.kex
-kr16 vm first.kex
+kr16 ld first.o -o first.kr16
+kr16 vm first.kr16
 ```
 
 Output:
@@ -279,8 +279,8 @@ message:
 
 ```text
 kr16 as hello.s -o hello.o
-kr16 ld hello.o -o hello.kex
-kr16 vm hello.kex
+kr16 ld hello.o -o hello.kr16
+kr16 vm hello.kr16
 ```
 
 Output:
@@ -364,12 +364,12 @@ So `message` ends up at `0x0118`, and the linked instruction becomes:
 ```
 
 The object file, before linking, shows the placeholder `0x0000` in that field.
-This is normal. It is why you should disassemble the `.kex` when you want to see
+This is normal. It is why you should disassemble the `.kr16` when you want to see
 final addresses, or inspect the map file.
 
 ### 3.5 The complete disassembly
 
-After linking, `kr16 dis hello.kex --no-hex` prints:
+After linking, `kr16 dis hello.kr16 --no-hex` prints:
 
 ```text
 .text:
@@ -423,8 +423,8 @@ Build and run:
 
 ```text
 kr16 as loop_sum.s -o loop_sum.o
-kr16 ld loop_sum.o -o loop_sum.kex
-kr16 vm loop_sum.kex
+kr16 ld loop_sum.o -o loop_sum.kr16
+kr16 vm loop_sum.kr16
 ```
 
 There is no console output. The exit status is 55:
@@ -542,8 +542,8 @@ Build and run:
 
 ```text
 kr16 as sum_to.s -o sum_to.o
-kr16 ld sum_to.o -o sum_to.kex
-kr16 vm sum_to.kex
+kr16 ld sum_to.o -o sum_to.kr16
+kr16 vm sum_to.kr16
 ```
 
 The exit status is 55.
@@ -1369,21 +1369,21 @@ The `.rodata` size is 22: four bytes of `KR16`, one NUL, six bytes of
 
 ---
 
-## 8. From source to runnable `.kex`
+## 8. From source to runnable `.kr16`
 
 The KR16 toolchain is deliberately split into small steps. The important
 pipeline is:
 
 ```text
-hello.s  --kr16 as-->  hello.o  --kr16 ld-->  hello.kex  --kr16 vm-->  output
+hello.s  --kr16 as-->  hello.o  --kr16 ld-->  hello.kr16  --kr16 vm-->  output
 ```
 
 - `.s` is assembly source.
 - `.o` is a relocatable object: code, data, symbols, and relocations whose final
   addresses are not yet known.
-- `.kex` is an executable container: sections with final addresses, an entry
+- `.kr16` is an executable container: sections with final addresses, an entry
   point, symbols, and no relocations.
-- `kr16 vm` loads the `.kex` and runs it.
+- `kr16 vm` loads the `.kr16` and runs it.
 
 You cannot normally run a `.o` directly. You can inspect it with `kr16 dis`, but
 it is not a finished program.
@@ -1439,10 +1439,10 @@ assembler chose the encodings you expected, but it is not the final program.
 ### 8.3 Step 3: link
 
 ```text
-kr16 ld hello.o -o hello.kex
+kr16 ld hello.o -o hello.kr16
 ```
 
-If you omit `-o`, the default output is `a.kex`.
+If you omit `-o`, the default output is `a.kr16`.
 
 The linker:
 
@@ -1466,7 +1466,7 @@ Useful linker options:
 The map is the easiest way to see final addresses:
 
 ```text
-kr16 ld hello.o -o hello.kex --map hello.map
+kr16 ld hello.o -o hello.kr16 --map hello.map
 ```
 
 ```text
@@ -1495,7 +1495,7 @@ command-line option to change it.
 ### 8.4 Step 4: run
 
 ```text
-kr16 vm hello.kex
+kr16 vm hello.kr16
 ```
 
 The VM loads the allocatable sections, zeroes RAM, sets up the stack, loads the
@@ -1525,8 +1525,8 @@ A complete run:
 
 ```text
 kr16 as hello.s -o hello.o
-kr16 ld hello.o -o hello.kex
-kr16 vm hello.kex
+kr16 ld hello.o -o hello.kr16
+kr16 vm hello.kr16
 ```
 
 Output:
@@ -1538,12 +1538,12 @@ Hello, World!
 ### 8.5 Step 5: inspect size and debug information
 
 ```text
-kr16 size hello.kex
+kr16 size hello.kr16
 ```
 
 ```text
    text    data     bss     dec     hex  file
-     24      15       0      39      27  hello.kex
+     24      15       0      39      27  hello.kr16
 ```
 
 `text` counts executable allocated bytes. `data` counts initialized
@@ -1553,7 +1553,7 @@ zero-initialized storage, which is not stored in the file.
 If the source has `.file` and `.loc` directives, you can inspect the line table:
 
 ```text
-kr16 debug hello.kex --lines
+kr16 debug hello.kr16 --lines
 ```
 
 Without `.loc`, the output is `no line table`.
@@ -1639,7 +1639,7 @@ what the linker placed in the final image.
 ### 9.1 Usage
 
 ```text
-kr16 dis file.o|file.kex [options]
+kr16 dis file.o|file.kr16 [options]
 ```
 
 Options:
@@ -1711,10 +1711,10 @@ This is useful for checking encodings and labels. Two things are not final:
 The branch targets and labels are resolved within the object, so `BEQ .done` and
 `BRA .next` are readable.
 
-### 9.4 Disassembling a linked `.kex`
+### 9.4 Disassembling a linked `.kr16`
 
 ```text
-kr16 dis hello.kex --no-hex
+kr16 dis hello.kr16 --no-hex
 ```
 
 ```text
@@ -1735,11 +1735,11 @@ Now the relocation is resolved: `message` is `0x0118`, and the branch targets
 are absolute addresses.
 
 In this release, labels are printed when disassembling a relocatable `.o` but
-not when disassembling a linked `.kex`. Linked images are printed numerically.
+not when disassembling a linked `.kr16`. Linked images are printed numerically.
 Use the linker map to correlate addresses with symbol names:
 
 ```text
-kr16 ld hello.o -o hello.kex --map hello.map
+kr16 ld hello.o -o hello.kr16 --map hello.map
 ```
 
 Then read `hello.map`. `kr16 debug --lines` can also show source lines if the
@@ -1774,11 +1774,11 @@ the padding appears as instructions:
 ```
 
 `0x0000` decodes as `ADD R0, R0`; it is padding, not code. Disassemble the known
-code range, or use a linked `.kex` with section boundaries when possible.
+code range, or use a linked `.kr16` with section boundaries when possible.
 
 ### 9.6 Reading the output
 
-- **Addresses** are absolute in a `.kex`, section offsets in a `.o`, and
+- **Addresses** are absolute in a `.kr16`, section offsets in a `.o`, and
   `base + offset` in a raw image.
 - **Branch targets** are printed as absolute addresses. To go back to a label,
   use the map or the object disassembly.
@@ -1853,7 +1853,7 @@ For calls:
   state must restore it if its caller expects it preserved.
 
 At program entry, the VM builds an argument block on the stack for normal
-`.kex` images, even with no user arguments. `R1` is `argc`, `R2` points to
+`.kr16` images, even with no user arguments. `R1` is `argc`, `R2` points to
 `argv`, and `argv[0]` is the image name. The strings and the null-terminated
 pointer array are above `SP`; a custom `_start` receives those registers. The
 windowed debugger's **Command line arguments** setting supplies `argv[1..]`,
@@ -1872,7 +1872,7 @@ On reset:
 - RAM is zeroed by the VM.
 - ROM is loaded and write-protected.
 
-Normal `.kex` programs start at `0x0100`. The reference BIOS at `0xF100` jumps
+Normal `.kr16` programs start at `0x0100`. The reference BIOS at `0xF100` jumps
 there.
 
 ### 10.5 Instruction fetch and alignment
@@ -4037,7 +4037,7 @@ _start:
     HLT                     ; exit status 1
 ```
 
-With `kr16 vm syscall_demo.kex --trace-syscalls`, the VM prints:
+With `kr16 vm syscall_demo.kr16 --trace-syscalls`, the VM prints:
 
 ```text
 SYS #0 block=0x10a status=0 result0=1 result1=16
@@ -4221,7 +4221,7 @@ declare external symbols:
 
 ### 20.4 Linked-image disassembly is numeric
 
-The disassembler prints labels for relocatable `.o` files. For a linked `.kex`,
+The disassembler prints labels for relocatable `.o` files. For a linked `.kr16`,
 it prints numeric addresses. Use `kr16 ld --map` to correlate addresses and
 symbols.
 
@@ -4305,8 +4305,8 @@ Build and run:
 
 ```text
 kr16 as first.s -o first.o
-kr16 ld first.o -o first.kex
-kr16 vm first.kex
+kr16 ld first.o -o first.kr16
+kr16 vm first.kr16
 ```
 
 Output: `H` (no newline). Exit status: 0.
@@ -4522,8 +4522,8 @@ Build:
 
 ```text
 kr16 as macro_demo.s -o macro_demo.o
-kr16 ld macro_demo.o -o macro_demo.kex
-kr16 vm macro_demo.kex
+kr16 ld macro_demo.o -o macro_demo.kr16
+kr16 vm macro_demo.kr16
 ```
 
 Output: `OK` followed by a newline. Exit status: 0.
@@ -4588,12 +4588,12 @@ The rest of the ROM is zero padding up to `0xFFFE`. A raw disassembly will
 decode that padding as instructions (`0x0000` is `ADD R0, R0`); do not mistake
 padding for code.
 
-### B.2 How the VM boots a `.kex`
+### B.2 How the VM boots a `.kr16`
 
 1. The VM loads the BIOS ROM at `0xF100`.
 2. It reads the reset vector at `0xFFFE` and sets `PC` to that value.
 3. The BIOS executes and jumps to `0x0100`.
-4. The VM has already loaded the `.kex` sections at their recorded addresses.
+4. The VM has already loaded the `.kr16` sections at their recorded addresses.
 5. Your program runs from `0x0100`.
 
 With `--no-bios`, the VM starts directly at the image entry point. With
@@ -4727,8 +4727,8 @@ Build and run with the extended BIOS:
 
 ```text
 kr16 as hello_bios.s -o hello_bios.o
-kr16 ld hello_bios.o -o hello_bios.kex
-kr16 vm hello_bios.kex --bios bios_demo.bin
+kr16 ld hello_bios.o -o hello_bios.kr16
+kr16 vm hello_bios.kr16 --bios bios_demo.bin
 ```
 
 Output:
@@ -4852,17 +4852,17 @@ SR:  15..5 reserved (read 0) | 4 I | 3 V | 2 N | 1 Z | 0 C
 ### C.7 Pipeline
 
 ```text
-program.s --kr16 as--> program.o --kr16 ld--> program.kex --kr16 vm--> output
+program.s --kr16 as--> program.o --kr16 ld--> program.kr16 --kr16 vm--> output
 ```
 
 Inspect:
 
 ```text
 kr16 dis program.o
-kr16 dis program.kex --no-hex
-kr16 ld program.o -o program.kex --map program.map
-kr16 size program.kex
-kr16 debug program.kex --lines
+kr16 dis program.kr16 --no-hex
+kr16 ld program.o -o program.kr16 --map program.map
+kr16 size program.kr16
+kr16 debug program.kr16 --lines
 ```
 
 ---
@@ -4952,7 +4952,7 @@ stack frame.
 **Label** — A name for an address, written with a trailing colon.
 
 **Linker** — The tool that combines `.o` files, resolves symbols, lays out
-sections, and writes a `.kex`.
+sections, and writes a `.kr16`.
 
 **Little-endian** — Low byte first in memory.
 

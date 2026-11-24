@@ -1556,7 +1556,7 @@ int main(int argc, char *argv[]) {
         }
     }
     if (input == 0) {
-        outs("; usage: C-for-U.kex <filename>.c [-o <filename>.s]\n");
+        outs("; usage: C-for-U.kr16 <filename>.c [-o <filename>.s]\n");
         return 1;
     }
     if (output == 0) {

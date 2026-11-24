@@ -156,15 +156,15 @@ set_tests_properties(kr16.as.link_main PROPERTIES LABELS "integration")
 add_test(NAME kr16.ld.link
   COMMAND kr16 ld "${CMAKE_CURRENT_BINARY_DIR}/link_lib.o"
     "${CMAKE_CURRENT_BINARY_DIR}/link_main.o"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/link.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/link.kr16"
 )
 set_tests_properties(kr16.ld.link PROPERTIES LABELS "integration"
   DEPENDS "kr16.as.link_lib;kr16.as.link_main")
 
-add_test(NAME kr16.vm.kex
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/link.kex"
+add_test(NAME kr16.vm.kr16
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/link.kr16"
 )
-set_tests_properties(kr16.vm.kex PROPERTIES LABELS "integration"
+set_tests_properties(kr16.vm.kr16 PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.link)
 
 add_test(NAME kr16.cc.hello
@@ -189,13 +189,13 @@ set_tests_properties(kr16.as.libc PROPERTIES LABELS "integration")
 add_test(NAME kr16.ld.hello
   COMMAND kr16 ld "${CMAKE_CURRENT_BINARY_DIR}/libc.o"
     "${CMAKE_CURRENT_BINARY_DIR}/hello.o"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/hello.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/hello.kr16"
 )
 set_tests_properties(kr16.ld.hello PROPERTIES LABELS "integration"
   DEPENDS "kr16.as.libc;kr16.as.hello")
 
 add_test(NAME kr16.vm.hello
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/hello.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/hello.kr16"
 )
 set_tests_properties(kr16.vm.hello PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
@@ -207,7 +207,7 @@ if(NOT KRG_TOOLCHAIN STREQUAL "krc")
 add_test(NAME kr16.cc.cforu
   COMMAND kr16 build --no-debug
     "${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kr16"
 )
 set_tests_properties(kr16.cc.cforu PROPERTIES LABELS "integration" RESOURCE_LOCK cforu)
 
@@ -217,7 +217,7 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U-input.c"
                COPYONLY)
 
 add_test(NAME kr16.vm.cforu
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kr16"
     --fs-root "${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
     "C-for-U-input.c"
 )
@@ -229,7 +229,7 @@ set_tests_properties(kr16.vm.cforu PROPERTIES LABELS "integration"
 add_test(NAME kr16.cforu.explicit_output
   COMMAND ${CMAKE_COMMAND}
     "-DKR16=$<TARGET_FILE:kr16>"
-    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kr16"
     "-DCFORU_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
     "-DCFORU_INPUT=C-for-U-input.c"
     "-DCFORU_OUTPUT=C-for-U-output.s"
@@ -242,7 +242,7 @@ set_tests_properties(kr16.cforu.explicit_output PROPERTIES LABELS "integration"
 add_test(NAME kr16.cforu.generated
   COMMAND ${CMAKE_COMMAND}
     "-DKR16=$<TARGET_FILE:kr16>"
-    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kr16"
     "-DCFORU_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
     "-DCFORU_INPUT=C-for-U-input.c"
     "-DGENDIR=${CMAKE_CURRENT_BINARY_DIR}"
@@ -256,7 +256,7 @@ set_tests_properties(kr16.cforu.generated PROPERTIES LABELS "integration"
 add_test(NAME kr16.cforu.cycles
   COMMAND ${CMAKE_COMMAND}
     "-DKR16=$<TARGET_FILE:kr16>"
-    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    "-DCFORU_KEX=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kr16"
     "-DCFORU_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cforu-sandbox"
     "-DCFORU_INPUT=C-for-U-input.c"
     "-DCFORU_MAX_CYCLES=1200000"
@@ -274,7 +274,7 @@ add_test(NAME kr16.cforu.over-budget
   COMMAND ${CMAKE_COMMAND}
     "-DKR16=$<TARGET_FILE:kr16>"
     "-DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/kevin/C-for-U.c"
-    "-DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kex"
+    "-DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/C-for-U.kr16"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cforu_over_budget.cmake"
 )
 set_tests_properties(kr16.cforu.over-budget PROPERTIES
@@ -314,13 +314,13 @@ add_test(NAME kr16.ld.heap
     "${CMAKE_CURRENT_BINARY_DIR}/libc.o"
     "${CMAKE_CURRENT_BINARY_DIR}/fileio-runtime.o"
     "${CMAKE_CURRENT_BINARY_DIR}/heap.o"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/heap.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/heap.kr16"
 )
 set_tests_properties(kr16.ld.heap PROPERTIES LABELS "integration"
   DEPENDS "kr16.as.heapcheck;kr16.as.libc;kr16.as.heap;kr16.cc.runtime_fileio")
 
 add_test(NAME kr16.vm.heap
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/heap.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/heap.kr16"
 )
 set_tests_properties(kr16.vm.heap PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.heap PASS_REGULAR_EXPRESSION "heap ok")
@@ -337,13 +337,13 @@ add_test(NAME kr16.ld.heap_stress
   COMMAND kr16 ld "${CMAKE_CURRENT_BINARY_DIR}/heapcheck.o"
     "${CMAKE_CURRENT_BINARY_DIR}/libc.o"
     "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.o"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.kr16"
 )
 set_tests_properties(kr16.ld.heap_stress PROPERTIES LABELS "integration"
   DEPENDS "kr16.as.heapcheck;kr16.as.libc;kr16.as.heap_stress")
 
 add_test(NAME kr16.vm.heap_stress
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/heap_stress.kr16"
 )
 set_tests_properties(kr16.vm.heap_stress PROPERTIES LABELS "integration"
   DEPENDS kr16.ld.heap_stress PASS_REGULAR_EXPRESSION "OK")
@@ -355,20 +355,20 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/integration/hello.c"
 
 add_test(NAME kr16.build.hello
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/build_hello.c"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kr16"
     --listing=${CMAKE_CURRENT_BINARY_DIR}/built_hello.lst
 )
 set_tests_properties(kr16.build.hello PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.vm.built_hello
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kr16"
 )
 set_tests_properties(kr16.vm.built_hello PROPERTIES LABELS "integration"
   DEPENDS kr16.build.hello PASS_REGULAR_EXPRESSION "Hello, KR16!")
 
 add_test(NAME kr16.build.run
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/build_hello.c"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/run_hello.kex" --run
+    -o "${CMAKE_CURRENT_BINARY_DIR}/run_hello.kr16" --run
 )
 set_tests_properties(kr16.build.run PROPERTIES LABELS "integration"
   PASS_REGULAR_EXPRESSION "Hello, KR16!")
@@ -378,12 +378,12 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/integration/printf_hex.c"
 
 add_test(NAME kr16.build.printf_hex
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/build_printf_hex.c"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/printf_hex.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/printf_hex.kr16"
 )
 set_tests_properties(kr16.build.printf_hex PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.vm.printf_hex
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/printf_hex.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/printf_hex.kr16"
 )
 set_tests_properties(kr16.vm.printf_hex PROPERTIES LABELS "integration"
   DEPENDS kr16.build.printf_hex
@@ -395,12 +395,12 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/fileio-sandbox")
 
 add_test(NAME kr16.fileio.build
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/fileio.c"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/fileio.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/fileio.kr16"
 )
 set_tests_properties(kr16.fileio.build PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.fileio.run
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/fileio.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/fileio.kr16"
     --fs-root "${CMAKE_CURRENT_BINARY_DIR}/fileio-sandbox"
 )
 set_tests_properties(kr16.fileio.run PROPERTIES LABELS "integration"
@@ -411,12 +411,12 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/integration/stdio_buffered.c"
 
 add_test(NAME kr16.stdio.build
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.c"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.kr16"
 )
 set_tests_properties(kr16.stdio.build PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.stdio.run
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/stdio_buffered.kr16"
     --fs-root "${CMAKE_CURRENT_BINARY_DIR}/fileio-sandbox"
 )
 set_tests_properties(kr16.stdio.run PROPERTIES LABELS "integration"
@@ -427,12 +427,12 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/sysfile.c"
 
 add_test(NAME kr16.sysfile.build
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/sysfile.c"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/sysfile.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/sysfile.kr16"
 )
 set_tests_properties(kr16.sysfile.build PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.sysfile.run
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/sysfile.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/sysfile.kr16"
     --fs-root "${CMAKE_CURRENT_BINARY_DIR}/fileio-sandbox"
 )
 set_tests_properties(kr16.sysfile.run PROPERTIES LABELS "integration"
@@ -443,12 +443,12 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/kevin/args.c"
 
 add_test(NAME kr16.args.build
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/args.c"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/args.kex"
+    -o "${CMAKE_CURRENT_BINARY_DIR}/args.kr16"
 )
 set_tests_properties(kr16.args.build PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.args.run
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/args.kex"
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/args.kr16"
     one "two words" "C:\\Users\\kevin"
 )
 set_tests_properties(kr16.args.run PROPERTIES LABELS "integration"
@@ -461,7 +461,7 @@ if(KR16_NODE_EXECUTABLE)
     COMMAND "${KR16_NODE_EXECUTABLE}"
       "${CMAKE_SOURCE_DIR}/scripts/dap-smoke.js"
       "$<TARGET_FILE:kr16>"
-      "${CMAKE_CURRENT_BINARY_DIR}/hello.kex"
+      "${CMAKE_CURRENT_BINARY_DIR}/hello.kr16"
   )
   set_tests_properties(kr16.dap.smoke PROPERTIES LABELS "integration"
     DEPENDS kr16.ld.hello)
@@ -472,7 +472,7 @@ if(KR16_NODE_EXECUTABLE)
       COMMAND "${KR16_NODE_EXECUTABLE}"
         "${CMAKE_SOURCE_DIR}/scripts/dap-smoke.js"
         "$<TARGET_FILE:kr16>"
-        "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kex"
+        "${CMAKE_CURRENT_BINARY_DIR}/built_hello.kr16"
     )
     set_tests_properties(kr16.dap.smoke.krc PROPERTIES LABELS "integration"
       DEPENDS kr16.build.hello)
@@ -497,13 +497,13 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/../examples/putchar.s"
 
 add_test(NAME kr16.example.sum_loop.build
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/sum_loop.s"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/sum_loop.kex")
+    -o "${CMAKE_CURRENT_BINARY_DIR}/sum_loop.kr16")
 set_tests_properties(kr16.example.sum_loop.build PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.example.sum_loop.run
   COMMAND ${CMAKE_COMMAND}
     "-DKR16=$<TARGET_FILE:kr16>"
-    "-DIMAGE=${CMAKE_CURRENT_BINARY_DIR}/sum_loop.kex"
+    "-DIMAGE=${CMAKE_CURRENT_BINARY_DIR}/sum_loop.kr16"
     "-DEXPECTED=55"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/run_expected_exit.cmake")
 set_tests_properties(kr16.example.sum_loop.run PROPERTIES LABELS "integration"
@@ -511,11 +511,11 @@ set_tests_properties(kr16.example.sum_loop.run PROPERTIES LABELS "integration"
 
 add_test(NAME kr16.example.putchar.build
   COMMAND kr16 build "${CMAKE_CURRENT_BINARY_DIR}/putchar.s"
-    -o "${CMAKE_CURRENT_BINARY_DIR}/putchar.kex")
+    -o "${CMAKE_CURRENT_BINARY_DIR}/putchar.kr16")
 set_tests_properties(kr16.example.putchar.build PROPERTIES LABELS "integration")
 
 add_test(NAME kr16.example.putchar.run
-  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/putchar.kex")
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/putchar.kr16")
 set_tests_properties(kr16.example.putchar.run PROPERTIES LABELS "integration"
   DEPENDS kr16.example.putchar.build PASS_REGULAR_EXPRESSION "KR16")
 

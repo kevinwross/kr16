@@ -57,7 +57,7 @@ TEST_CASE("shell history is capped and persists") {
 
 TEST_CASE("shell loop continues after failures") {
     std::istringstream input(
-        "pwd\nversion\nnot-a-command\ndap build/hello.kex\nquit\n");
+        "pwd\nversion\nnot-a-command\ndap build/hello.kr16\nquit\n");
     std::ostringstream output;
     std::ostringstream error;
     const int status = kr16::cli::run_shell(input, output, error, false);
@@ -85,6 +85,6 @@ TEST_CASE("shell load builds and links C source") {
     const int status =
         kr16::cli::run_shell(input, output, error, false);
     CHECK(status == 0);
-    CHECK(std::filesystem::exists(directory / "hello.kex"));
+    CHECK(std::filesystem::exists(directory / "hello.kr16"));
     std::filesystem::remove_all(directory);
 }
