@@ -146,6 +146,9 @@ std::uint8_t Machine::read8(std::uint16_t address) {
             case 0xF002:
                 return console_echo_ ? 1 : 0;
             case 0xF004:
+                if (keyboard_.empty() && keyboard_refill_) {
+                    keyboard_refill_();
+                }
                 if (keyboard_.empty()) {
                     return 0;
                 } else {
@@ -154,6 +157,9 @@ std::uint8_t Machine::read8(std::uint16_t address) {
                     return value;
                 }
             case 0xF005:
+                if (keyboard_.empty() && keyboard_refill_) {
+                    keyboard_refill_();
+                }
                 return static_cast<std::uint8_t>(
                     (keyboard_.empty() ? 0u : 1u) |
                     (keyboard_overflow_ ? 2u : 0u));

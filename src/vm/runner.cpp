@@ -3,9 +3,11 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <iterator>
 #include <sstream>
 #include <stdexcept>
@@ -147,6 +149,20 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
         std::uint64_t instructions = 0;
         std::ostringstream trace;
 
+        if (options.console) {
+            // The keyboard asks for a line when the guest reads it empty, so a
+            // getchar blocks where a terminal would wait.
+            machine.set_keyboard_refill([&machine] {
+                std::string line;
+                if (std::getline(std::cin, line)) {
+                    for (const char character : line) {
+                        machine.push_key(static_cast<std::uint8_t>(character));
+                    }
+                    machine.push_key('\n');
+                }
+            });
+        }
+
         while (!cpu.halted()) {
             if (options.max_cycles != 0 && cycles >= options.max_cycles) {
                 result.timed_out = true;
@@ -225,13 +241,25 @@ VmResult run_vm(const std::string& program_path, const VmOptions& options) {
 
             const auto& output = machine.console_output();
             while (output_index < output.size()) {
-                result.output.push_back(static_cast<char>(output[output_index++]));
+                const char byte = static_cast<char>(output[output_index++]);
+                if (options.console) {
+                    std::fputc(byte, stdout);
+                    std::fflush(stdout);
+                } else {
+                    result.output.push_back(byte);
+                }
             }
         }
 
         const auto& output = machine.console_output();
         while (output_index < output.size()) {
-            result.output.push_back(static_cast<char>(output[output_index++]));
+            const char byte = static_cast<char>(output[output_index++]);
+            if (options.console) {
+                std::fputc(byte, stdout);
+                std::fflush(stdout);
+            } else {
+                result.output.push_back(byte);
+            }
         }
 
         result.cycles = cycles;

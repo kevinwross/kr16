@@ -101,6 +101,15 @@ add_test(NAME kr16.vm.raw
 set_tests_properties(kr16.vm.raw PROPERTIES LABELS "integration"
   DEPENDS kr16.as.vm)
 
+# The family's --max-steps spelling is accepted here as an alias for
+# --max-cycles, and a zero budget runs until the guest halts.
+add_test(NAME kr16.vm.max_steps_zero
+  COMMAND kr16 vm "${CMAKE_CURRENT_BINARY_DIR}/vm_hello.bin"
+    --raw --base 0x100 --max-steps 0
+)
+set_tests_properties(kr16.vm.max_steps_zero PROPERTIES LABELS "integration"
+  DEPENDS kr16.as.vm)
+
 add_test(NAME kr16.size.object
   COMMAND kr16 size "${CMAKE_CURRENT_BINARY_DIR}/asm_min.o"
 )

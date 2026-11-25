@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <optional>
 #include <span>
 #include <vector>
@@ -28,6 +29,11 @@ public:
     void load_bytes(std::uint16_t address, std::span<const std::uint8_t> bytes);
 
     void push_key(std::uint8_t value);
+    // Called when the guest reads the keyboard and nothing is queued. The
+    // callback may push a line; it must not re-enter the machine.
+    void set_keyboard_refill(std::function<void()> refill) {
+        keyboard_refill_ = std::move(refill);
+    }
     const std::vector<std::uint8_t>& console_output() const noexcept {
         return console_output_;
     }
@@ -50,6 +56,7 @@ private:
     std::array<std::uint8_t, kRomSize> rom_{};
     std::vector<std::uint8_t> console_output_;
     std::deque<std::uint8_t> keyboard_;
+    std::function<void()> keyboard_refill_;
     bool keyboard_overflow_ = false;
     bool keyboard_irq_enable_ = false;
     bool console_echo_ = false;

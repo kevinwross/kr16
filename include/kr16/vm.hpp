@@ -24,6 +24,9 @@ struct VmOptions {
     std::uint32_t fs_quota = 5u * 1024u * 1024u;
     unsigned mhz = 1;
     std::string input_path;
+    // Read a line from stdin when the guest reads the keyboard and the queue is
+    // empty; console output is written through to stdout as it is produced.
+    bool console = false;
     std::vector<std::string> program_args;
 };
 

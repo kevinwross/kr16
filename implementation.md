@@ -3806,3 +3806,18 @@ Entry format:
   C-for-U tests; the preset then passed 59/59.
 - Linux debug dropped from about 32 s serial to 22.3 s with the preset.
 - Windows release preset passes 59/59 in 6.6 s.
+
+### 2026-11-24T22:39:21-08:00 — `--max-steps` alias for the cycle budget
+
+- `kr16 vm` now accepts `--max-steps` as an alias for `--max-cycles`, so the
+  family's zero-means-unlimited spelling works here too. A zero budget already
+  meant "run until the guest halts" (`options.max_cycles != 0` guards the limit);
+  this change adds the spelling and a test, not a new execution policy.
+- Added `kr16.vm.max_steps_zero`, which runs the raw hello image with
+  `--max-steps 0`.
+- Verified: `windows-ninja` builds clean; the full Windows suite is 61 passed
+  and 1 skipped (`kr16.cforu.over-budget`, skipped by design), including
+  `kr16.vm.max_steps_zero`.
+### 2026-11-25T00:17:56-08:00 — `--console` makes stdin and stdout the guest console
+
+`VmOptions` gained `console`. `Machine` gained `set_keyboard_refill`; both the keyboard DATA and STATUS registers call it when the queue is empty, so a `getchar` blocks where a terminal would wait while a prompt has already been flushed. The runner reads a line from `std::cin`, pushes it with a newline, and in console mode writes console bytes straight to stdout instead of buffering them into `VmResult::output`. A KR16 guest echoing a line through `getchar`/`putchar` produced it unchanged and exited 0. Verified: `windows-ninja-debug` builds clean; the full Windows suite is 62/62 with one skip (`kr16.cforu.over-budget`, by design).
