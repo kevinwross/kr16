@@ -20,6 +20,7 @@ param(
     [string]$Preset = 'windows-ninja-debug',
     [string]$Krc = '',
     [string]$Krld = '',
+    [string]$KrcPrefix = '',
     [switch]$SkipTests
 )
 
@@ -40,7 +41,18 @@ if (Test-Path $doctor) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
+# The package prefix: this tree includes krc/listing.h in both toolchain modes, so a
+# configure needs the installed headers even when it links nothing from the package.
+if (-not $KrcPrefix) {
+    if ($env:KRG_KRC) { $KrcPrefix = Split-Path -Parent (Split-Path -Parent $env:KRG_KRC) }
+}
+if (-not $KrcPrefix) {
+    $familyPrefix = Join-Path (Split-Path -Parent $root) 'build/family-prefix'
+    if (Test-Path $familyPrefix) { $KrcPrefix = $familyPrefix }
+}
+
 $arguments = @('--preset', $Preset)
+if ($KrcPrefix) { $arguments += "-DKR16_KRC_PREFIX=$KrcPrefix" }
 if ($Krc) { $arguments += "-DKRG_KRC=$Krc" }
 if ($Krld) { $arguments += "-DKRG_KRLD=$Krld" }
 
