@@ -203,10 +203,13 @@ Options:
   --base <addr>        raw load address (default: 0x0100)
   --bios <path>        load a 3.75 KiB BIOS ROM
   --no-bios            start directly at the image entry point
-  --max-cycles <n>     stop after n cycles (default: unlimited)
+  --max-cycles <n>     stop after n cycles (default: unlimited; 0 = unlimited)
+  --max-steps <n>      alias for --max-cycles
   --realtime           pace execution to the requested MHz
   --mhz <n>            real-time clock rate (default: 1)
   --input <path>       feed scripted keyboard input
+  --inputfile <path>   feed a file, then read stdin when it is exhausted
+  --console            run with stdin and stdout as the guest console
   --headless           run without a display
   --line-input         read guest input line by line
   --trace              print an instruction trace
@@ -551,15 +554,15 @@ int run_vm_command(int argc, char** argv) {
             g_debug.page = true;
         } else if (argument == "--watch-fp") {
             g_debug.frame_pointer = true;
-        } else if (argument == "--max-cycles") {
+        } else if (argument == "--max-cycles" || argument == "--max-steps") {
             if (++i >= argc) {
-                std::cerr << "kr16 vm: --max-cycles needs a number\n";
+                std::cerr << "kr16 vm: " << argument << " needs a number\n";
                 return 2;
             }
             try {
                 options.max_cycles = std::stoull(argv[i], nullptr, 0);
             } catch (const std::exception&) {
-                std::cerr << "kr16 vm: bad --max-cycles value\n";
+                std::cerr << "kr16 vm: bad " << argument << " value\n";
                 return 2;
             }
         } else if (argument == "--trace") {
@@ -581,12 +584,19 @@ int run_vm_command(int argc, char** argv) {
                 std::cerr << "kr16 vm: bad --mhz value\n";
                 return 2;
             }
-        } else if (argument == "--input") {
+        } else if (argument == "--input" || argument == "--inputfile") {
             if (++i >= argc) {
-                std::cerr << "kr16 vm: --input needs a path\n";
+                std::cerr << "kr16 vm: " << argument << " needs a path\n";
                 return 2;
             }
             options.input_path = argv[i];
+            if (argument == "--inputfile") {
+                // The file is a script; once it is consumed, the guest reads
+                // stdin like --console so an interactive session can continue.
+                options.console = true;
+            }
+        } else if (argument == "--console") {
+            options.console = true;
         } else if (argument == "--fs-root" || argument == "--fs-quota") {
             if (++i >= argc) {
                 std::cerr << "kr16 vm: " << argument << " needs a value\n";
