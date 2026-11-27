@@ -3829,3 +3829,7 @@ The test presets lose their `jobs: 4` because a preset cannot know the machine's
 
 The two golden containers (`exec_min.kr16`, `rel_min.o`) were deleted from tracking and nothing rebuilt them, so a clean tree failed `kr16.unit`. `kr16_golden_gen` now runs at build time into `<build>/golden` (it takes the output directory as an argument) and the tests read `KR16_GOLDEN_DIR` instead of the source tree. A clean configure and build generates them and the suite is 62 of 62.
 
+### 2026-11-27T04:44:35-08:00 — The repository points at the family build guide
+
+The repository points at the family build guide. `AGENTS.local.md` now opens with a Family build guide section naming `docs/kr-build-instructions.md` (or the sibling path in a WSL mirror), so a session that starts a build finds the preset names, gate flags, prefixes and the generated test images before configuring. Documentation only: no build.
+

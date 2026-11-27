@@ -4,6 +4,16 @@ Project-local notes for agents working in this repository. The general rules liv
 user-global `~/.dsh/AGENTS.md` and the DevTemplate baseline; this file holds only what is
 true of kr16.
 
+## Family build guide
+
+`../KRCompiler/docs/kr-build-instructions.md` is the family build and gate guide
+(`../krcompiler/docs/kr-build-instructions.md` in a WSL mirror): how the six trees
+are configured and built, the preset names that exist, the gate flags, the
+prefixes they install into, which test images the build generates rather than
+tracks, and the clean-build procedure. Read it before configuring a build or
+running the family gate; it is the entry point for a session that starts one, and
+this file carries only what is specific to this repository.
+
 ## Branches
 
 - `main` is the integration branch. `adopt-krc` was merged into `main` at merge commit
