@@ -3821,3 +3821,7 @@ Entry format:
 ### 2026-11-25T00:17:56-08:00 — `--console` makes stdin and stdout the guest console
 
 `VmOptions` gained `console`. `Machine` gained `set_keyboard_refill`; both the keyboard DATA and STATUS registers call it when the queue is empty, so a `getchar` blocks where a terminal would wait while a prompt has already been flushed. The runner reads a line from `std::cin`, pushes it with a newline, and in console mode writes console bytes straight to stdout instead of buffering them into `VmResult::output`. A KR16 guest echoing a line through `getchar`/`putchar` produced it unchanged and exited 0. Verified: `windows-ninja-debug` builds clean; the full Windows suite is 62/62 with one skip (`kr16.cforu.over-budget`, by design).
+
+### 2026-11-26T16:29:41-08:00 — Parallel jobs follow the processor count
+
+The test presets lose their `jobs: 4` because a preset cannot know the machine's count. The gate passes `[Environment]::ProcessorCount` to `ctest` instead, which matches the build's own default of every processor. Suite unchanged: 62 rows on `windows-ninja-debug`.

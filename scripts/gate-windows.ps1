@@ -71,7 +71,7 @@ if ($expected.ContainsKey($Preset)) {
 }
 
 if (-not $SkipTests) {
-    ctest --preset $Preset --output-on-failure
+    ctest --preset $Preset -j ([Environment]::ProcessorCount) --output-on-failure
     if ($LASTEXITCODE -ne 0) { throw "tests failed for $Preset" }
 }
 
