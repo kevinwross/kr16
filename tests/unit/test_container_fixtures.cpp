@@ -25,8 +25,7 @@ std::vector<std::uint8_t> read_file(const std::filesystem::path& path) {
 }  // namespace
 
 TEST_CASE("golden EXEC container decodes") {
-    const auto path = std::filesystem::path(KR16_SOURCE_DIR) / "tests" /
-                      "golden" / "exec_min.kr16";
+    const auto path = std::filesystem::path(KR16_GOLDEN_DIR) / "exec_min.kr16";
     const auto bytes = read_file(path);
     const auto container = kr16::Container::read(bytes);
     CHECK(container.kind == kr16::ContainerKind::Exec);
@@ -38,8 +37,7 @@ TEST_CASE("golden EXEC container decodes") {
 }
 
 TEST_CASE("golden REL container decodes") {
-    const auto path = std::filesystem::path(KR16_SOURCE_DIR) / "tests" /
-                      "golden" / "rel_min.o";
+    const auto path = std::filesystem::path(KR16_GOLDEN_DIR) / "rel_min.o";
     const auto bytes = read_file(path);
     const auto container = kr16::Container::read(bytes);
     CHECK(container.kind == kr16::ContainerKind::Rel);

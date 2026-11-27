@@ -11,7 +11,7 @@
 namespace {
 
 std::filesystem::path fixture(const char* name) {
-    return std::filesystem::path(KR16_SOURCE_DIR) / "tests" / "golden" /
+    return std::filesystem::path(KR16_GOLDEN_DIR) /
            name;
 }
 

@@ -59,7 +59,7 @@ TEST_CASE("DAP initialize session produces response and event") {
 TEST_CASE("DAP launch forwards program arguments") {
     kr16::dap::DapOptions options;
     options.program =
-        (std::filesystem::path(KR16_SOURCE_DIR) / "tests" / "golden" /
+        (std::filesystem::path(KR16_GOLDEN_DIR) /
          "exec_min.kr16")
             .string();
     kr16::dap::DapSession session(options);

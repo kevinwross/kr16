@@ -36,7 +36,21 @@ if(KR16_KDBG)
   target_compile_definitions(kr16_tests PRIVATE KR16_KDBG=1)
 endif()
 
+# The golden containers are build output: generate them rather than tracking
+# them, so a clean tree has every input it needs.
+set(KR16_GOLDEN_DIR "${CMAKE_BINARY_DIR}/golden")
 add_executable(kr16_golden_gen EXCLUDE_FROM_ALL golden/generate.cpp)
+add_custom_command(
+  OUTPUT "${KR16_GOLDEN_DIR}/exec_min.kr16" "${KR16_GOLDEN_DIR}/rel_min.o"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${KR16_GOLDEN_DIR}"
+  COMMAND kr16_golden_gen "${KR16_GOLDEN_DIR}"
+  DEPENDS kr16_golden_gen
+  COMMENT "Generating the kr16 golden containers"
+  VERBATIM)
+add_custom_target(kr16_goldens ALL
+  DEPENDS "${KR16_GOLDEN_DIR}/exec_min.kr16" "${KR16_GOLDEN_DIR}/rel_min.o")
+add_dependencies(kr16_tests kr16_goldens)
+target_compile_definitions(kr16_tests PRIVATE KR16_GOLDEN_DIR="${KR16_GOLDEN_DIR}")
 target_link_libraries(kr16_golden_gen PRIVATE kr16_core)
 target_link_libraries(kr16_tests PRIVATE kr16_core)
 if(MSVC)

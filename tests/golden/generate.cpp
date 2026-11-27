@@ -28,7 +28,8 @@ void write_file(const std::string& path,
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    const std::string directory = argc > 1 ? argv[1] : "tests/golden";
     kr16::Container exec;
     exec.kind = kr16::ContainerKind::Exec;
     exec.entry = 0x0100;
@@ -50,7 +51,7 @@ int main() {
     main_symbol.binding = kr16::SymbolBinding::Global;
     main_symbol.type = kr16::SymbolType::Function;
     exec.symbols.push_back(main_symbol);
-    write_file("tests/golden/exec_min.kr16", exec.write());
+    write_file(directory + "/exec_min.kr16", exec.write());
 
     kr16::Container rel;
     rel.kind = kr16::ContainerKind::Rel;
@@ -69,6 +70,6 @@ int main() {
     relocation.symbol = 0;
     relocation.addend = 4;
     rel.relocations.push_back(relocation);
-    write_file("tests/golden/rel_min.o", rel.write());
+    write_file(directory + "/rel_min.o", rel.write());
     return 0;
 }

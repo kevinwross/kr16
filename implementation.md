@@ -3825,3 +3825,7 @@ Entry format:
 ### 2026-11-26T16:29:41-08:00 — Parallel jobs follow the processor count
 
 The test presets lose their `jobs: 4` because a preset cannot know the machine's count. The gate passes `[Environment]::ProcessorCount` to `ctest` instead, which matches the build's own default of every processor. Suite unchanged: 62 rows on `windows-ninja-debug`.
+### 2026-11-26T22:34:28-08:00 — The golden containers are build output, not tracked files
+
+The two golden containers (`exec_min.kr16`, `rel_min.o`) were deleted from tracking and nothing rebuilt them, so a clean tree failed `kr16.unit`. `kr16_golden_gen` now runs at build time into `<build>/golden` (it takes the output directory as an argument) and the tests read `KR16_GOLDEN_DIR` instead of the source tree. A clean configure and build generates them and the suite is 62 of 62.
+
